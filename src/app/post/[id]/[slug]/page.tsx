@@ -1,3 +1,4 @@
+
 "use client"; // Needed for client-side data fetching/state for comments etc.
 
 import { MainLayout } from '@/components/layout/main-layout';
@@ -8,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label'; // Added missing import
 import { ThumbsUp, MessageCircle, Send, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -118,7 +120,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       // Handle post not found
       setPost(null);
     }
-  }, [params.id]);
+  }, [params.id, mockPost, mockComments]); // Updated dependency array
 
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,3 +242,5 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     </MainLayout>
   );
 }
+
+    

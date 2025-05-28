@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,18 +12,33 @@ import { useRouter } from 'next/navigation';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
-import { createPost, generateSlug } from '@/services/postService';
+import { createPost, updatePost, generateSlug } from '@/services/postService';
 import type { Post, AuthorInfo } from '@/types';
 
-export function PostForm() {
+interface PostFormProps {
+  postToEdit?: Post | null;
+}
+
+export function PostForm({ postToEdit }: PostFormProps) {
   const { user } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [flairs, setFlairs] = useState<string[]>([]);
   const [currentFlair, setCurrentFlair] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
-  const router = useRouter();
+
+  const isEditMode = !!postToEdit;
+
+  useEffect(() => {
+    if (isEditMode && postToEdit) {
+      setTitle(postToEdit.title);
+      setContent(postToEdit.content);
+      setFlairs(postToEdit.flairs || []);
+    }
+  }, [isEditMode, postToEdit]);
 
   const handleAddFlair = () => {
     if (currentFlair.trim() && !flairs.includes(currentFlair.trim()) && flairs.length < 5) {
@@ -41,32 +56,54 @@ export function PostForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast({ title: "Authentication Error", description: "You must be logged in to create a post.", variant: "destructive" });
+      toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
       return;
+    }
+    if (!title.trim() || !content.trim()) {
+        toast({ title: "Missing Fields", description: "Title and content are required.", variant: "destructive" });
+        return;
     }
     setIsSubmitting(true);
     
-    const authorInfo: AuthorInfo = {
-      uid: user.uid,
-      name: user.name,
-      avatarUrl: user.avatarUrl,
-    };
-
-    const postData: Omit<Post, 'id' | 'createdAt' | 'commentsCount' | 'likes'> = {
-      title: title.trim(),
-      content: content.trim(),
-      author: authorInfo,
-      flairs,
-      slug: generateSlug(title.trim()), // Generate slug from title
-    };
+    const trimmedTitle = title.trim();
 
     try {
-      const postId = await createPost(postData);
-      toast({ title: "Post Submitted", description: "Your post is now live!" });
-      router.push(`/post/${postId}/${postData.slug}`); 
+      if (isEditMode && postToEdit) {
+        // Update existing post
+        const postUpdateData: Partial<Pick<Post, 'title' | 'content' | 'flairs'>> = {
+          title: trimmedTitle,
+          content: content.trim(),
+          flairs,
+        };
+        await updatePost(postToEdit.id, postUpdateData);
+        const updatedSlug = await generateSlug(trimmedTitle);
+        toast({ title: "Post Updated", description: "Your post has been successfully updated!" });
+        router.push(`/post/${postToEdit.id}/${updatedSlug}`);
+      } else {
+        // Create new post
+        const authorInfo: AuthorInfo = {
+          uid: user.uid,
+          name: user.name,
+          avatarUrl: user.avatarUrl,
+        };
+        const newPostPayload = { // Payload for createPost, does not include slug
+          title: trimmedTitle,
+          content: content.trim(),
+          author: authorInfo,
+          flairs,
+        };
+        const postId = await createPost(newPostPayload); // createPost now generates slug internally
+        const newSlug = await generateSlug(trimmedTitle); // generate slug for client-side navigation
+        toast({ title: "Post Submitted", description: "Your post is now live!" });
+        router.push(`/post/${postId}/${newSlug}`);
+      }
     } catch (error) {
-      console.error("Failed to create post:", error);
-      toast({ title: "Submission Failed", description: "Could not create your post. Please try again.", variant: "destructive" });
+      console.error(`Failed to ${isEditMode ? 'update' : 'create'} post:`, error);
+      toast({ 
+        title: `${isEditMode ? 'Update' : 'Submission'} Failed`, 
+        description: `Could not ${isEditMode ? 'update' : 'create'} your post. Please try again.`, 
+        variant: "destructive" 
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -75,8 +112,10 @@ export function PostForm() {
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-xl">
       <CardHeader>
-        <CardTitle className="text-3xl font-bold">Create a New Post</CardTitle>
-        <CardDescription>Share your thoughts, news, or questions with the Guernsey community.</CardDescription>
+        <CardTitle className="text-3xl font-bold">{isEditMode ? "Edit Post" : "Create a New Post"}</CardTitle>
+        <CardDescription>
+          {isEditMode ? "Modify your existing post." : "Share your thoughts, news, or questions with the Guernsey community."}
+        </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
@@ -138,7 +177,7 @@ export function PostForm() {
         <CardFooter>
           <Button type="submit" className="w-full text-lg py-3" disabled={isSubmitting || !title.trim() || !content.trim()}>
             {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-            Submit Post
+            {isEditMode ? "Update Post" : "Submit Post"}
           </Button>
         </CardFooter>
       </form>

@@ -22,8 +22,10 @@ export interface Post {
   content: string;
   author: AuthorInfo; // Embedded author information
   createdAt: Timestamp | Date; // Firestore Timestamp or JS Date
+  updatedAt?: Timestamp | Date; // Firestore Timestamp or JS Date for edits
   flairs: string[];
   likes: number;
+  likedBy: string[]; // Array of UIDs who liked the post
   commentsCount: number;
   slug: string;
 }
@@ -34,7 +36,9 @@ export interface Comment {
   author: AuthorInfo; // Embedded author information
   content: string;
   createdAt: Timestamp | Date; // Firestore Timestamp or JS Date
+  updatedAt?: Timestamp | Date;
   likes: number;
+  // likedBy: string[]; // Future: for comment liking
 }
 
 export interface WeatherData {

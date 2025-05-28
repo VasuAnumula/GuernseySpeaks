@@ -12,27 +12,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, PlusSquare, LogIn, LogOut, UserCircle, Settings, Loader2 } from 'lucide-react';
+import { Home, PlusSquare, LogIn, LogOut, UserCircle, Settings, Loader2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/shared/logo';
 
 export function Header() {
   const { user, logout, loading: authLoading } = useAuth();
 
+  const canAccessAdmin = user && (user.role === 'superuser' || user.role === 'moderator');
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <Logo />
-        <nav className="flex items-center gap-4">
-          <Button variant="ghost" asChild>
+        <nav className="flex items-center gap-2 md:gap-4">
+          <Button variant="ghost" asChild size="sm" className="px-2 md:px-3">
             <Link href="/">
-              <Home className="mr-2 h-4 w-4" /> Home
+              <Home className="mr-0 h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Home</span>
             </Link>
           </Button>
           {user && (
-            <Button variant="ghost" asChild>
+            <Button variant="ghost" asChild size="sm" className="px-2 md:px-3">
               <Link href="/submit">
-                <PlusSquare className="mr-2 h-4 w-4" /> Submit Post
+                <PlusSquare className="mr-0 h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Submit</span>
               </Link>
             </Button>
           )}
@@ -54,13 +56,14 @@ export function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{user.name || user.email}</DropdownMenuLabel>
+                {user.role && <DropdownMenuLabel className="text-xs text-muted-foreground -mt-2 capitalize">Role: {user.role}</DropdownMenuLabel>}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/profile"><UserCircle className="mr-2 h-4 w-4" />Profile</Link>
                 </DropdownMenuItem>
-                {user.role === 'superuser' && (
+                {canAccessAdmin && (
                   <DropdownMenuItem asChild>
-                    <Link href="/admin"><Settings className="mr-2 h-4 w-4" />Admin</Link>
+                    <Link href="/admin"><ShieldCheck className="mr-2 h-4 w-4" />Admin Panel</Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
@@ -81,4 +84,3 @@ export function Header() {
     </header>
   );
 }
-

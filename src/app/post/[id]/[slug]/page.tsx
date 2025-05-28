@@ -7,7 +7,7 @@ import { AdPlaceholder } from '@/components/ad-placeholder';
 import type { Post, Comment as CommentType, AuthorInfo } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ThumbsUp, MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2 } from 'lucide-react';
@@ -19,11 +19,23 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import Link from 'next/link';
-import { getPostById, getCommentsForPost, createComment } from '@/services/postService';
-import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
+import { getPostById, getCommentsForPost, createComment, togglePostLike, deletePost } from '@/services/postService';
+import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -34,6 +46,8 @@ interface PostPageParams {
 
 interface CommentCardProps {
   comment: CommentType;
+  // onCommentDeleted: (commentId: string) => void; // For future
+  // onCommentEdited: (comment: CommentType) => void; // For future
 }
 
 function CommentCard({ comment }: CommentCardProps) {
@@ -51,6 +65,7 @@ function CommentCard({ comment }: CommentCardProps) {
   const authorAvatar = comment.author?.avatarUrl;
   const authorAvatarFallback = authorName.substring(0,1).toUpperCase();
 
+  const canModifyComment = user && (user.uid === comment.author?.uid || user.role === 'moderator' || user.role === 'superuser');
 
   return (
     <Card className="mb-4 bg-secondary/50 shadow-sm">
@@ -66,7 +81,7 @@ function CommentCard({ comment }: CommentCardProps) {
               <p className="text-xs text-muted-foreground">{formattedDate}</p>
             </div>
           </div>
-           {user && (user.uid === comment.author?.uid || user.role === 'moderator' || user.role === 'superuser') && (
+           {canModifyComment && (
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -74,10 +89,10 @@ function CommentCard({ comment }: CommentCardProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem disabled> {/* TODO: Implement edit */}
+                <DropdownMenuItem disabled> {/* TODO: Implement edit comment */}
                   <Edit className="mr-2 h-4 w-4" /> Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"> {/* TODO: Implement delete */}
+                <DropdownMenuItem disabled className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"> {/* TODO: Implement delete comment */}
                   <Trash2 className="mr-2 h-4 w-4" /> Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -89,7 +104,7 @@ function CommentCard({ comment }: CommentCardProps) {
         <p className="text-foreground/90 whitespace-pre-wrap text-sm">{comment.content}</p>
       </CardContent>
       <CardFooter className="pt-2 pb-3 px-4 sm:px-6 border-t">
-        <Button variant="ghost" size="sm" className="text-muted-foreground group" disabled> {/* TODO: Implement likes */}
+        <Button variant="ghost" size="sm" className="text-muted-foreground group" disabled> {/* TODO: Implement comment likes */}
           <ThumbsUp className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {comment.likes}
         </Button>
       </CardFooter>
@@ -101,7 +116,13 @@ function CommentCard({ comment }: CommentCardProps) {
 export default function PostPage({ params }: { params: PostPageParams }) {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
+
   const [post, setPost] = useState<Post | null>(null);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
+
   const [comments, setComments] = useState<CommentType[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isLoadingPost, setIsLoadingPost] = useState(true);
@@ -111,6 +132,12 @@ export default function PostPage({ params }: { params: PostPageParams }) {
 
   useEffect(() => {
     const fetchPostAndComments = async () => {
+      if (!params.id) {
+        setError("Post ID is missing.");
+        setIsLoadingPost(false);
+        setIsLoadingComments(false);
+        return;
+      }
       setIsLoadingPost(true);
       setIsLoadingComments(true);
       setError(null);
@@ -118,6 +145,9 @@ export default function PostPage({ params }: { params: PostPageParams }) {
         const fetchedPost = await getPostById(params.id);
         if (fetchedPost) {
           setPost(fetchedPost);
+          if(user && fetchedPost.likedBy) {
+            setIsLiked(fetchedPost.likedBy.includes(user.uid));
+          }
           const fetchedComments = await getCommentsForPost(params.id);
           setComments(fetchedComments);
         } else {
@@ -131,11 +161,53 @@ export default function PostPage({ params }: { params: PostPageParams }) {
         setIsLoadingComments(false);
       }
     };
+    fetchPostAndComments();
+  }, [params.id, user]); // Add user to dependency array for re-checking like status
 
-    if (params.id) {
-      fetchPostAndComments();
+  const handleLikeToggle = async () => {
+    if (!user || !post) {
+      toast({ title: "Login Required", description: "You need to be logged in to like posts.", variant: "destructive" });
+      return;
     }
-  }, [params.id]); 
+    if (isLiking) return;
+    setIsLiking(true);
+
+    const originalLikedState = isLiked;
+    const originalLikesCount = post.likes;
+    const originalLikedBy = [...post.likedBy];
+
+    setIsLiked(!originalLikedState);
+    setPost(p => p ? ({ ...p, likes: originalLikedState ? p.likes - 1 : p.likes + 1, likedBy: originalLikedState ? p.likedBy.filter(uid => uid !== user.uid) : [...p.likedBy, user.uid] }) : null);
+    
+    try {
+      const updatedPostData = await togglePostLike(post.id, user.uid);
+      setPost(p => p ? ({ ...p, ...updatedPostData }) : null);
+      setIsLiked(updatedPostData.likedBy.includes(user.uid));
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+      toast({ title: "Error", description: "Could not update like. Please try again.", variant: "destructive" });
+      setIsLiked(originalLikedState);
+      setPost(p => p ? ({ ...p, likes: originalLikesCount, likedBy: originalLikedBy }) : null);
+    } finally {
+      setIsLiking(false);
+    }
+  };
+  
+  const handleDeletePost = async () => {
+    if (!post || !canModifyPost) return;
+    setIsDeletingPost(true);
+    try {
+      await deletePost(post.id);
+      toast({ title: "Post Deleted", description: "The post has been successfully deleted." });
+      router.push('/'); // Redirect to homepage after deleting
+    } catch (error) {
+      console.error("Failed to delete post:", error);
+      toast({ title: "Error", description: "Could not delete post. Please try again.", variant: "destructive" });
+    } finally {
+      setIsDeletingPost(false);
+    }
+  };
+
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,22 +220,19 @@ export default function PostPage({ params }: { params: PostPageParams }) {
         name: user.name,
         avatarUrl: user.avatarUrl,
       };
-      const commentToCreate: Omit<CommentType, 'id' | 'createdAt' | 'likes'> = {
+      const commentToCreate: Omit<CommentType, 'id' | 'createdAt' | 'updatedAt' | 'likes'> = {
         postId: post.id,
         author: authorInfo,
         content: newComment.trim(),
       };
       
       const newCommentId = await createComment(post.id, commentToCreate);
-      // Optimistically add comment or refetch
-      const createdComment: CommentType = {
-        ...commentToCreate,
-        id: newCommentId,
-        createdAt: new Date(), // This will be replaced by server timestamp on refetch
-        likes: 0,
-      };
-      setComments([createdComment, ...comments]); 
-      setPost(prevPost => prevPost ? ({ ...prevPost, commentsCount: prevPost.commentsCount + 1 }) : null);
+      const createdCommentData = await getDoc(doc(db, 'posts', post.id, 'comments', newCommentId)); // Fetch the created comment to get server timestamp
+      if (createdCommentData.exists()){
+         const createdComment = processDoc(createdCommentData) as CommentType;
+         setComments(prevComments => [createdComment, ...prevComments]);
+         setPost(prevPost => prevPost ? ({ ...prevPost, commentsCount: prevPost.commentsCount + 1 }) : null);
+      }
       setNewComment('');
       toast({ title: "Comment posted!" });
     } catch (err) {
@@ -177,7 +246,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   if (isLoadingPost) {
     return (
        <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
-        <div className="flex justify-center items-center py-10">
+        <div className="flex justify-center items-center py-10 h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="ml-2 text-muted-foreground">Loading post...</p>
         </div>
@@ -208,17 +277,28 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     );
   }
 
-  let formattedDate = "Unknown date";
+  let formattedPostDate = "Unknown date";
   if (post.createdAt) {
      try {
       const date = post.createdAt instanceof Date ? post.createdAt : (post.createdAt as any).toDate();
-      formattedDate = format(date, "MMMM d, yyyy 'at' HH:mm");
+      formattedPostDate = format(date, "MMMM d, yyyy 'at' HH:mm");
     } catch (e) { console.error("Error formatting post date:", e); }
   }
   
+  let lastUpdatedDate = "";
+  if (post.updatedAt && post.createdAt) {
+    const createdAtDate = post.createdAt instanceof Date ? post.createdAt : (post.createdAt as any).toDate();
+    const updatedAtDate = post.updatedAt instanceof Date ? post.updatedAt : (post.updatedAt as any).toDate();
+    // Check if updated significantly after creation (e.g., > 1 minute)
+    if (updatedAtDate.getTime() - createdAtDate.getTime() > 60000) {
+        lastUpdatedDate = ` (edited ${formatDistanceToNow(updatedAtDate, { addSuffix: true })})`;
+    }
+  }
+
   const authorName = post.author?.name || 'Anonymous';
   const authorAvatar = post.author?.avatarUrl;
   const authorAvatarFallback = authorName.substring(0,1).toUpperCase();
+  const canModifyPost = user && (user.uid === post.author?.uid || user.role === 'superuser' || user.role === 'moderator');
 
 
   return (
@@ -226,10 +306,56 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       weatherWidget={<WeatherWidget />}
       adsWidget={<AdPlaceholder />}
     >
-      <article className="w-full max-w-4xl mx-auto">
+      <article className="w-full max-w-3xl mx-auto">
         <Card className="mb-6 md:mb-8 shadow-lg">
           <CardHeader className="p-4 sm:p-5 md:p-6">
-            <CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary">{post.title}</CardTitle>
+            <div className="flex items-start justify-between">
+              <CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary break-words">
+                {post.title}
+              </CardTitle>
+              {canModifyPost && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="ml-2 flex-shrink-0" disabled={isDeletingPost}>
+                       {isDeletingPost ? <Loader2 className="h-5 w-5 animate-spin" /> : <MoreHorizontal className="h-5 w-5" />}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/post/${post.id}/${post.slug}/edit`}>
+                        <Edit className="mr-2 h-4 w-4" /> Edit
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem 
+                          onSelect={(e) => e.preventDefault()} 
+                          className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete this post and all its comments.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDeletePost} className="bg-destructive hover:bg-destructive/90">
+                             {isDeletingPost ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-x-2 gap-y-1 text-sm text-muted-foreground mt-2">
               {post.author?.uid ? (
                 <Link href={`/profile/${post.author.uid}`} className="flex items-center gap-2 hover:underline">
@@ -246,7 +372,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                   </div>
               )}
               <span className="hidden sm:inline">•</span>
-              <span>{formattedDate}</span>
+              <span>{formattedPostDate}{lastUpdatedDate && <i className="text-xs">{lastUpdatedDate}</i>}</span>
             </div>
             {post.flairs && post.flairs.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -262,12 +388,19 @@ export default function PostPage({ params }: { params: PostPageParams }) {
             {post.content}
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 md:p-6 border-t">
-            <div className="flex gap-2 sm:gap-4 text-muted-foreground">
-              <Button variant="outline" size="sm" className="group" disabled> {/* TODO: Implement likes */}
-                <ThumbsUp className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.likes} Likes
+            <div className="flex gap-1 sm:gap-2 text-muted-foreground">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={`group ${isLiked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50'}`} 
+                onClick={handleLikeToggle} 
+                disabled={isLiking || !user}
+              >
+                {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />} 
+                 {post.likes} Like{post.likes !== 1 && 's'}
               </Button>
-              <Button variant="outline" size="sm" className="group">
-                <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.commentsCount} Comments
+              <Button variant="outline" size="sm" className="group hover:text-primary hover:border-primary/50">
+                <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.commentsCount} Comment{post.commentsCount !== 1 && 's'}
               </Button>
             </div>
             {/* Future: Share, Save buttons */}
@@ -276,7 +409,6 @@ export default function PostPage({ params }: { params: PostPageParams }) {
 
         <Separator className="my-6 md:my-8" />
 
-        {/* Comments Section */}
         <section id="comments" className="mb-8">
           <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-6">Comments ({post.commentsCount})</h2>
           {(authLoading) ? (
@@ -328,4 +460,3 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     </MainLayout>
   );
 }
-

@@ -31,17 +31,10 @@ const nextConfig: NextConfig = {
       }
     ],
   },
-  // Environment variables accessible on the client-side
-  // IMPORTANT: Ensure these are prefixed with NEXT_PUBLIC_ in your .env.local file
-  env: {
-    NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    NEXT_PUBLIC_WEATHER_API_KEY: process.env.NEXT_PUBLIC_WEATHER_API_KEY,
-  }
+  // Environment variables prefixed with NEXT_PUBLIC_ are automatically available
+  // on the client-side if they are defined in your .env.local file.
+  // Defining them again in the 'env' object here is redundant and has been removed.
+  // Ensure your .env.local file is correctly set up.
 };
 
 export default nextConfig;

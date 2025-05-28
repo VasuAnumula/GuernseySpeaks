@@ -9,7 +9,7 @@ import type { Post } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PenSquare, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getPosts } from '@/services/postService';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -19,22 +19,27 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const { user, loading: authLoading } = useAuth();
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        setLoadingPosts(true);
-        const fetchedPosts = await getPosts();
-        setPosts(fetchedPosts);
-        setError(null);
-      } catch (err) {
-        console.error("Failed to fetch posts:", err);
-        setError("Could not load posts. Please try again later.");
-      } finally {
-        setLoadingPosts(false);
-      }
-    };
-    fetchPosts();
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoadingPosts(true);
+      const fetchedPosts = await getPosts();
+      setPosts(fetchedPosts);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch posts:", err);
+      setError("Could not load posts. Please try again later.");
+    } finally {
+      setLoadingPosts(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  const handlePostDeleted = (deletedPostId: string) => {
+    setPosts(prevPosts => prevPosts.filter(post => post.id !== deletedPostId));
+  };
 
   return (
     <MainLayout
@@ -65,7 +70,13 @@ export default function HomePage() {
       {!loadingPosts && !error && (
         <div className="space-y-6">
           {posts.length > 0 ? (
-            posts.map((post) => <PostCard key={post.id} post={post} />)
+            posts.map((post) => (
+              <PostCard 
+                key={post.id} 
+                post={post} 
+                onPostDeleted={handlePostDeleted} 
+              />
+            ))
           ) : (
             <p className="text-center text-muted-foreground py-10">No posts yet. Be the first to share something!</p>
           )}

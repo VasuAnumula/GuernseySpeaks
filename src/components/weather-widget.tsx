@@ -121,7 +121,7 @@ export function WeatherWidget() {
               <p className="text-5xl font-bold ml-2">{weather.current.temp_c}°C</p>
             </div>
             <p className="text-center text-lg capitalize">{weather.current.condition.text}</p>
-            <p className_name="text-center text-sm text-muted-foreground">Feels like {weather.current.feelslike_c}°C</p>
+            <p className="text-center text-sm text-muted-foreground">Feels like {weather.current.feelslike_c}°C</p>
 
 
             <div className="grid grid-cols-2 gap-3 pt-3 text-sm">

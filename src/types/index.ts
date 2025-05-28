@@ -1,17 +1,27 @@
+
+import type { Timestamp } from 'firebase/firestore';
+
 export interface User {
-  id: string;
+  uid: string; // Firebase UID
   name?: string | null;
   email?: string | null;
   avatarUrl?: string | null;
   role?: 'user' | 'moderator' | 'superuser';
+  createdAt?: Timestamp | Date; 
+}
+
+export interface AuthorInfo {
+  uid: string;
+  name?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface Post {
-  id: string;
+  id: string; // Firestore document ID
   title: string;
   content: string;
-  author: User;
-  createdAt: string; // ISO date string
+  author: AuthorInfo; // Embedded author information
+  createdAt: Timestamp | Date; // Firestore Timestamp or JS Date
   flairs: string[];
   likes: number;
   commentsCount: number;
@@ -19,11 +29,11 @@ export interface Post {
 }
 
 export interface Comment {
-  id:string;
+  id: string; // Firestore document ID
   postId: string;
-  author: User;
+  author: AuthorInfo; // Embedded author information
   content: string;
-  createdAt: string; // ISO date string
+  createdAt: Timestamp | Date; // Firestore Timestamp or JS Date
   likes: number;
 }
 

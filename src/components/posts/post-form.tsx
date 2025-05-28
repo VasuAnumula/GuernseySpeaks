@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -10,8 +11,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/use-auth';
+import { createPost, generateSlug } from '@/services/postService';
+import type { Post, AuthorInfo } from '@/types';
 
 export function PostForm() {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [flairs, setFlairs] = useState<string[]>([]);
@@ -35,14 +40,36 @@ export function PostForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      toast({ title: "Authentication Error", description: "You must be logged in to create a post.", variant: "destructive" });
+      return;
+    }
     setIsSubmitting(true);
-    // Simulate API call
-    console.log({ title, content, flairs });
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast({ title: "Post Submitted", description: "Your post is now live!" });
-    // In a real app, redirect to the new post page or home
-    router.push('/'); 
-    setIsSubmitting(false);
+    
+    const authorInfo: AuthorInfo = {
+      uid: user.uid,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+    };
+
+    const postData: Omit<Post, 'id' | 'createdAt' | 'commentsCount' | 'likes'> = {
+      title: title.trim(),
+      content: content.trim(),
+      author: authorInfo,
+      flairs,
+      slug: generateSlug(title.trim()), // Generate slug from title
+    };
+
+    try {
+      const postId = await createPost(postData);
+      toast({ title: "Post Submitted", description: "Your post is now live!" });
+      router.push(`/post/${postId}/${postData.slug}`); 
+    } catch (error) {
+      console.error("Failed to create post:", error);
+      toast({ title: "Submission Failed", description: "Could not create your post. Please try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -62,19 +89,21 @@ export function PostForm() {
               value={title} 
               onChange={(e) => setTitle(e.target.value)}
               className="text-base"
+              maxLength={150}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="content" className="text-lg">Content</Label>
             <Textarea 
               id="content" 
-              placeholder="What's on your mind? (Supports Markdown)" 
+              placeholder="What's on your mind?" 
               required 
               value={content} 
               onChange={(e) => setContent(e.target.value)} 
               rows={10}
               className="text-base"
             />
+             <p className="text-xs text-muted-foreground">Markdown is not currently supported, but will be in a future update!</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="flairs" className="text-lg">Flairs/Tags (up to 5)</Label>
@@ -86,6 +115,7 @@ export function PostForm() {
                 onChange={(e) => setCurrentFlair(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddFlair();}}}
                 className="flex-grow text-base"
+                maxLength={20}
               />
               <Button type="button" onClick={handleAddFlair} variant="outline" size="icon" aria-label="Add flair">
                 <Plus className="h-4 w-4" />
@@ -106,7 +136,7 @@ export function PostForm() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full text-lg py-3" disabled={isSubmitting}>
+          <Button type="submit" className="w-full text-lg py-3" disabled={isSubmitting || !title.trim() || !content.trim()}>
             {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
             Submit Post
           </Button>

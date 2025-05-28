@@ -1,3 +1,4 @@
+
 "use client";
 
 import { MainLayout } from '@/components/layout/main-layout';
@@ -8,27 +9,34 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Users, ShieldAlert, ListChecks } from 'lucide-react';
+import { Users, ShieldAlert, ListChecks, Loader2 } from 'lucide-react';
 
 export default function AdminPage() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'superuser')) {
+    if (!authLoading && (!user || user.role !== 'superuser')) {
       // Redirect non-superusers or unauthenticated users
       router.push('/'); 
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
-  if (loading || !user || user.role !== 'superuser') {
+  if (authLoading || !user || user.role !== 'superuser') {
     return (
       <MainLayout
         weatherWidget={<WeatherWidget />}
         adsWidget={<AdPlaceholder />}
       >
         <div className="flex justify-center items-center h-64">
-          <p>{loading ? 'Loading...' : 'Access Denied. Superuser role required.'}</p>
+          {authLoading ? (
+            <>
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="ml-2 text-muted-foreground">Loading...</p>
+            </>
+          ) : (
+            <p className="text-destructive">Access Denied. Superuser role required.</p>
+          )}
         </div>
       </MainLayout>
     );
@@ -52,9 +60,10 @@ export default function AdminPage() {
                 <Users className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">125</div>
+                {/* TODO: Fetch actual user count */}
+                <div className="text-2xl font-bold">N/A</div>
                 <p className="text-xs text-muted-foreground">Total registered users</p>
-                <Button variant="outline" size="sm" className="mt-2 w-full">View Users</Button>
+                <Button variant="outline" size="sm" className="mt-2 w-full" disabled>View Users</Button>
               </CardContent>
             </Card>
              <Card className="hover:shadow-md transition-shadow">
@@ -63,9 +72,10 @@ export default function AdminPage() {
                 <ShieldAlert className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">5</div>
+                 {/* TODO: Fetch actual reported content count */}
+                <div className="text-2xl font-bold">N/A</div>
                 <p className="text-xs text-muted-foreground">Pending reports</p>
-                 <Button variant="outline" size="sm" className="mt-2 w-full">Review Reports</Button>
+                 <Button variant="outline" size="sm" className="mt-2 w-full" disabled>Review Reports</Button>
               </CardContent>
             </Card>
             <Card className="hover:shadow-md transition-shadow">
@@ -74,9 +84,10 @@ export default function AdminPage() {
                 <ListChecks className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">3</div>
+                {/* TODO: Fetch actual moderator count */}
+                <div className="text-2xl font-bold">N/A</div>
                 <p className="text-xs text-muted-foreground">Active moderators</p>
-                <Button variant="outline" size="sm" className="mt-2 w-full">Assign Roles</Button>
+                <Button variant="outline" size="sm" className="mt-2 w-full" disabled>Assign Roles</Button>
               </CardContent>
             </Card>
           </div>
@@ -96,3 +107,4 @@ export default function AdminPage() {
     </MainLayout>
   );
 }
+

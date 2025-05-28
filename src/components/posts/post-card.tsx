@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Post } from '@/types';
@@ -14,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from '@/hooks/use-auth';
+import { formatDistanceToNow } from 'date-fns';
+
 
 interface PostCardProps {
   post: Post;
@@ -21,13 +24,30 @@ interface PostCardProps {
 
 export function PostCard({ post }: PostCardProps) {
   const { user } = useAuth();
-  const formattedDate = new Date(post.createdAt).toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'short', year: 'numeric'
-  });
+  
+  let formattedDate = "Unknown date";
+  if (post.createdAt) {
+    try {
+      const date = post.createdAt instanceof Date ? post.createdAt : (post.createdAt as any).toDate();
+      formattedDate = formatDistanceToNow(date, { addSuffix: true });
+    } catch (e) {
+      console.error("Error formatting date:", e, post.createdAt);
+      if (typeof post.createdAt === 'string') {
+         try {
+           formattedDate = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
+         } catch (e2) { /* ignore */ }
+      }
+    }
+  }
+
 
   // Basic slug function, replace with a robust one if needed
   const createSlug = (title: string) => title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   const postSlug = post.slug || createSlug(post.title);
+
+  const authorName = post.author?.name || 'Anonymous';
+  const authorAvatar = post.author?.avatarUrl;
+  const authorAvatarFallback = authorName.substring(0,1).toUpperCase();
 
   return (
     <Card className="mb-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -38,7 +58,7 @@ export function PostCard({ post }: PostCardProps) {
               {post.title}
             </CardTitle>
           </Link>
-          {user && (user.id === post.author.id || user.role === 'moderator' || user.role === 'superuser') && (
+          {user && (user.uid === post.author?.uid || user.role === 'moderator' || user.role === 'superuser') && (
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -57,13 +77,22 @@ export function PostCard({ post }: PostCardProps) {
           )}
         </div>
         <CardDescription className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-          <Link href={`/profile/${post.author.id}`} className="flex items-center gap-2 hover:underline">
-            <Avatar className="h-6 w-6">
-              <AvatarImage src={post.author.avatarUrl || undefined} alt={post.author.name || 'Author'} data-ai-hint="author avatar" />
-              <AvatarFallback>{post.author.name ? post.author.name.substring(0,1).toUpperCase() : 'A'}</AvatarFallback>
-            </Avatar>
-            <span>{post.author.name || 'Anonymous'}</span>
-          </Link>
+          {post.author?.uid ? (
+             <Link href={`/profile/${post.author.uid}`} className="flex items-center gap-2 hover:underline">
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={authorAvatar || undefined} alt={authorName} data-ai-hint="author avatar" />
+                <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
+              </Avatar>
+              <span>{authorName}</span>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-6 w-6">
+                 <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
+              </Avatar>
+              <span>{authorName}</span>
+            </div>
+          )}
           <span>•</span>
           <span>{formattedDate}</span>
         </CardDescription>

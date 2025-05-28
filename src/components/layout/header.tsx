@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -11,12 +12,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, PlusSquare, LogIn, LogOut, UserCircle, Settings } from 'lucide-react';
+import { Home, PlusSquare, LogIn, LogOut, UserCircle, Settings, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/shared/logo';
 
 export function Header() {
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -37,8 +38,10 @@ export function Header() {
           )}
         </nav>
         <div>
-          {loading ? (
-            <div className="h-10 w-20 animate-pulse rounded-md bg-muted"></div>
+          {authLoading ? (
+            <div className="flex items-center justify-center h-10 w-10">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
           ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -78,3 +81,4 @@ export function Header() {
     </header>
   );
 }
+

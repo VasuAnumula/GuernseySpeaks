@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label'; // Added missing import
+import { Label } from '@/components/ui/label';
 import { ThumbsUp, MessageCircle, Send, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -60,7 +60,7 @@ function CommentCard({ comment }: CommentCardProps) {
 
   return (
     <Card className="mb-4 bg-secondary/50 shadow-sm">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 px-4 pt-4 sm:px-6 sm:pt-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
@@ -91,10 +91,10 @@ function CommentCard({ comment }: CommentCardProps) {
           )}
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        <p className="text-foreground/90 whitespace-pre-wrap">{comment.content}</p>
+      <CardContent className="pt-0 pb-3 px-4 sm:px-6">
+        <p className="text-foreground/90 whitespace-pre-wrap text-sm">{comment.content}</p>
       </CardContent>
-      <CardFooter className="pt-2 border-t">
+      <CardFooter className="pt-2 pb-3 px-4 sm:px-6 border-t">
         <Button variant="ghost" size="sm" className="text-muted-foreground group">
           <ThumbsUp className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {comment.likes}
         </Button>
@@ -110,17 +110,14 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   const [comments, setComments] = useState<CommentType[]>([]);
   const [newComment, setNewComment] = useState('');
 
-  // Simulate fetching post and comments
   useEffect(() => {
-    // In a real app, fetch based on params.id
     if (params.id === mockPost.id) {
       setPost(mockPost);
       setComments(mockComments);
     } else {
-      // Handle post not found
       setPost(null);
     }
-  }, [params.id, mockPost, mockComments]); // Updated dependency array
+  }, [params.id]); 
 
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,17 +130,16 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       createdAt: new Date().toISOString(),
       likes: 0,
     };
-    setComments([submittedComment, ...comments]); // Add to top for newest first
+    setComments([submittedComment, ...comments]); 
     setNewComment('');
-    // In real app, update post.commentsCount
   };
   
   if (!post) {
     return (
        <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
         <div className="text-center py-10">
-          <h1 className="text-2xl font-semibold">Post not found</h1>
-          <p className="text-muted-foreground">The post you are looking for does not exist or has been removed.</p>
+          <h1 className="text-xl md:text-2xl font-semibold">Post not found</h1>
+          <p className="text-muted-foreground mt-2">The post you are looking for does not exist or has been removed.</p>
           <Button asChild className="mt-4"><Link href="/">Go to Homepage</Link></Button>
         </div>
       </MainLayout>
@@ -159,11 +155,11 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       weatherWidget={<WeatherWidget />}
       adsWidget={<AdPlaceholder />}
     >
-      <article>
-        <Card className="mb-8 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-3xl md:text-4xl font-bold text-primary">{post.title}</CardTitle>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+      <article className="w-full max-w-4xl mx-auto">
+        <Card className="mb-6 md:mb-8 shadow-lg">
+          <CardHeader className="p-4 md:p-6">
+            <CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary">{post.title}</CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-muted-foreground mt-2">
               <Link href={`/profile/${post.author.id}`} className="flex items-center gap-2 hover:underline">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={post.author.avatarUrl || undefined} alt={post.author.name || 'Author'} data-ai-hint="author avatar" />
@@ -171,7 +167,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                 </Avatar>
                 <span>{post.author.name || 'Anonymous'}</span>
               </Link>
-              <span>•</span>
+              <span className="hidden sm:inline">•</span>
               <span>{formattedDate}</span>
             </div>
             {post.flairs && post.flairs.length > 0 && (
@@ -184,11 +180,11 @@ export default function PostPage({ params }: { params: PostPageParams }) {
               </div>
             )}
           </CardHeader>
-          <CardContent className="prose prose-lg max-w-none dark:prose-invert whitespace-pre-wrap">
+          <CardContent className="px-4 md:px-6 pt-0 pb-4 md:pb-6 prose prose-sm sm:prose-base md:prose-lg max-w-none dark:prose-invert whitespace-pre-wrap">
             {post.content}
           </CardContent>
-          <CardFooter className="flex justify-between items-center pt-6 border-t">
-            <div className="flex gap-4 text-muted-foreground">
+          <CardFooter className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 md:p-6 border-t">
+            <div className="flex gap-2 sm:gap-4 text-muted-foreground">
               <Button variant="outline" size="sm" className="group">
                 <ThumbsUp className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.likes} Likes
               </Button>
@@ -200,13 +196,13 @@ export default function PostPage({ params }: { params: PostPageParams }) {
           </CardFooter>
         </Card>
 
-        <Separator className="my-8" />
+        <Separator className="my-6 md:my-8" />
 
         {/* Comments Section */}
         <section id="comments" className="mb-8">
-          <h2 className="text-2xl font-semibold mb-6">Comments ({comments.length})</h2>
+          <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-6">Comments ({comments.length})</h2>
           {user ? (
-            <form onSubmit={handleCommentSubmit} className="mb-8">
+            <form onSubmit={handleCommentSubmit} className="mb-6 md:mb-8">
               <Card className="shadow">
                 <CardContent className="p-4">
                   <Label htmlFor="new-comment" className="sr-only">Add a comment</Label>
@@ -216,9 +212,9 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Share your thoughts..."
                     rows={3}
-                    className="mb-3"
+                    className="mb-3 text-sm sm:text-base"
                   />
-                  <Button type="submit" disabled={!newComment.trim()}>
+                  <Button type="submit" disabled={!newComment.trim()} className="w-full sm:w-auto">
                     <Send className="mr-2 h-4 w-4" /> Post Comment
                   </Button>
                 </CardContent>
@@ -230,7 +226,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
             </p>
           )}
           
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             {comments.length > 0 ? (
               comments.map(comment => <CommentCard key={comment.id} comment={comment} />)
             ) : (
@@ -242,5 +238,3 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     </MainLayout>
   );
 }
-
-    

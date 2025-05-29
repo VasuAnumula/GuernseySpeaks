@@ -28,19 +28,20 @@ for (const [key, value] of Object.entries(firebaseEnvVars)) {
 }
 
 if (criticalEnvVarMissing) {
-  console.error("--------------------------------------------------------------------------------------");
-  console.error("❌ FATAL ERROR: Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is MISSING or UNDEFINED in the server environment.");
-  console.error("👉 Please ensure all NEXT_PUBLIC_FIREBASE_... variables are correctly set in your .env.local file.");
-  console.error("   Your .env.local file should be in the ROOT of your project and look similar to this:");
-  console.error("   NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXX");
-  console.error("   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com");
-  console.error("   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id");
-  console.error("   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com");
-  console.error("   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=1234567890");
-  console.error("   NEXT_PUBLIC_FIREBASE_APP_ID=1:1234567890:web:abcdef123456");
-  console.error("👉 You MUST RESTART your development server (e.g., stop and re-run `npm run dev`) after making changes to .env.local.");
-  console.error("--------------------------------------------------------------------------------------");
-  throw new Error("Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is not configured. Server cannot initialize Firebase.");
+  const errorMsg = `
+--------------------------------------------------------------------------------------
+❌ FATAL ERROR: Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is MISSING or UNDEFINED in the server environment.
+Server cannot initialize Firebase.
+
+👉 Troubleshooting Steps:
+1.  Ensure you have a file named exactly '.env.local' in the ROOT of your project.
+2.  Inside '.env.local', ensure the line looks like: NEXT_PUBLIC_FIREBASE_API_KEY=YourActualApiKeyHere
+3.  Replace 'YourActualApiKeyHere' with your real Firebase API Key.
+4.  Check for any typos in the variable name or the API key itself.
+5.  MOST IMPORTANTLY: You MUST RESTART your development server (e.g., stop and re-run 'npm run dev') after creating or changing the .env.local file.
+--------------------------------------------------------------------------------------`;
+  console.error(errorMsg);
+  throw new Error("Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is not configured. CHECK YOUR .env.local FILE AND RESTART THE SERVER. See terminal logs for details.");
 } else {
   console.log("✅ [Firebase Config] NEXT_PUBLIC_FIREBASE_API_KEY seems to be present. Proceeding with initialization.");
 }

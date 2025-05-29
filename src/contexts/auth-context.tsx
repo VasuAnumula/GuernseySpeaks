@@ -10,6 +10,7 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
   GoogleAuthProvider,
+  FacebookAuthProvider, // Added FacebookAuthProvider
   signInWithPopup,
   User as FirebaseUser 
 } from 'firebase/auth';
@@ -22,6 +23,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithFacebook: () => Promise<void>; // Added signInWithFacebook
   logout: () => Promise<void>;
 }
 
@@ -41,7 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const userData = userDocSnap.data() as User;
           setUser({ ...userData, uid: firebaseUser.uid });
         } else {
-          // New user (e.g. first Google sign-in), create profile
+          // New user (e.g. first social sign-in), create profile
           const newUserProfile: User = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
@@ -71,7 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Login error:", error);
       throw error;
     } finally {
-      setLoading(false);
+      setLoading(false); // Ensure loading is set to false
     }
   };
 
@@ -94,7 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Registration error:", error);
       throw error;
     } finally {
-      setLoading(false);
+      setLoading(false); // Ensure loading is set to false
     }
   };
 
@@ -108,7 +110,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Google sign-in error:", error);
       throw error;
     } finally {
-      setLoading(false);
+      setLoading(false); // Ensure loading is set to false
+    }
+  };
+
+  const signInWithFacebook = async () => {
+    setLoading(true);
+    const provider = new FacebookAuthProvider();
+    // You might need to add scopes here if you need more info from Facebook
+    // provider.addScope('email'); 
+    // provider.addScope('public_profile');
+    try {
+      await signInWithPopup(auth, provider);
+      // onAuthStateChanged will handle setting user state and profile creation/fetching
+    } catch (error) {
+      console.error("Facebook sign-in error:", error);
+      // Specific error handling for Facebook can be added here
+      // e.g., if (error.code === 'auth/account-exists-with-different-credential')
+      throw error;
+    } finally {
+      setLoading(false); // Ensure loading is set to false
     }
   };
 
@@ -126,7 +147,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, signInWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, signInWithGoogle, signInWithFacebook, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Chrome } from 'lucide-react'; // Using Chrome icon for Google
+import { Loader2, Chrome, Facebook } from 'lucide-react'; // Added Facebook icon
 
 export function AuthForm() {
   const [loginEmail, setLoginEmail] = useState('');
@@ -19,9 +19,10 @@ export function AuthForm() {
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerName, setRegisterName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authAction, setAuthAction] = useState<string | null>(null); // To track which social login is submitting
   const [error, setError] = useState<string | null>(null);
   
-  const { login, register, signInWithGoogle } = useAuth();
+  const { login, register, signInWithGoogle, signInWithFacebook } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,6 +31,7 @@ export function AuthForm() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setAuthAction('email');
     setError(null);
     try {
       await login(loginEmail, loginPassword);
@@ -40,12 +42,14 @@ export function AuthForm() {
       toast({ title: "Login Failed", description: err.message || "Please check your credentials.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setAuthAction(null);
     }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setAuthAction('email');
     setError(null);
     try {
       await register(registerEmail, registerPassword, registerName);
@@ -56,11 +60,13 @@ export function AuthForm() {
       toast({ title: "Registration Failed", description: err.message || "Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setAuthAction(null);
     }
   };
 
   const handleGoogleSignIn = async () => {
     setIsSubmitting(true);
+    setAuthAction('google');
     setError(null);
     try {
       await signInWithGoogle();
@@ -71,8 +77,27 @@ export function AuthForm() {
       toast({ title: "Google Sign-in Failed", description: err.message || "Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setAuthAction(null);
     }
   };
+
+  const handleFacebookSignIn = async () => {
+    setIsSubmitting(true);
+    setAuthAction('facebook');
+    setError(null);
+    try {
+      await signInWithFacebook();
+      toast({ title: "Sign-in Successful", description: "Welcome!" });
+      router.push(redirectPath);
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in with Facebook. Ensure it's configured in Firebase.");
+      toast({ title: "Facebook Sign-in Failed", description: err.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+      setAuthAction(null);
+    }
+  };
+
 
   return (
     <div className="flex items-center justify-center py-12">
@@ -101,12 +126,16 @@ export function AuthForm() {
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isSubmitting && authAction === 'email' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Login
                 </Button>
                 <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
+                  {isSubmitting && authAction === 'google' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
                   Sign in with Google
+                </Button>
+                <Button variant="outline" className="w-full bg-[#1877F2] text-white hover:bg-[#1877F2]/90" onClick={handleFacebookSignIn} disabled={isSubmitting}>
+                  {isSubmitting && authAction === 'facebook' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Facebook className="mr-2 h-4 w-4" />}
+                  Sign in with Facebook
                 </Button>
               </CardFooter>
             </form>
@@ -136,12 +165,16 @@ export function AuthForm() {
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isSubmitting && authAction === 'email' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Register
                 </Button>
                  <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
+                  {isSubmitting && authAction === 'google' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
                   Sign up with Google
+                </Button>
+                <Button variant="outline" className="w-full bg-[#1877F2] text-white hover:bg-[#1877F2]/90" onClick={handleFacebookSignIn} disabled={isSubmitting}>
+                  {isSubmitting && authAction === 'facebook' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Facebook className="mr-2 h-4 w-4" />}
+                  Sign up with Facebook
                 </Button>
               </CardFooter>
             </form>

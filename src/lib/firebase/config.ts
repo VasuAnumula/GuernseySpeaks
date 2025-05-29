@@ -28,7 +28,7 @@ for (const [key, value] of Object.entries(firebaseEnvVars)) {
 }
 
 if (criticalEnvVarMissing) {
-  const errorMsg = `
+  let errorMsg = `
 --------------------------------------------------------------------------------------
 ❌ FATAL ERROR: Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is MISSING or UNDEFINED in the server environment.
 Server cannot initialize Firebase.
@@ -40,7 +40,22 @@ Server cannot initialize Firebase.
 4.  Check for any typos in the variable name or the API key itself.
 5.  MOST IMPORTANTLY: You MUST RESTART your development server (e.g., stop and re-run 'npm run dev') after creating or changing the .env.local file.
 --------------------------------------------------------------------------------------`;
+  
   console.error(errorMsg);
+
+  console.log("\n[Firebase Config] Diagnosing .env.local loading issues. Found the following NEXT_PUBLIC_FIREBASE_ prefixed vars on the server (if any):");
+  let foundAnyFirebaseVars = false;
+  for (const envKey in process.env) {
+    if (envKey.startsWith("NEXT_PUBLIC_FIREBASE_")) {
+      console.log(`  - ${envKey}: ${process.env[envKey] ? 'Set (value hidden for security if not API key)' : 'MISSING/EMPTY'}`);
+      foundAnyFirebaseVars = true;
+    }
+  }
+  if (!foundAnyFirebaseVars) {
+    console.log("  - No environment variables starting with 'NEXT_PUBLIC_FIREBASE_' were found. This strongly suggests .env.local is not being loaded or is empty.");
+  }
+  console.log("--------------------------------------------------------------------------------------\n");
+
   throw new Error("Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is not configured. CHECK YOUR .env.local FILE AND RESTART THE SERVER. See terminal logs for details.");
 } else {
   console.log("✅ [Firebase Config] NEXT_PUBLIC_FIREBASE_API_KEY seems to be present. Proceeding with initialization.");
@@ -54,6 +69,9 @@ const firebaseConfig = {
   messagingSenderId: firebaseEnvVars.messagingSenderId,
   appId: firebaseEnvVars.appId,
 };
+
+// Log the final config object before attempting to initialize
+console.log("🚀 [Firebase Config] Final firebaseConfig object before initializeApp:", JSON.stringify(firebaseConfig, null, 2));
 
 let app: FirebaseApp;
 let auth: Auth;

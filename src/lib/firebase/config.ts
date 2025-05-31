@@ -14,6 +14,18 @@ const firebaseEnvVars = {
 };
 
 console.log("🔎 [Firebase Config] Checking environment variables server-side:");
+// Log the current working directory to help user verify .env.local placement
+try {
+  if (typeof process !== 'undefined' && typeof process.cwd === 'function') {
+    console.log(`ℹ️ [Firebase Config] Current working directory (where .env.local should be in project root): ${process.cwd()}`);
+  } else {
+    console.log("ℹ️ [Firebase Config] process.cwd() not available in this environment (likely client-side bundle, server-side check is key).");
+  }
+} catch (e) {
+    console.warn("ℹ️ [Firebase Config] Could not determine current working directory.", e);
+}
+
+
 let criticalEnvVarMissing = false;
 for (const [key, value] of Object.entries(firebaseEnvVars)) {
   const envVarName = `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`;
@@ -21,7 +33,7 @@ for (const [key, value] of Object.entries(firebaseEnvVars)) {
     console.log(`✅ [Firebase Config] ${envVarName}: Found (Value will not be logged for security)`);
   } else {
     console.warn(`⚠️ [Firebase Config] ${envVarName}: MISSING or UNDEFINED`);
-    if (key === 'apiKey') {
+    if (key === 'apiKey') { // 'apiKey' is the key for NEXT_PUBLIC_FIREBASE_API_KEY in firebaseEnvVars
       criticalEnvVarMissing = true;
     }
   }
@@ -31,24 +43,28 @@ if (criticalEnvVarMissing) {
   let errorMsg = `
 --------------------------------------------------------------------------------------
 ❌ FATAL ERROR: Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is MISSING or UNDEFINED in the server environment.
-Server cannot initialize Firebase.
+Server cannot initialize Firebase. The application will not work correctly.
 
 👉 Troubleshooting Steps:
 1.  Ensure you have a file named exactly '.env.local' in the ROOT of your project.
+    (The root directory is the one logged above as 'Current working directory').
 2.  Inside '.env.local', ensure the line looks like: NEXT_PUBLIC_FIREBASE_API_KEY=YourActualApiKeyHere
-3.  Replace 'YourActualApiKeyHere' with your real Firebase API Key.
-4.  Check for any typos in the variable name or the API key itself.
-5.  MOST IMPORTANTLY: You MUST RESTART your development server (e.g., stop and re-run 'npm run dev') after creating or changing the .env.local file.
+3.  Replace 'YourActualApiKeyHere' with your real Firebase API Key from your Firebase project settings.
+4.  Check for any typos in the variable name ('NEXT_PUBLIC_FIREBASE_API_KEY') or the API key value itself.
+5.  Ensure all other NEXT_PUBLIC_FIREBASE_... variables are also correctly set in '.env.local'.
+6.  MOST IMPORTANTLY: You MUST RESTART your development server (e.g., stop and re-run 'npm run dev') after creating or changing the .env.local file. Next.js only loads these variables on startup.
 --------------------------------------------------------------------------------------`;
   
   console.error(errorMsg);
 
   console.log("\n[Firebase Config] Diagnosing .env.local loading issues. Found the following NEXT_PUBLIC_FIREBASE_ prefixed vars on the server (if any):");
   let foundAnyFirebaseVars = false;
-  for (const envKey in process.env) {
-    if (envKey.startsWith("NEXT_PUBLIC_FIREBASE_")) {
-      console.log(`  - ${envKey}: ${process.env[envKey] ? 'Set (value hidden for security if not API key)' : 'MISSING/EMPTY'}`);
-      foundAnyFirebaseVars = true;
+  if (typeof process !== 'undefined' && process.env) {
+    for (const envKey in process.env) {
+      if (envKey.startsWith("NEXT_PUBLIC_FIREBASE_")) {
+        console.log(`  - ${envKey}: ${process.env[envKey] ? 'Set (value hidden for security if not API key itself)' : 'MISSING/EMPTY'}`);
+        foundAnyFirebaseVars = true;
+      }
     }
   }
   if (!foundAnyFirebaseVars) {
@@ -71,7 +87,13 @@ const firebaseConfig = {
 };
 
 // Log the final config object before attempting to initialize
-console.log("🚀 [Firebase Config] Final firebaseConfig object before initializeApp:", JSON.stringify(firebaseConfig, null, 2));
+console.log("🚀 [Firebase Config] Final firebaseConfig object before initializeApp (apiKey will be 'YOUR_API_KEY_VAL' if found):", 
+  JSON.stringify({
+    ...firebaseConfig,
+    apiKey: firebaseConfig.apiKey ? 'YOUR_API_KEY_VAL' : undefined // Obfuscate API key in log
+  }, null, 2)
+);
+
 
 let app: FirebaseApp;
 let auth: Auth;

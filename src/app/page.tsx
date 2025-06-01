@@ -70,11 +70,12 @@ export default function HomePage() {
       {!loadingPosts && !error && (
         <div className="space-y-6">
           {posts.length > 0 ? (
-            posts.map((post) => (
+            posts.map((post, index) => (
               <PostCard 
                 key={post.id} 
                 post={post} 
-                onPostDeleted={handlePostDeleted} 
+                onPostDeleted={handlePostDeleted}
+                staggerIndex={index} 
               />
             ))
           ) : (
@@ -85,3 +86,5 @@ export default function HomePage() {
     </MainLayout>
   );
 }
+
+    

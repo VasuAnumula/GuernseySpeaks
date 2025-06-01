@@ -74,7 +74,7 @@ if (criticalEnvVarMissing) {
   errorMsg += "   3. You MUST RESTART your development server after changes to '.env.local'.\n";
   errorMsg += "   IF DEPLOYED (e.g., to Firebase Studio / App Hosting):\n";
   errorMsg += "   1. Check 'apphosting.yaml' for correct `NEXT_PUBLIC_FIREBASE_API_KEY` and other Firebase variables.\n";
-  errorMsg += "   2. CRITICAL: Check Environment Variable settings in the Firebase Console for your App Hosting backend. Settings in the UI OVERRIDE 'apphosting.yaml'.\n";
+  errorMsg += "   2. CRITICAL: Check Environment Variable settings in the **Firebase Console UI for your App Hosting backend**. Settings in the UI OVERRIDE 'apphosting.yaml'.\n";
   errorMsg += "   3. Ensure the API key value is correct and active for your project ('" + (firebaseEnvVars.projectId || 'your-project-id') + "').\n";
   errorMsg += "   4. A REDEPLOY is necessary after changing environment variables in the hosting platform or 'apphosting.yaml'.\n";
   errorMsg += "Server-side environment variables found starting with 'NEXT_PUBLIC_FIREBASE_':\n";
@@ -95,7 +95,7 @@ if (criticalEnvVarMissing) {
   errorMsg += "--------------------------------------------------------------------------------------\n";
   
   console.error(errorMsg);
-  throw new Error("Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is not configured. CHECK YOUR .env.local (for local) OR apphosting.yaml / Firebase Console UI (for deployed) AND RESTART/REDEPLOY. See terminal logs for detailed diagnostics.");
+  throw new Error("CRITICAL SERVER-SIDE CONFIGURATION ERROR: The Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) was NOT found in the server's runtime environment (process.env). For DEPLOYED APP (Firebase App Hosting): Verify this variable is correctly set in the **Firebase Console UI (Environment Variables section of your App Hosting backend)** as this OVERRIDES apphosting.yaml. For LOCAL DEVELOPMENT: Check your .env.local file. A RESTART/REDEPLOY is required after changes. See detailed server logs.");
 } else {
   console.log("✅ [Firebase Config] NEXT_PUBLIC_FIREBASE_API_KEY seems to be present. Proceeding with initialization.");
 }

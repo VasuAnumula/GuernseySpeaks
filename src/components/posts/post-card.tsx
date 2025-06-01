@@ -36,9 +36,10 @@ interface PostCardProps {
   post: Post;
   onPostDeleted?: (postId: string) => void;
   className?: string;
+  staggerIndex?: number; // For staggered animation
 }
 
-export function PostCard({ post: initialPost, onPostDeleted, className }: PostCardProps) {
+export function PostCard({ post: initialPost, onPostDeleted, className, staggerIndex = 0 }: PostCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -46,6 +47,15 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    // Trigger animation with a slight delay based on staggerIndex
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, staggerIndex * 100); // 100ms delay per card
+    return () => clearTimeout(timer);
+  }, [staggerIndex]);
 
   useEffect(() => {
     setPost(initialPost); // Update post if initialPost prop changes
@@ -87,7 +97,6 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
     const originalLikedState = isLiked;
     const originalLikesCount = post.likes;
 
-    // Optimistic update
     setIsLiked(!originalLikedState);
     setPost(prevPost => ({
       ...prevPost,
@@ -99,12 +108,11 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
 
     try {
       const updatedPostData = await togglePostLike(post.id, user.uid);
-      setPost(prevPost => ({ ...prevPost, ...updatedPostData })); // Sync with server response
+      setPost(prevPost => ({ ...prevPost, ...updatedPostData }));
       setIsLiked(updatedPostData.likedBy.includes(user.uid));
     } catch (error) {
       console.error("Failed to toggle like:", error);
       toast({ title: "Error", description: "Could not update like. Please try again.", variant: "destructive" });
-      // Revert optimistic update
       setIsLiked(originalLikedState);
       setPost(prevPost => ({ ...prevPost, likes: originalLikesCount, likedBy: originalLikedState ? [...prevPost.likedBy, user.uid] : prevPost.likedBy.filter(uid => uid !== user.uid) }));
     } finally {
@@ -121,8 +129,6 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
       if (onPostDeleted) {
         onPostDeleted(post.id);
       }
-      // If on individual post page and post is deleted, user will be redirected or see a message.
-      // If on a list, onPostDeleted handles removal.
     } catch (error) {
       console.error("Failed to delete post:", error);
       toast({ title: "Error", description: "Could not delete post. Please try again.", variant: "destructive" });
@@ -132,11 +138,19 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
   };
 
   return (
-    <Card className={`mb-6 shadow-lg hover:shadow-xl transition-shadow duration-300 ${className}`}>
+    <Card 
+      className={`
+        mb-6 shadow-lg 
+        transition-all duration-500 ease-out 
+        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}
+        hover:shadow-xl hover:-translate-y-1.5 hover:scale-[1.01]
+        ${className}
+      `}
+    >
       <CardHeader>
         <div className="flex items-start justify-between">
           <Link href={`/post/${post.id}/${postSlug}`} className="group">
-            <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors">
+            <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors duration-200">
               {post.title}
             </CardTitle>
           </Link>
@@ -157,7 +171,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <DropdownMenuItem 
-                      onSelect={(e) => e.preventDefault()} // Prevents DropdownMenu from closing
+                      onSelect={(e) => e.preventDefault()}
                       className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"
                     >
                       <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -185,7 +199,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
         </div>
         <CardDescription className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
           {post.author?.uid ? (
-             <Link href={`/profile/${post.author.uid}`} className="flex items-center gap-2 hover:underline">
+             <Link href={`/profile/${post.author.uid}`} className="flex items-center gap-2 hover:underline hover:text-primary/90 transition-colors duration-200">
               <Avatar className="h-6 w-6">
                 <AvatarImage src={authorAvatar || undefined} alt={authorName} data-ai-hint="author avatar"/>
                 <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
@@ -206,7 +220,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
         {post.flairs && post.flairs.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {post.flairs.map((flair) => (
-              <Badge key={flair} variant="secondary" className="bg-accent/20 text-accent-foreground hover:bg-accent/30 cursor-pointer">
+              <Badge key={flair} variant="secondary" className="bg-accent/20 text-accent-foreground hover:bg-accent/30 cursor-pointer transition-colors duration-200">
                 {flair}
               </Badge>
             ))}
@@ -215,7 +229,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
       </CardHeader>
       <CardContent>
         <p className="text-foreground/90 line-clamp-3 whitespace-pre-wrap">{post.content}</p>
-        <Link href={`/post/${post.id}/${postSlug}`} className="text-sm text-primary hover:underline mt-2 inline-block">
+        <Link href={`/post/${post.id}/${postSlug}`} className="text-sm text-primary hover:underline hover:text-primary/80 transition-colors duration-200 mt-2 inline-block">
             Read more
         </Link>
       </CardContent>
@@ -238,3 +252,5 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
     </Card>
   );
 }
+
+    

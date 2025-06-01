@@ -113,13 +113,23 @@ export const deletePost = async (postId: string): Promise<void> => {
 
 export const getPosts = async (): Promise<Post[]> => {
   try {
+    console.log('[postService] Attempting to fetch posts from Firestore.');
     const postsCollection = collection(db, 'posts');
     const q = query(postsCollection, orderBy('createdAt', 'desc'), limit(20));
     const querySnapshot = await getDocs(q);
+    console.log(`[postService] Successfully fetched ${querySnapshot.docs.length} posts.`);
     return querySnapshot.docs.map(docSnap => processDoc(docSnap) as Post).filter(post => post !== null);
-  } catch (error) {
-    console.error('Error fetching posts:', error);
-    throw new Error('Failed to fetch posts.');
+  } catch (error: any) {
+    console.error('[postService] Error fetching posts:', error);
+    if (error.code) { // Firebase errors often have a code
+      console.error('[postService] Firebase Error Code:', error.code);
+    }
+    console.error('[postService] Error Message:', error.message);
+    // For more detailed stack trace in server logs if available
+    if (error.stack) {
+      console.error('[postService] Error Stack:', error.stack);
+    }
+    throw new Error(`Failed to fetch posts. Original error: ${error.message}`);
   }
 };
 
@@ -228,3 +238,4 @@ export const generateSlug = async (title: string): Promise<string> => {
 // - Deleting a comment 
 // - Fetching posts by flair, user, etc.
 // - User profile updates
+

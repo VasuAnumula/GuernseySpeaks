@@ -1,9 +1,33 @@
 
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
-// --- Environment Variable Check ---
+// --- Enhanced Environment Variable Inspection (Server-Side) ---
+console.log("🔎 [Firebase Config] Initial inspection of `process.env` for 'NEXT_PUBLIC_FIREBASE_' variables (server-side at module load):");
+if (typeof process !== 'undefined' && process.env) {
+  let foundRelevantVars = false;
+  Object.keys(process.env).forEach(key => {
+    if (key.startsWith("NEXT_PUBLIC_FIREBASE_")) {
+      foundRelevantVars = true;
+      const value = process.env[key];
+      if (key === "NEXT_PUBLIC_FIREBASE_API_KEY") {
+        console.log(`  🔑 ${key}: ${value ? 'Exists (actual value hidden for security)' : '!!! CRITICAL: MISSING or UNDEFINED !!!'}`);
+      } else {
+        console.log(`  🔑 ${key}: ${value ? `Value: "${value}"` : '!!! MISSING or UNDEFINED !!!'}`);
+      }
+    }
+  });
+  if (!foundRelevantVars) {
+    console.log("  ⚠️ No environment variables starting with 'NEXT_PUBLIC_FIREBASE_' were found in `process.env` at this point.");
+  }
+} else {
+  console.log("  ⚠️ `process.env` or `process` is undefined (this is highly unexpected on the server during module load).");
+}
+console.log("--- End of initial `process.env` inspection ---");
+
+
+// --- Original Environment Variable Check Logic ---
 const firebaseEnvVars = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -13,10 +37,10 @@ const firebaseEnvVars = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-console.log("🔎 [Firebase Config] Checking environment variables server-side:");
+console.log("🔎 [Firebase Config] Checking specific environment variables values (server-side):");
 try {
   if (typeof process !== 'undefined' && typeof process.cwd === 'function') {
-    console.log(`ℹ️ [Firebase Config] Current working directory (where .env.local should be if running locally): ${process.cwd()}`);
+    console.log(`ℹ️ [Firebase Config] Current working directory (where .env.local should be in project root): ${process.cwd()}`);
   } else {
     console.log("ℹ️ [Firebase Config] process.cwd() not available (client-side bundle or specific server environment).");
   }
@@ -25,57 +49,50 @@ try {
 }
 
 let criticalEnvVarMissing = false;
-for (const [key, value] of Object.entries(firebaseEnvVars)) {
-  const envVarName = `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`;
-  if (value) {
-    console.log(`✅ [Firebase Config] ${envVarName}: Found (Value will not be logged for security)`);
-  } else {
-    console.warn(`⚠️ [Firebase Config] ${envVarName}: MISSING or UNDEFINED`);
-    if (key === 'apiKey') {
-      criticalEnvVarMissing = true;
-    }
+let errorMsg = "❌ FATAL ERROR: Firebase configuration is incomplete. Review server logs for details.\n";
+errorMsg += "Required Firebase environment variables:\n";
+
+const requiredVarsDisplay: Record<string, string | undefined> = {
+  NEXT_PUBLIC_FIREBASE_API_KEY: firebaseEnvVars.apiKey,
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: firebaseEnvVars.authDomain,
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: firebaseEnvVars.projectId,
+  // Other vars are important but API key is most critical for initialization
+};
+
+for (const [envVarName, value] of Object.entries(requiredVarsDisplay)) {
+  errorMsg += `  - ${envVarName}: ${value ? (envVarName === 'NEXT_PUBLIC_FIREBASE_API_KEY' ? 'Present (value hidden)' : `"${value}"`) : '*** MISSING ***'}\n`;
+  if (envVarName === 'NEXT_PUBLIC_FIREBASE_API_KEY' && !value) {
+    criticalEnvVarMissing = true;
   }
 }
 
 if (criticalEnvVarMissing) {
-  let errorMsg = `
---------------------------------------------------------------------------------------
-❌ FATAL ERROR: Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is MISSING or UNDEFINED in the server environment.
-The application will not work correctly.
-
-👉 Troubleshooting Steps:
-
-   IF RUNNING LOCALLY (e.g., with 'npm run dev'):
-   1. Ensure you have a file named exactly '.env.local' in your project ROOT directory.
-      (The root directory is usually logged above as 'Current working directory').
-   2. Inside '.env.local', ensure the line is: NEXT_PUBLIC_FIREBASE_API_KEY=YourActualApiKeyHere
-   3. Replace 'YourActualApiKeyHere' with your real Firebase API Key.
-   4. Check for typos in the variable name or the API key value.
-   5. You MUST RESTART your development server after creating or changing '.env.local'.
-
-   IF DEPLOYED (e.g., to Firebase Studio / App Hosting):
-   1. Check your 'apphosting.yaml' file. Ensure NEXT_PUBLIC_FIREBASE_API_KEY is correctly defined there.
-   2. Check the Firebase Console: Go to App Hosting -> Your Backend -> Configuration / Environment Variables.
-      Settings in the Firebase Console UI will OVERRIDE 'apphosting.yaml'.
-   3. Ensure the API key value is correct and active for your project ('${firebaseEnvVars.projectId || 'your-project-id'}').
-   4. A REDEPLOY might be necessary after changing environment variables in the hosting platform.
-
-Server-side environment variables found starting with 'NEXT_PUBLIC_FIREBASE_':`;
-  if (typeof process !== 'undefined' && process.env) {
-    let foundAny = false;
-    for (const envKey in process.env) {
-      if (envKey.startsWith("NEXT_PUBLIC_FIREBASE_")) {
-        errorMsg += `\n  - ${envKey}: ${process.env[envKey] ? 'Set (value hidden)' : 'MISSING/EMPTY'}`;
-        foundAny = true;
-      }
+  errorMsg += "\n👉 Troubleshooting Steps:\n";
+  errorMsg += "   IF RUNNING LOCALLY (e.g., 'npm run dev'):\n";
+  errorMsg += "   1. Ensure '.env.local' file exists in your project ROOT directory.\n";
+  errorMsg += "   2. Verify `NEXT_PUBLIC_FIREBASE_API_KEY` and other Firebase variables are correctly set within it.\n";
+  errorMsg += "   3. You MUST RESTART your development server after changes to '.env.local'.\n";
+  errorMsg += "   IF DEPLOYED (e.g., to Firebase Studio / App Hosting):\n";
+  errorMsg += "   1. Check 'apphosting.yaml' for correct `NEXT_PUBLIC_FIREBASE_API_KEY` and other Firebase variables.\n";
+  errorMsg += "   2. CRITICAL: Check Environment Variable settings in the Firebase Console for your App Hosting backend. Settings in the UI OVERRIDE 'apphosting.yaml'.\n";
+  errorMsg += "   3. Ensure the API key value is correct and active for your project ('" + (firebaseEnvVars.projectId || 'your-project-id') + "').\n";
+  errorMsg += "   4. A REDEPLOY is necessary after changing environment variables in the hosting platform or 'apphosting.yaml'.\n";
+  errorMsg += "Server-side environment variables found starting with 'NEXT_PUBLIC_FIREBASE_':\n";
+    if (typeof process !== 'undefined' && process.env) {
+        let foundAny = false;
+        for (const envKey in process.env) {
+            if (envKey.startsWith("NEXT_PUBLIC_FIREBASE_")) {
+                errorMsg += `  - ${envKey}: ${process.env[envKey] ? (envKey === "NEXT_PUBLIC_FIREBASE_API_KEY" ? 'Set (value hidden)' : `Value: "${process.env[envKey]}"`): 'MISSING/EMPTY'}\n`;
+                foundAny = true;
+            }
+        }
+        if (!foundAny) {
+            errorMsg += "  - None found. This strongly suggests .env.local (if local) or hosting configuration (if deployed) is not being loaded or is empty.\n";
+        }
+    } else {
+        errorMsg += "  - Could not inspect process.env on the server.\n";
     }
-    if (!foundAny) {
-      errorMsg += "\n  - None found. This strongly suggests .env.local (if local) or hosting configuration (if deployed) is not being loaded or is empty.";
-    }
-  } else {
-     errorMsg += "\n  - Could not inspect process.env on the server.";
-  }
-  errorMsg += "\n--------------------------------------------------------------------------------------";
+  errorMsg += "--------------------------------------------------------------------------------------\n";
   
   console.error(errorMsg);
   throw new Error("Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is not configured. CHECK YOUR .env.local (for local) OR apphosting.yaml / Firebase Console UI (for deployed) AND RESTART/REDEPLOY. See terminal logs for detailed diagnostics.");
@@ -92,10 +109,10 @@ const firebaseConfig = {
   appId: firebaseEnvVars.appId,
 };
 
-console.log("🚀 [Firebase Config] Final firebaseConfig object before initializeApp (apiKey will be 'YOUR_API_KEY_VAL' if found):", 
+console.log("🚀 [Firebase Config] Final firebaseConfig object for initializeApp (API key value hidden):", 
   JSON.stringify({
     ...firebaseConfig,
-    apiKey: firebaseConfig.apiKey ? 'YOUR_API_KEY_VAL' : undefined 
+    apiKey: firebaseConfig.apiKey ? 'PRESENT (value hidden)' : 'MISSING!!!' 
   }, null, 2)
 );
 

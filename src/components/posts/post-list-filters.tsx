@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -5,11 +6,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Filter, Search, ArrowDownUp, CalendarDays } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { useEffect, useState } from 'react';
 
 export function PostListFilters() {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    // Slight delay for the animation
+    const timer = setTimeout(() => setIsVisible(true), 50); 
+    return () => clearTimeout(timer);
+  }, []);
+
   // TODO: Implement actual filtering logic
   return (
-    <Card className="mb-6 p-4 shadow">
+    <Card 
+      className={`
+        mb-6 p-4 shadow 
+        transition-all duration-500 ease-out 
+        hover:shadow-lg
+        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}
+      `}
+    >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
         <div>
           <Label htmlFor="search" className="text-sm font-medium">Search Posts</Label>
@@ -63,5 +81,4 @@ export function PostListFilters() {
   );
 }
 
-// Add Card to imports if not already there
-import { Card } from "@/components/ui/card";
+    

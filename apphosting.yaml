@@ -5,3 +5,12 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+environmentVariables:
+  NEXT_PUBLIC_FIREBASE_API_KEY: "AIzaSyDP6UD4yir7f0wTKQ43VreC0RBmjG-vxe0"
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "guernseyspeaks-zf17n.firebaseapp.com"
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: "guernseyspeaks-zf17n"
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "guernseyspeaks-zf17n.firebasestorage.app"
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "413362286772"
+  NEXT_PUBLIC_FIREBASE_APP_ID: "1:413362286772:web:79553c08aede866bc727e1"
+  WEATHER_API_KEY: "16a86dacffa84350a91211738252805"

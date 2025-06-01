@@ -1,14 +1,15 @@
 
 'use server';
 
-import { db } from '@/lib/firebase/config';
-import type { Post, Comment, AuthorInfo } from '@/types'; // Added AuthorInfo import
+import { db } from '@/lib/firebase/config'; // Ensure db is exported from firebase config
+import type { Post, Comment, AuthorInfo } from '@/types';
+import { processDoc } from '@/lib/firestoreUtils'; // Import from new location
 import {
   collection,
   addDoc,
   getDocs,
   getDoc,
-  doc,
+  doc, 
   orderBy,
   query,
   serverTimestamp,
@@ -22,26 +23,6 @@ import {
   limit
 } from 'firebase/firestore';
 
-// Helper to convert Firestore Timestamps to Dates for client-side usage
-const processDoc = (docSnap: any) => {
-  const data = docSnap.data();
-  if (!data) return null;
-
-  const convertTimestamps = (obj: any): any => {
-    for (const key in obj) {
-      if (obj[key] instanceof Timestamp) {
-        obj[key] = obj[key].toDate();
-      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-        if (Object.values(obj[key]).some(v => v instanceof Timestamp)) {
-           convertTimestamps(obj[key]);
-        }
-      }
-    }
-    return obj;
-  };
-  
-  return { id: docSnap.id, ...convertTimestamps(data) };
-};
 
 // Define the input type for createPost more precisely
 interface CreatePostInputData {
@@ -51,7 +32,7 @@ interface CreatePostInputData {
   flairs: string[];
 }
 
-export const createPost = async (postData: CreatePostInputData): Promise<string> => {
+export async function createPost(postData: CreatePostInputData): Promise<string> {
   try {
     const slug = await generateSlug(postData.title); // Generate slug here
     const docRef = await addDoc(collection(db, 'posts'), {
@@ -70,16 +51,16 @@ export const createPost = async (postData: CreatePostInputData): Promise<string>
   }
 };
 
-export const updatePost = async (postId: string, postData: Partial<Pick<Post, 'title' | 'content' | 'flairs'>>): Promise<void> => {
+export async function updatePost(postId: string, postData: Partial<Pick<Post, 'title' | 'content' | 'flairs'>>): Promise<void> {
   try {
     const postDocRef = doc(db, 'posts', postId);
-    const firestoreUpdateData: { [key: string]: any } = { // Use a more generic type for the update payload
+    const firestoreUpdateData: { [key: string]: any } = { 
       ...postData,
       updatedAt: serverTimestamp(),
     };
 
     if (postData.title) {
-      firestoreUpdateData.slug = await generateSlug(postData.title); // Regenerate slug if title changes
+      firestoreUpdateData.slug = await generateSlug(postData.title); 
     }
     
     await updateDoc(postDocRef, firestoreUpdateData);
@@ -89,19 +70,17 @@ export const updatePost = async (postId: string, postData: Partial<Pick<Post, 't
   }
 };
 
-export const deletePost = async (postId: string): Promise<void> => {
+export async function deletePost(postId: string): Promise<void> {
   try {
     const postDocRef = doc(db, 'posts', postId);
     const batch = writeBatch(db);
 
-    // Delete comments subcollection
     const commentsRef = collection(db, 'posts', postId, 'comments');
     const commentsSnapshot = await getDocs(commentsRef);
     commentsSnapshot.docs.forEach(commentDoc => {
       batch.delete(commentDoc.ref);
     });
 
-    // Delete the post itself
     batch.delete(postDocRef);
 
     await batch.commit();
@@ -111,21 +90,24 @@ export const deletePost = async (postId: string): Promise<void> => {
   }
 };
 
-export const getPosts = async (): Promise<Post[]> => {
+export async function getPosts(): Promise<Post[]> {
   try {
     console.log('[postService] Attempting to fetch posts from Firestore.');
     const postsCollection = collection(db, 'posts');
     const q = query(postsCollection, orderBy('createdAt', 'desc'), limit(20));
     const querySnapshot = await getDocs(q);
     console.log(`[postService] Successfully fetched ${querySnapshot.docs.length} posts.`);
-    return querySnapshot.docs.map(docSnap => processDoc(docSnap) as Post).filter(post => post !== null);
+    
+    // Use Promise.all if processDoc were async, but it's sync now and imported
+    const posts = querySnapshot.docs.map(docSnap => processDoc(docSnap) as Post);
+    return posts.filter(post => post !== null);
+
   } catch (error: any) {
     console.error('[postService] Error fetching posts:', error);
-    if (error.code) { // Firebase errors often have a code
+    if (error.code) { 
       console.error('[postService] Firebase Error Code:', error.code);
     }
     console.error('[postService] Error Message:', error.message);
-    // For more detailed stack trace in server logs if available
     if (error.stack) {
       console.error('[postService] Error Stack:', error.stack);
     }
@@ -133,7 +115,7 @@ export const getPosts = async (): Promise<Post[]> => {
   }
 };
 
-export const getPostById = async (postId: string): Promise<Post | null> => {
+export async function getPostById(postId: string): Promise<Post | null> {
   try {
     const postDocRef = doc(db, 'posts', postId);
     const docSnap = await getDoc(postDocRef);
@@ -147,7 +129,7 @@ export const getPostById = async (postId: string): Promise<Post | null> => {
   }
 };
 
-export const togglePostLike = async (postId: string, userId: string): Promise<{ likes: number; likedBy: string[] }> => {
+export async function togglePostLike(postId: string, userId: string): Promise<{ likes: number; likedBy: string[] }> {
   try {
     const postDocRef = doc(db, 'posts', postId);
     const postSnap = await getDoc(postDocRef);
@@ -160,11 +142,9 @@ export const togglePostLike = async (postId: string, userId: string): Promise<{ 
     let newLikedBy;
 
     if (currentlyLikedBy.includes(userId)) {
-      // User has liked, so unlike
       newLikes = increment(-1);
       newLikedBy = arrayRemove(userId);
     } else {
-      // User has not liked, so like
       newLikes = increment(1);
       newLikedBy = arrayUnion(userId);
     }
@@ -174,7 +154,6 @@ export const togglePostLike = async (postId: string, userId: string): Promise<{ 
       likedBy: newLikedBy
     });
     
-    // Return the new state for optimistic updates or direct UI update
     const updatedPostSnap = await getDoc(postDocRef);
     const updatedData = updatedPostSnap.data() as Post;
     return { likes: updatedData.likes, likedBy: updatedData.likedBy };
@@ -186,18 +165,16 @@ export const togglePostLike = async (postId: string, userId: string): Promise<{ 
 };
 
 
-export const createComment = async (postId: string, commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'likes'>): Promise<string> => {
+export async function createComment(postId: string, commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'likes'>): Promise<string> {
   try {
     const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
     const docRef = await addDoc(commentsCollectionRef, {
       ...commentData,
       likes: 0,
-      // likedBy: [], // For future comment liking
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
 
-    // Increment commentsCount on the post
     const postDocRef = doc(db, 'posts', postId);
     await updateDoc(postDocRef, {
       commentsCount: increment(1)
@@ -210,19 +187,20 @@ export const createComment = async (postId: string, commentData: Omit<Comment, '
   }
 };
 
-export const getCommentsForPost = async (postId: string): Promise<Comment[]> => {
+export async function getCommentsForPost(postId: string): Promise<Comment[]> {
   try {
     const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
     const q = query(commentsCollectionRef, orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(docSnap => processDoc(docSnap) as Comment).filter(comment => comment !== null);
+    const comments = querySnapshot.docs.map(docSnap => processDoc(docSnap) as Comment);
+    return comments.filter(comment => comment !== null);
   } catch (error) {
     console.error('Error fetching comments:', error);
     throw new Error('Failed to fetch comments.');
   }
 };
 
-export const generateSlug = async (title: string): Promise<string> => {
+export async function generateSlug(title: string): Promise<string> {
   if (!title) return '';
   return title
     .toLowerCase()
@@ -232,10 +210,5 @@ export const generateSlug = async (title: string): Promise<string> => {
     .replace(/-+/g, '-');    
 };
 
-// TODO: Implement functions for:
-// - Liking a comment
-// - Editing a comment
-// - Deleting a comment 
-// - Fetching posts by flair, user, etc.
-// - User profile updates
-
+// Removed re-exports of db, doc, getDoc, processDoc.
+// Client components should import these from their original sources or utility files.

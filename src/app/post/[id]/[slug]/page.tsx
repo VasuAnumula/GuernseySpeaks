@@ -31,10 +31,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getPostById, getCommentsForPost, createComment, togglePostLike, deletePost } from '@/services/postService';
+import { db } from '@/lib/firebase/config'; // Import db
+import { doc, getDoc } from 'firebase/firestore'; // Import doc and getDoc
+import { processDoc } from '@/lib/firestoreUtils'; // Import processDoc from new location
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -227,7 +231,9 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       };
       
       const newCommentId = await createComment(post.id, commentToCreate);
-      const createdCommentData = await getDoc(doc(db, 'posts', post.id, 'comments', newCommentId)); // Fetch the created comment to get server timestamp
+      
+      const commentDocRef = doc(db, 'posts', post.id, 'comments', newCommentId);
+      const createdCommentData = await getDoc(commentDocRef); 
       if (createdCommentData.exists()){
          const createdComment = processDoc(createdCommentData) as CommentType;
          setComments(prevComments => [createdComment, ...prevComments]);

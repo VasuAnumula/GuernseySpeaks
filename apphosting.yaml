@@ -5,3 +5,12 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+environmentVariables:
+  NEXT_PUBLIC_FIREBASE_API_KEY: "***REMOVED***"
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "***REMOVED***"
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: "***REMOVED***"
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "***REMOVED***.firebasestorage.app"
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "***REMOVED***"
+  NEXT_PUBLIC_FIREBASE_APP_ID: "1:***REMOVED***:web:79553c08aede866bc727e1"
+  WEATHER_API_KEY: "***REMOVED***"

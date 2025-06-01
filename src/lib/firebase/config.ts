@@ -95,7 +95,21 @@ if (criticalEnvVarMissing) {
   errorMsg += "--------------------------------------------------------------------------------------\n";
   
   console.error(errorMsg);
-  throw new Error("CRITICAL SERVER-SIDE CONFIGURATION ERROR: The Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) was NOT found in the server's runtime environment (process.env). For DEPLOYED APP (Firebase App Hosting): Verify this variable is correctly set in the **Firebase Console UI (Environment Variables section of your App Hosting backend)** as this OVERRIDES apphosting.yaml. For LOCAL DEVELOPMENT: Check your .env.local file. A RESTART/REDEPLOY is required after changes. See detailed server logs.");
+  // Updated error message below:
+  throw new Error(
+    "CRITICAL SERVER-SIDE CONFIGURATION ERROR: The Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) was NOT found in the server's runtime environment (process.env).\n" +
+    "This means the Next.js server (running on Firebase App Hosting) cannot initialize Firebase.\n" +
+    "FOR A DEPLOYED APP ON FIREBASE APP HOSTING:\n" +
+    "  1. Go to the Firebase Console -> App Hosting -> Your Backend.\n" +
+    "  2. Check the 'Environment Variables' section in the UI.\n" +
+    "  3. Ensure `NEXT_PUBLIC_FIREBASE_API_KEY` is correctly set there. THE UI OVERRIDES `apphosting.yaml`.\n" +
+    "  4. If `apphosting.yaml` is intended to be the source, ensure the variable is NOT set in the UI or matches the UI.\n" +
+    "FOR LOCAL DEVELOPMENT (e.g., `npm run dev`):\n" +
+    "  1. Check your `.env.local` file in the project root.\n" +
+    "  2. Ensure `NEXT_PUBLIC_FIREBASE_API_KEY` is correctly defined there.\n" +
+    "A FULL RESTART (local dev) or REDEPLOY (App Hosting) IS REQUIRED after any changes to environment variables.\n" +
+    "See server logs for detailed diagnostics and the initial inspection of `process.env`."
+  );
 } else {
   console.log("✅ [Firebase Config] NEXT_PUBLIC_FIREBASE_API_KEY seems to be present. Proceeding with initialization.");
 }

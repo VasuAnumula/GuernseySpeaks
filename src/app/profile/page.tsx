@@ -24,8 +24,9 @@ export default function ProfilePage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [editName, setEditName] = useState(user?.name || '');
-  const [editDisplayName, setEditDisplayName] = useState(user?.displayName || '');
+  const [editName, setEditName] = useState('');
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [formattedJoinedDate, setFormattedJoinedDate] = useState<string | null>(null);
   // const [editAvatarUrl, setEditAvatarUrl] = useState(user?.avatarUrl || ''); // Avatar update deferred
 
   useEffect(() => {
@@ -36,6 +37,17 @@ export default function ProfilePage() {
       setEditName(user.name || '');
       setEditDisplayName(user.displayName || user.name || ''); // Fallback for displayName
       // setEditAvatarUrl(user.avatarUrl || '');
+      if (user.createdAt) {
+        try {
+          const date = user.createdAt instanceof Date ? user.createdAt : (user.createdAt as any).toDate();
+          setFormattedJoinedDate(format(date, "MMMM d, yyyy"));
+        } catch (e) {
+          console.error("Error formatting joined date:", e);
+          setFormattedJoinedDate("Invalid Date");
+        }
+      } else {
+        setFormattedJoinedDate("Not available");
+      }
     }
   }, [user, authLoading, router]);
 
@@ -62,8 +74,13 @@ export default function ProfilePage() {
 
       if (Object.keys(profileDataToUpdate).length > 0) {
         await updateUserProfile(user.uid, profileDataToUpdate);
-        updateUserInContext(profileDataToUpdate); // Update context immediately
+        updateUserInContext({ 
+          name: profileDataToUpdate.name ?? user.name,
+          displayName: profileDataToUpdate.displayName === '' ? null : (profileDataToUpdate.displayName ?? user.displayName) // handle empty string to null
+        }); 
         toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
+      } else {
+        toast({ title: "No Changes", description: "No changes were made to your profile." });
       }
       setIsEditing(false);
     } catch (error) {
@@ -88,14 +105,7 @@ export default function ProfilePage() {
 
   const currentDisplayName = user.displayName || user.name || 'User Profile';
   const userAvatarFallback = currentDisplayName.substring(0, 1).toUpperCase() || <UserIcon />;
-  let joinedDate = "Not available";
-  if (user.createdAt) {
-    try {
-      const date = user.createdAt instanceof Date ? user.createdAt : (user.createdAt as any).toDate();
-      joinedDate = format(date, "MMMM d, yyyy");
-    } catch (e) { console.error("Error formatting joined date:", e); }
-  }
-
+  
   return (
     <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
       <Card className="max-w-2xl mx-auto shadow-lg">
@@ -167,7 +177,7 @@ export default function ProfilePage() {
                 <ul className="list-disc list-inside text-muted-foreground space-y-1">
                   <li>Posts created: (Coming soon)</li>
                   <li>Comments made: (Coming soon)</li>
-                  <li>Joined: {joinedDate}</li>
+                  <li>Joined: {formattedJoinedDate || 'Loading...'}</li>
                 </ul>
               </div>
             </>
@@ -179,7 +189,7 @@ export default function ProfilePage() {
               <Button variant="outline" onClick={handleEditToggle} disabled={isSaving}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveProfile} disabled={isSaving || !editDisplayName.trim()}>
+              <Button onClick={handleSaveProfile} disabled={isSaving || (!editDisplayName.trim() && !(user.displayName || user.name))}>
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Save Changes
               </Button>

@@ -34,11 +34,10 @@ interface CreatePostInputData {
 export async function createPost(postData: CreatePostInputData): Promise<string> {
   try {
     const slug = await generateSlug(postData.title);
-    // Ensure author info includes displayName, falling back to name
-    const author: AuthorInfo = {
+    // Only include public author information
+  const author: AuthorInfo = {
         uid: postData.author.uid,
-        name: postData.author.name,
-        displayName: postData.author.displayName || postData.author.name,
+        displayName: postData.author.displayName,
         avatarUrl: postData.author.avatarUrl
     };
 
@@ -159,15 +158,13 @@ export async function togglePostLike(postId: string, userId: string): Promise<{ 
   }
 };
 
-// Note: Comment author info now includes displayName
+// Store only public comment author information
 export async function createComment(postId: string, commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'likes'>): Promise<string> {
   try {
     const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
-     // Ensure author info includes displayName, falling back to name
     const author: AuthorInfo = {
         uid: commentData.author.uid,
-        name: commentData.author.name,
-        displayName: commentData.author.displayName || commentData.author.name,
+        displayName: commentData.author.displayName,
         avatarUrl: commentData.author.avatarUrl
     };
     const docRef = await addDoc(commentsCollectionRef, {

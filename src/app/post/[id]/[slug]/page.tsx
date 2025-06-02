@@ -86,7 +86,7 @@ function CommentCard({ comment: initialComment, postId, onCommentDeleted, onComm
   }
 
 
-  const authorDisplayName = comment.author?.displayName || comment.author?.name || 'Anonymous';
+  const authorDisplayName = comment.author?.displayName || 'Anonymous';
   const authorAvatar = comment.author?.avatarUrl;
   const authorAvatarFallback = authorDisplayName.substring(0,1).toUpperCase();
 
@@ -329,12 +329,11 @@ export default function PostPage({ params }: { params: PostPageParams }) {
 
     setIsSubmittingComment(true);
     try {
-      const authorInfo: AuthorInfo = { // Ensure AuthorInfo matches the type, including displayName
-        uid: user.uid,
-        name: user.name,
-        displayName: user.displayName || user.name, // Use displayName or fallback to name
-        avatarUrl: user.avatarUrl,
-      };
+        const authorInfo: AuthorInfo = {
+          uid: user.uid,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+        };
       const commentToCreate: Omit<CommentType, 'id' | 'createdAt' | 'updatedAt' | 'likes'> = {
         postId: post.id,
         author: authorInfo,
@@ -411,7 +410,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     }
   }
 
-  const authorDisplayName = post.author?.displayName || post.author?.name || 'Anonymous';
+  const authorDisplayName = post.author?.displayName || 'Anonymous';
   const authorAvatar = post.author?.avatarUrl;
   const authorAvatarFallback = authorDisplayName.substring(0,1).toUpperCase();
   const canModifyPost = user && (user.uid === post.author?.uid || user.role === 'superuser' || user.role === 'moderator');

@@ -22,6 +22,12 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    displayName: string,
+    name?: string | null
+  ) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
@@ -123,7 +129,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (email: string, password: string, name: string) => {
+  const register = async (
+    email: string,
+    password: string,
+    displayName: string,
+    name?: string | null
+  ) => {
     setLoading(true);
     console.log("[AuthContext] Attempting Email/Password Registration...");
     try {
@@ -141,6 +152,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const newUserProfile: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
+        name: name || null,
+        displayName,
+        avatarUrl: `https://placehold.co/40x40.png?text=${displayName.substring(0,1)}`,
         name: name,
         displayName: name, 
         avatarUrl: firebaseUser.photoURL, // Use the updated photoURL from Firebase Auth profile
@@ -161,6 +175,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const handleSocialSignIn = async (firebaseUser: FirebaseUser, providerName: string) => {
     console.log(`[AuthContext] handleSocialSignIn called for ${providerName}. UID:`, firebaseUser.uid);
     const userDocRef = doc(db, 'users', firebaseUser.uid);
+    const userDocSnap = await getDoc(userDocRef);
+    if (!userDocSnap.exists()) {
+      const newName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous';
+      const newUserProfile: User = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        name: newName,
+        displayName: null,
+        avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${newName.substring(0,1)}`,
+        role: 'user',
+        createdAt: serverTimestamp() as Timestamp,
+      };
+      await setDoc(userDocRef, newUserProfile);
+      setUser(newUserProfile);
+    } else {
+        const userData = userDocSnap.data() as User;
+         setUser({
+            ...userData,
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            avatarUrl: firebaseUser.photoURL || userData.avatarUrl,
+            name: userData.name || firebaseUser.displayName,
+            displayName: userData.displayName || firebaseUser.displayName || null,
+          });
     try {
       const userDocSnap = await getDoc(userDocRef);
       if (!userDocSnap.exists()) {

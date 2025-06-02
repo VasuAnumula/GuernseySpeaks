@@ -4,13 +4,13 @@
 import { MainLayout } from '@/components/layout/main-layout';
 import { WeatherWidget } from '@/components/weather-widget';
 import { AdPlaceholder } from '@/components/ad-placeholder';
-import type { Post, Comment as CommentType, AuthorInfo, User } from '@/types';
+import type { Post, Comment as CommentType, AuthorInfo, User, CommentNode } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ThumbsUp, MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle, MessageSquareReply } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
@@ -37,7 +37,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getPostById, getCommentsForPost, createComment, togglePostLike, deletePost, updateComment, deleteComment } from '@/services/postService';
 import { db } from '@/lib/firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { processDoc } from '@/lib/firestoreUtils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -49,25 +49,30 @@ interface PostPageParams {
 }
 
 interface CommentCardProps {
-  comment: CommentType;
+  commentNode: CommentNode; // Changed from comment to commentNode
   postId: string;
   onCommentDeleted: (commentId: string) => void;
   onCommentEdited: (editedComment: CommentType) => void;
+  onReplySubmitted: () => void; // To trigger re-fetch of comments
 }
 
-function CommentCard({ comment: initialComment, postId, onCommentDeleted, onCommentEdited }: CommentCardProps) {
+function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, onReplySubmitted }: CommentCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [comment, setComment] = useState<CommentType>(initialComment);
+  const [comment, setComment] = useState<CommentType>(commentNode); // Internal state for base comment data
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(comment.content);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyContent, setReplyContent] = useState('');
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+
   useEffect(() => {
-    setComment(initialComment);
-    setEditedContent(initialComment.content);
-  }, [initialComment]);
+    setComment(commentNode); // Update if commentNode prop changes
+    setEditedContent(commentNode.content);
+  }, [commentNode]);
 
   let formattedDate = "Unknown date";
   if (comment.createdAt) {
@@ -85,11 +90,9 @@ function CommentCard({ comment: initialComment, postId, onCommentDeleted, onComm
     }
   }
 
-
   const authorDisplayName = comment.author?.displayName || 'Anonymous';
   const authorAvatar = comment.author?.avatarUrl;
   const authorAvatarFallback = authorDisplayName.substring(0,1).toUpperCase();
-
   const canModifyComment = user && (user.uid === comment.author?.uid || user.role === 'moderator' || user.role === 'superuser');
 
   const handleEditSave = async () => {
@@ -101,8 +104,8 @@ function CommentCard({ comment: initialComment, postId, onCommentDeleted, onComm
     try {
       await updateComment(postId, comment.id, editedContent.trim());
       const updatedCommentData = { ...comment, content: editedContent.trim(), updatedAt: new Date() };
-      setComment(updatedCommentData); // Update local comment state
-      onCommentEdited(updatedCommentData); // Notify parent
+      setComment(updatedCommentData);
+      onCommentEdited(updatedCommentData);
       setIsEditing(false);
       toast({ title: "Comment Updated" });
     } catch (error) {
@@ -117,7 +120,7 @@ function CommentCard({ comment: initialComment, postId, onCommentDeleted, onComm
     setIsDeleting(true);
     try {
       await deleteComment(postId, comment.id);
-      onCommentDeleted(comment.id); // Notify parent to remove from list
+      onCommentDeleted(comment.id);
       toast({ title: "Comment Deleted" });
     } catch (error) {
       console.error("Failed to delete comment:", error);
@@ -127,8 +130,37 @@ function CommentCard({ comment: initialComment, postId, onCommentDeleted, onComm
     }
   };
 
+  const handleReplySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyContent.trim() || !user) {
+      toast({ title: "Error", description: "Reply cannot be empty and you must be logged in.", variant: "destructive" });
+      return;
+    }
+    setIsSubmittingReply(true);
+    try {
+      const authorInfo: AuthorInfo = {
+        uid: user.uid,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      };
+      await createComment(postId, { author: authorInfo, content: replyContent.trim() }, comment.id);
+      setReplyContent('');
+      setShowReplyForm(false);
+      onReplySubmitted(); // Trigger re-fetch in parent
+      toast({ title: "Reply posted!" });
+    } catch (err) {
+      console.error("Failed to submit reply:", err);
+      toast({ title: "Error", description: "Could not post reply. Please try again.", variant: "destructive" });
+    } finally {
+      setIsSubmittingReply(false);
+    }
+  };
+
   return (
-    <Card className="mb-4 bg-secondary/50 shadow-sm">
+    <Card 
+        className="mb-4 bg-secondary/50 shadow-sm"
+        style={{ marginLeft: `${commentNode.depth * 20}px` }}
+    >
       <CardHeader className="pb-2 px-4 pt-4 sm:px-6 sm:pt-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -168,7 +200,7 @@ function CommentCard({ comment: initialComment, postId, onCommentDeleted, onComm
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete this comment.
+                        This action cannot be undone. This will permanently delete this comment. Any replies to this comment will remain but may lose context.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -207,13 +239,73 @@ function CommentCard({ comment: initialComment, postId, onCommentDeleted, onComm
           <p className="text-foreground/90 whitespace-pre-wrap text-sm">{comment.content}</p>
         )}
       </CardContent>
-      <CardFooter className="pt-2 pb-3 px-4 sm:px-6 border-t">
-        <Button variant="ghost" size="sm" className="text-muted-foreground group" disabled>
-          <ThumbsUp className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {comment.likes}
-        </Button>
+      <CardFooter className="pt-2 pb-3 px-4 sm:px-6 border-t flex-col items-start">
+        <div className="flex items-center">
+            <Button variant="ghost" size="sm" className="text-muted-foreground group" disabled>
+                <ThumbsUp className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {comment.likes}
+            </Button>
+            {user && (
+            <Button variant="ghost" size="sm" className="text-muted-foreground group" onClick={() => setShowReplyForm(!showReplyForm)}>
+                <MessageSquareReply className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> Reply
+            </Button>
+            )}
+        </div>
+
+        {showReplyForm && user && (
+          <form onSubmit={handleReplySubmit} className="w-full mt-2 space-y-2">
+            <Textarea
+              placeholder={`Replying to ${authorDisplayName}...`}
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              rows={2}
+              className="text-sm"
+              disabled={isSubmittingReply}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => { setShowReplyForm(false); setReplyContent(''); }} disabled={isSubmittingReply}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={isSubmittingReply || !replyContent.trim()}>
+                {isSubmittingReply ? <Loader2 className="mr-1 h-4 w-4 animate-spin"/> : <Send className="mr-1 h-4 w-4"/>} Submit Reply
+              </Button>
+            </div>
+          </form>
+        )}
       </CardFooter>
+      
+      {/* Recursive rendering of replies */}
+      {commentNode.replies && commentNode.replies.length > 0 && (
+        <div className="pt-2 pb-0 px-0 border-t border-dashed">
+          {commentNode.replies.map(replyNode => (
+            <CommentCard
+              key={replyNode.id}
+              commentNode={replyNode}
+              postId={postId}
+              onCommentDeleted={onCommentDeleted}
+              onCommentEdited={onCommentEdited}
+              onReplySubmitted={onReplySubmitted}
+            />
+          ))}
+        </div>
+      )}
     </Card>
   );
+}
+
+function buildCommentTree(comments: CommentType[], parentId: string | null = null, depth = 0): CommentNode[] {
+  return comments
+    .filter(comment => (comment.parentId || null) === parentId) // Ensure parentId is compared against null if undefined
+    .map(comment => ({
+      ...comment,
+      depth: depth,
+      replies: buildCommentTree(comments, comment.id, depth + 1)
+    }))
+    // Replies should be shown oldest first under their parent for natural conversation flow
+    .sort((a, b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.toMillis() || 0;
+        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.toMillis() || 0;
+        return dateA - dateB;
+    });
 }
 
 
@@ -227,7 +319,10 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   const [isLiking, setIsLiking] = useState(false);
   const [isDeletingPost, setIsDeletingPost] = useState(false);
 
-  const [comments, setComments] = useState<CommentType[]>([]);
+  // Store comments as a flat list, tree will be derived for rendering
+  const [allComments, setAllComments] = useState<CommentType[]>([]);
+  const [commentTree, setCommentTree] = useState<CommentNode[]>([]);
+
   const [newComment, setNewComment] = useState('');
   const [isLoadingPost, setIsLoadingPost] = useState(true);
   const [isLoadingComments, setIsLoadingComments] = useState(true);
@@ -251,8 +346,16 @@ export default function PostPage({ params }: { params: PostPageParams }) {
         if(user && fetchedPost.likedBy) {
           setIsLiked(fetchedPost.likedBy.includes(user.uid));
         }
-        const fetchedComments = await getCommentsForPost(params.id);
-        setComments(fetchedComments);
+        const fetchedCommentsRaw = await getCommentsForPost(params.id);
+        // Process parentId to ensure it's null if undefined for tree building
+        const processedComments = fetchedCommentsRaw.map(c => ({...c, parentId: c.parentId === undefined ? null : c.parentId }));
+        setAllComments(processedComments);
+        setCommentTree(buildCommentTree(processedComments, null, 0).sort((a,b) => { // Sort top-level comments newest first
+            const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.toMillis() || 0;
+            const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.toMillis() || 0;
+            return dateB - dateA;
+        }));
+
       } else {
         setError("Post not found.");
       }
@@ -263,20 +366,37 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       setIsLoadingPost(false);
       setIsLoadingComments(false);
     }
-  }, [params.id, user]); // Add user to dependency array
+  }, [params.id, user]);
 
   useEffect(() => {
     fetchPostAndComments();
   }, [fetchPostAndComments]);
 
+  // Rebuild tree when allComments changes
+  useEffect(() => {
+    const processedComments = allComments.map(c => ({...c, parentId: c.parentId === undefined ? null : c.parentId }));
+    setCommentTree(buildCommentTree(processedComments, null, 0).sort((a,b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.toMillis() || 0;
+        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.toMillis() || 0;
+        return dateB - dateA;
+    }));
+  }, [allComments]);
+
+
   const handleCommentDeleted = (deletedCommentId: string) => {
-    setComments(prevComments => prevComments.filter(c => c.id !== deletedCommentId));
+    setAllComments(prevComments => prevComments.filter(c => c.id !== deletedCommentId));
     setPost(prevPost => prevPost ? { ...prevPost, commentsCount: Math.max(0, prevPost.commentsCount - 1) } : null);
   };
 
   const handleCommentEdited = (editedComment: CommentType) => {
-    setComments(prevComments => prevComments.map(c => c.id === editedComment.id ? editedComment : c));
+    setAllComments(prevComments => prevComments.map(c => c.id === editedComment.id ? editedComment : c));
   };
+
+  const handleReplySubmitted = () => {
+    // Re-fetch all comments to update the tree with the new reply
+    fetchPostAndComments();
+  };
+
 
   const handleLikeToggle = async () => {
     if (!user || !post) {
@@ -334,23 +454,12 @@ export default function PostPage({ params }: { params: PostPageParams }) {
           displayName: user.displayName,
           avatarUrl: user.avatarUrl,
         };
-      const commentToCreate: Omit<CommentType, 'id' | 'createdAt' | 'updatedAt' | 'likes'> = {
-        postId: post.id,
-        author: authorInfo,
-        content: newComment.trim(),
-      };
-
-      const newCommentId = await createComment(post.id, commentToCreate);
-
-      const commentDocRef = doc(db, 'posts', post.id, 'comments', newCommentId);
-      const createdCommentData = await getDoc(commentDocRef);
-      if (createdCommentData.exists()){
-         const createdComment = processDoc(createdCommentData) as CommentType;
-         setComments(prevComments => [createdComment, ...prevComments]);
-         setPost(prevPost => prevPost ? ({ ...prevPost, commentsCount: prevPost.commentsCount + 1 }) : null);
-      }
+      // For top-level comments, parentId is null
+      await createComment(post.id, { author: authorInfo, content: newComment.trim() }, null);
+      
       setNewComment('');
       toast({ title: "Comment posted!" });
+      fetchPostAndComments(); // Re-fetch to update the comment list and tree
     } catch (err) {
       console.error("Failed to submit comment:", err);
       toast({ title: "Error", description: "Could not post comment. Please try again.", variant: "destructive" });
@@ -475,7 +584,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
               {post.author?.uid ? (
                 <Link href={`/profile/${post.author.uid}`} className="flex items-center gap-2 hover:underline">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} data-ai-hint="author avatar" />
+                    <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} data-ai-hint="author avatar"/>
                     <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
                   </Avatar>
                   <span>{authorDisplayName}</span>
@@ -551,7 +660,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
             </form>
           ) : (
             <p className="mb-6 text-center text-muted-foreground">
-              <Link href={`/auth?redirect=/post/${params.id}/${params.slug}`} className="text-primary hover:underline">Log in</Link> to post a comment.
+              <Link href={`/auth?redirect=/post/${params.id}/${params.slug}#comments`} className="text-primary hover:underline">Log in</Link> to post a comment.
             </p>
           )}
 
@@ -561,15 +670,16 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                <p className="ml-2 text-muted-foreground">Loading comments...</p>
             </div>
           ) : (
-            <div className="space-y-4 md:space-y-6">
-              {comments.length > 0 ? (
-                comments.map(comment => (
+            <div className="space-y-0"> {/* Changed space-y-4 to space-y-0 as CommentCard handles its own margin */}
+              {commentTree.length > 0 ? (
+                commentTree.map(commentNode => (
                   <CommentCard
-                    key={comment.id}
-                    comment={comment}
+                    key={commentNode.id}
+                    commentNode={commentNode}
                     postId={post.id}
                     onCommentDeleted={handleCommentDeleted}
                     onCommentEdited={handleCommentEdited}
+                    onReplySubmitted={handleReplySubmitted}
                   />
                 ))
               ) : (

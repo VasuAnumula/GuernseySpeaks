@@ -24,8 +24,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog"; // AlertDialogTrigger removed as it's used with asChild
 import { useAuth } from '@/hooks/use-auth';
 import { formatDistanceToNow } from 'date-fns';
 import { useState, useEffect } from 'react';
@@ -36,13 +35,13 @@ interface PostCardProps {
   post: Post;
   onPostDeleted?: (postId: string) => void;
   className?: string;
-  staggerIndex?: number; // For staggered animation
+  staggerIndex?: number;
 }
 
 export function PostCard({ post: initialPost, onPostDeleted, className, staggerIndex = 0 }: PostCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [post, setPost] = useState<Post>(initialPost);
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
@@ -50,15 +49,14 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Trigger animation with a slight delay based on staggerIndex
     const timer = setTimeout(() => {
       setIsVisible(true);
-    }, staggerIndex * 100); // 100ms delay per card
+    }, staggerIndex * 100);
     return () => clearTimeout(timer);
   }, [staggerIndex]);
 
   useEffect(() => {
-    setPost(initialPost); // Update post if initialPost prop changes
+    setPost(initialPost);
   }, [initialPost]);
 
   useEffect(() => {
@@ -80,9 +78,9 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   }
 
   const postSlug = post.slug || post.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-  const authorName = post.author?.name || 'Anonymous';
+  const authorDisplayName = post.author?.displayName || post.author?.name || 'Anonymous';
   const authorAvatar = post.author?.avatarUrl;
-  const authorAvatarFallback = authorName.substring(0,1).toUpperCase();
+  const authorAvatarFallback = authorDisplayName.substring(0,1).toUpperCase();
 
   const canModify = user && (user.uid === post.author?.uid || user.role === 'superuser' || user.role === 'moderator');
 
@@ -101,8 +99,8 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
     setPost(prevPost => ({
       ...prevPost,
       likes: originalLikedState ? prevPost.likes -1 : prevPost.likes + 1,
-      likedBy: originalLikedState 
-        ? prevPost.likedBy.filter(uid => uid !== user.uid) 
+      likedBy: originalLikedState
+        ? prevPost.likedBy.filter(uid => uid !== user.uid)
         : [...prevPost.likedBy, user.uid]
     }));
 
@@ -138,10 +136,10 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   };
 
   return (
-    <Card 
+    <Card
       className={`
-        mb-6 shadow-lg 
-        transition-all duration-500 ease-out 
+        mb-6 shadow-lg
+        transition-all duration-500 ease-out
         ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}
         hover:shadow-xl hover:-translate-y-1.5 hover:scale-[1.01]
         ${className}
@@ -170,7 +168,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
                 <DropdownMenuSeparator />
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onSelect={(e) => e.preventDefault()}
                       className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"
                     >
@@ -201,17 +199,17 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
           {post.author?.uid ? (
              <Link href={`/profile/${post.author.uid}`} className="flex items-center gap-2 hover:underline hover:text-primary/90 transition-colors duration-200">
               <Avatar className="h-6 w-6">
-                <AvatarImage src={authorAvatar || undefined} alt={authorName} data-ai-hint="author avatar"/>
+                <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} data-ai-hint="author avatar"/>
                 <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
               </Avatar>
-              <span>{authorName}</span>
+              <span>{authorDisplayName}</span>
             </Link>
           ) : (
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
                  <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
               </Avatar>
-              <span>{authorName}</span>
+              <span>{authorDisplayName}</span>
             </div>
           )}
           <span>•</span>
@@ -236,7 +234,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
       <CardFooter className="flex justify-between items-center pt-4 border-t">
         <div className="flex gap-1 sm:gap-4 text-muted-foreground">
           <Button variant="ghost" size="sm" className={`group ${isLiked ? 'text-primary hover:text-primary/90' : 'hover:text-primary'}`} onClick={handleLikeToggle} disabled={isLiking || !user}>
-            {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />} 
+            {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />}
             {post.likes}
           </Button>
           <Link href={`/post/${post.id}/${postSlug}#comments`} passHref>
@@ -252,5 +250,3 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
     </Card>
   );
 }
-
-    

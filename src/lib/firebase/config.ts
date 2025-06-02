@@ -49,67 +49,44 @@ try {
 }
 
 let criticalEnvVarMissing = false;
-let errorMsg = "❌ FATAL ERROR: Firebase configuration is incomplete. Review server logs for details.\n";
-errorMsg += "Required Firebase environment variables:\n";
-
-const requiredVarsDisplay: Record<string, string | undefined> = {
-  NEXT_PUBLIC_FIREBASE_API_KEY: firebaseEnvVars.apiKey,
-  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: firebaseEnvVars.authDomain,
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID: firebaseEnvVars.projectId,
-  // Other vars are important but API key is most critical for initialization
-};
-
-for (const [envVarName, value] of Object.entries(requiredVarsDisplay)) {
-  errorMsg += `  - ${envVarName}: ${value ? (envVarName === 'NEXT_PUBLIC_FIREBASE_API_KEY' ? 'Present (value hidden)' : `"${value}"`) : '*** MISSING ***'}\n`;
-  if (envVarName === 'NEXT_PUBLIC_FIREBASE_API_KEY' && !value) {
+if (!firebaseEnvVars.apiKey) {
     criticalEnvVarMissing = true;
-  }
 }
 
 if (criticalEnvVarMissing) {
-  errorMsg += "\n👉 Troubleshooting Steps:\n";
-  errorMsg += "   IF RUNNING LOCALLY (e.g., 'npm run dev'):\n";
-  errorMsg += "   1. Ensure '.env.local' file exists in your project ROOT directory.\n";
-  errorMsg += "   2. Verify `NEXT_PUBLIC_FIREBASE_API_KEY` and other Firebase variables are correctly set within it.\n";
-  errorMsg += "   3. You MUST RESTART your development server after changes to '.env.local'.\n";
-  errorMsg += "   IF DEPLOYED (e.g., to Firebase Studio / App Hosting):\n";
-  errorMsg += "   1. Check 'apphosting.yaml' for correct `NEXT_PUBLIC_FIREBASE_API_KEY` and other Firebase variables.\n";
-  errorMsg += "   2. CRITICAL: Check Environment Variable settings in the **Firebase Console UI for your App Hosting backend**. Settings in the UI OVERRIDE 'apphosting.yaml'.\n";
-  errorMsg += "   3. Ensure the API key value is correct and active for your project ('" + (firebaseEnvVars.projectId || 'your-project-id') + "').\n";
-  errorMsg += "   4. A REDEPLOY is necessary after changing environment variables in the hosting platform or 'apphosting.yaml'.\n";
-  errorMsg += "Server-side environment variables found starting with 'NEXT_PUBLIC_FIREBASE_':\n";
-    if (typeof process !== 'undefined' && process.env) {
-        let foundAny = false;
-        for (const envKey in process.env) {
-            if (envKey.startsWith("NEXT_PUBLIC_FIREBASE_")) {
-                errorMsg += `  - ${envKey}: ${process.env[envKey] ? (envKey === "NEXT_PUBLIC_FIREBASE_API_KEY" ? 'Set (value hidden)' : `Value: "${process.env[envKey]}"`): 'MISSING/EMPTY'}\n`;
-                foundAny = true;
-            }
-        }
-        if (!foundAny) {
-            errorMsg += "  - None found. This strongly suggests .env.local (if local) or hosting configuration (if deployed) is not being loaded or is empty.\n";
-        }
-    } else {
-        errorMsg += "  - Could not inspect process.env on the server.\n";
-    }
-  errorMsg += "--------------------------------------------------------------------------------------\n";
-  
-  console.error(errorMsg);
-  // Updated error message below:
-  throw new Error(
-    "CRITICAL SERVER-SIDE CONFIGURATION ERROR: The Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) was NOT found in the server's runtime environment (process.env).\n" +
-    "This means the Next.js server (running on Firebase App Hosting) cannot initialize Firebase.\n" +
+  const errorMsg = "ACTION REQUIRED: CRITICAL SERVER-SIDE CONFIGURATION ERROR - Firebase API Key Missing.\n" +
+    "The `NEXT_PUBLIC_FIREBASE_API_KEY` was NOT found in the server's runtime environment (process.env).\n" +
+    "This means the Next.js server (running on Firebase App Hosting) cannot initialize Firebase.\n\n" +
     "FOR A DEPLOYED APP ON FIREBASE APP HOSTING:\n" +
     "  1. Go to the Firebase Console -> App Hosting -> Your Backend.\n" +
     "  2. Check the 'Environment Variables' section in the UI.\n" +
     "  3. Ensure `NEXT_PUBLIC_FIREBASE_API_KEY` is correctly set there. THE UI OVERRIDES `apphosting.yaml`.\n" +
-    "  4. If `apphosting.yaml` is intended to be the source, ensure the variable is NOT set in the UI or matches the UI.\n" +
+    "  4. If `apphosting.yaml` is the intended source, ensure the variable is NOT set in the UI, or its UI value matches.\n\n" +
     "FOR LOCAL DEVELOPMENT (e.g., `npm run dev`):\n" +
     "  1. Check your `.env.local` file in the project root.\n" +
-    "  2. Ensure `NEXT_PUBLIC_FIREBASE_API_KEY` is correctly defined there.\n" +
-    "A FULL RESTART (local dev) or REDEPLOY (App Hosting) IS REQUIRED after any changes to environment variables.\n" +
-    "See server logs for detailed diagnostics and the initial inspection of `process.env`."
-  );
+    "  2. Ensure `NEXT_PUBLIC_FIREBASE_API_KEY` is correctly defined there.\n\n" +
+    "IMPORTANT: A FULL RESTART (local dev) or REDEPLOY (App Hosting) IS REQUIRED after any changes to environment variables.\n\n" +
+    "*** CONSULT YOUR SERVER LOGS *** for detailed diagnostics, including an inspection of `process.env` that occurs before this error.";
+
+  console.error("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌");
+  console.error(errorMsg);
+  console.error("Server-side `process.env` keys at time of error (for NEXT_PUBLIC_FIREBASE_*):");
+    if (typeof process !== 'undefined' && process.env) {
+        let foundAny = false;
+        for (const envKey in process.env) {
+            if (envKey.startsWith("NEXT_PUBLIC_FIREBASE_")) {
+                 console.error(`  - ${envKey}: ${process.env[envKey] ? (envKey === "NEXT_PUBLIC_FIREBASE_API_KEY" ? 'Value Present (hidden for security)' : `Value: "${process.env[envKey]}"`): 'Value MISSING/EMPTY'}`);
+                foundAny = true;
+            }
+        }
+        if (!foundAny) {
+            console.error("  - No variables starting with 'NEXT_PUBLIC_FIREBASE_' found in server `process.env`.");
+        }
+    } else {
+        console.error("  - Could not inspect `process.env` on the server at time of error.");
+    }
+  console.error("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌");
+  throw new Error(errorMsg);
 } else {
   console.log("✅ [Firebase Config] NEXT_PUBLIC_FIREBASE_API_KEY seems to be present. Proceeding with initialization.");
 }
@@ -123,10 +100,10 @@ const firebaseConfig = {
   appId: firebaseEnvVars.appId,
 };
 
-console.log("🚀 [Firebase Config] Final firebaseConfig object for initializeApp (API key value hidden):", 
+console.log("🚀 [Firebase Config] Final firebaseConfig object for initializeApp (API key value hidden):",
   JSON.stringify({
     ...firebaseConfig,
-    apiKey: firebaseConfig.apiKey ? 'PRESENT (value hidden)' : 'MISSING!!!' 
+    apiKey: firebaseConfig.apiKey ? 'PRESENT (value hidden)' : 'MISSING!!!'
   }, null, 2)
 );
 
@@ -142,7 +119,7 @@ if (!getApps().length) {
     console.error("🚨 Firebase initialization error:", e.message);
     console.error("🚨 This could be due to incorrect values in your Firebase config (even if the API key was present).");
     console.error("🚨 Double-check your Firebase config values in .env.local (local) or apphosting.yaml / Firebase Console (deployed) against your Firebase project settings.");
-    throw e; 
+    throw e;
   }
 } else {
   app = getApp();
@@ -158,7 +135,7 @@ try {
   if (e.message.includes('invalid-api-key') || e.message.includes('auth/invalid-api-key')) {
      console.error("🚨 This specific error (invalid-api-key) strongly suggests the API Key value (from .env.local or hosting config) is incorrect or not valid for your Firebase project, even if it was loaded.");
   }
-  throw e; 
+  throw e;
 }
 
 export { app, auth, db };

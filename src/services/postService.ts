@@ -1,15 +1,15 @@
 
 'use server';
 
-import { db } from '@/lib/firebase/config'; // Ensure db is exported from firebase config
+import { db } from '@/lib/firebase/config';
 import type { Post, Comment, AuthorInfo } from '@/types';
-import { processDoc } from '@/lib/firestoreUtils'; // Import from new location
+import { processDoc } from '@/lib/firestoreUtils';
 import {
   collection,
   addDoc,
   getDocs,
   getDoc,
-  doc, 
+  doc,
   orderBy,
   query,
   serverTimestamp,
@@ -24,20 +24,28 @@ import {
 } from 'firebase/firestore';
 
 
-// Define the input type for createPost more precisely
 interface CreatePostInputData {
   title: string;
   content: string;
-  author: AuthorInfo;
+  author: AuthorInfo; // AuthorInfo should now include displayName
   flairs: string[];
 }
 
 export async function createPost(postData: CreatePostInputData): Promise<string> {
   try {
-    const slug = await generateSlug(postData.title); // Generate slug here
+    const slug = await generateSlug(postData.title);
+    // Ensure author info includes displayName, falling back to name
+    const author: AuthorInfo = {
+        uid: postData.author.uid,
+        name: postData.author.name,
+        displayName: postData.author.displayName || postData.author.name,
+        avatarUrl: postData.author.avatarUrl
+    };
+
     const docRef = await addDoc(collection(db, 'posts'), {
       ...postData,
-      slug, // Add generated slug
+      author, // Use the processed author object
+      slug,
       commentsCount: 0,
       likes: 0,
       likedBy: [],
@@ -54,15 +62,15 @@ export async function createPost(postData: CreatePostInputData): Promise<string>
 export async function updatePost(postId: string, postData: Partial<Pick<Post, 'title' | 'content' | 'flairs'>>): Promise<void> {
   try {
     const postDocRef = doc(db, 'posts', postId);
-    const firestoreUpdateData: { [key: string]: any } = { 
+    const firestoreUpdateData: { [key: string]: any } = {
       ...postData,
       updatedAt: serverTimestamp(),
     };
 
     if (postData.title) {
-      firestoreUpdateData.slug = await generateSlug(postData.title); 
+      firestoreUpdateData.slug = await generateSlug(postData.title);
     }
-    
+
     await updateDoc(postDocRef, firestoreUpdateData);
   } catch (error) {
     console.error('Error updating post:', error);
@@ -92,25 +100,13 @@ export async function deletePost(postId: string): Promise<void> {
 
 export async function getPosts(): Promise<Post[]> {
   try {
-    console.log('[postService] Attempting to fetch posts from Firestore.');
     const postsCollection = collection(db, 'posts');
     const q = query(postsCollection, orderBy('createdAt', 'desc'), limit(20));
     const querySnapshot = await getDocs(q);
-    console.log(`[postService] Successfully fetched ${querySnapshot.docs.length} posts.`);
-    
-    // Use Promise.all if processDoc were async, but it's sync now and imported
     const posts = querySnapshot.docs.map(docSnap => processDoc(docSnap) as Post);
     return posts.filter(post => post !== null);
-
   } catch (error: any) {
     console.error('[postService] Error fetching posts:', error);
-    if (error.code) { 
-      console.error('[postService] Firebase Error Code:', error.code);
-    }
-    console.error('[postService] Error Message:', error.message);
-    if (error.stack) {
-      console.error('[postService] Error Stack:', error.stack);
-    }
     throw new Error(`Failed to fetch posts. Original error: ${error.message}`);
   }
 };
@@ -153,23 +149,30 @@ export async function togglePostLike(postId: string, userId: string): Promise<{ 
       likes: newLikes,
       likedBy: newLikedBy
     });
-    
+
     const updatedPostSnap = await getDoc(postDocRef);
     const updatedData = updatedPostSnap.data() as Post;
     return { likes: updatedData.likes, likedBy: updatedData.likedBy };
-
   } catch (error) {
     console.error('Error toggling post like:', error);
     throw new Error('Failed to toggle like on post.');
   }
 };
 
-
+// Note: Comment author info now includes displayName
 export async function createComment(postId: string, commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'likes'>): Promise<string> {
   try {
     const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
+     // Ensure author info includes displayName, falling back to name
+    const author: AuthorInfo = {
+        uid: commentData.author.uid,
+        name: commentData.author.name,
+        displayName: commentData.author.displayName || commentData.author.name,
+        avatarUrl: commentData.author.avatarUrl
+    };
     const docRef = await addDoc(commentsCollectionRef, {
       ...commentData,
+      author, // Use the processed author object
       likes: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -200,15 +203,41 @@ export async function getCommentsForPost(postId: string): Promise<Comment[]> {
   }
 };
 
+export async function updateComment(postId: string, commentId: string, newContent: string): Promise<void> {
+  try {
+    const commentDocRef = doc(db, 'posts', postId, 'comments', commentId);
+    await updateDoc(commentDocRef, {
+      content: newContent,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error updating comment:', error);
+    throw new Error('Failed to update comment.');
+  }
+}
+
+export async function deleteComment(postId: string, commentId: string): Promise<void> {
+  try {
+    const commentDocRef = doc(db, 'posts', postId, 'comments', commentId);
+    await deleteDoc(commentDocRef);
+
+    // Decrement commentsCount on the post
+    const postDocRef = doc(db, 'posts', postId);
+    await updateDoc(postDocRef, {
+      commentsCount: increment(-1),
+    });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    throw new Error('Failed to delete comment.');
+  }
+}
+
 export async function generateSlug(title: string): Promise<string> {
   if (!title) return '';
   return title
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '') 
-    .replace(/\s+/g, '-')     
-    .replace(/-+/g, '-');    
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
 };
-
-// Removed re-exports of db, doc, getDoc, processDoc.
-// Client components should import these from their original sources or utility files.

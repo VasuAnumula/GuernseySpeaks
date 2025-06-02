@@ -86,7 +86,7 @@ if (criticalEnvVarMissing) {
         console.error("  - Could not inspect `process.env` on the server at time of error.");
     }
   console.error("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌");
-  throw new Error(errorMsg);
+  throw new Error(errorMsg); // This error will be caught by Next.js and displayed.
 } else {
   console.log("✅ [Firebase Config] NEXT_PUBLIC_FIREBASE_API_KEY seems to be present. Proceeding with initialization.");
 }

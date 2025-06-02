@@ -64,12 +64,11 @@ export function PostForm({ postToEdit }: PostFormProps) {
         return;
     }
     setIsSubmitting(true);
-    
+
     const trimmedTitle = title.trim();
 
     try {
       if (isEditMode && postToEdit) {
-        // Update existing post
         const postUpdateData: Partial<Pick<Post, 'title' | 'content' | 'flairs'>> = {
           title: trimmedTitle,
           content: content.trim(),
@@ -80,29 +79,29 @@ export function PostForm({ postToEdit }: PostFormProps) {
         toast({ title: "Post Updated", description: "Your post has been successfully updated!" });
         router.push(`/post/${postToEdit.id}/${updatedSlug}`);
       } else {
-        // Create new post
         const authorInfo: AuthorInfo = {
           uid: user.uid,
-          name: user.name,
+          name: user.name, // User's full name
+          displayName: user.displayName || user.name, // User's display name, fallback to name
           avatarUrl: user.avatarUrl,
         };
-        const newPostPayload = { // Payload for createPost, does not include slug
+        const newPostPayload = {
           title: trimmedTitle,
           content: content.trim(),
           author: authorInfo,
           flairs,
         };
-        const postId = await createPost(newPostPayload); // createPost now generates slug internally
-        const newSlug = await generateSlug(trimmedTitle); // generate slug for client-side navigation
+        const postId = await createPost(newPostPayload);
+        const newSlug = await generateSlug(trimmedTitle);
         toast({ title: "Post Submitted", description: "Your post is now live!" });
         router.push(`/post/${postId}/${newSlug}`);
       }
     } catch (error) {
       console.error(`Failed to ${isEditMode ? 'update' : 'create'} post:`, error);
-      toast({ 
-        title: `${isEditMode ? 'Update' : 'Submission'} Failed`, 
-        description: `Could not ${isEditMode ? 'update' : 'create'} your post. Please try again.`, 
-        variant: "destructive" 
+      toast({
+        title: `${isEditMode ? 'Update' : 'Submission'} Failed`,
+        description: `Could not ${isEditMode ? 'update' : 'create'} your post. Please try again.`,
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
@@ -121,11 +120,11 @@ export function PostForm({ postToEdit }: PostFormProps) {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="title" className="text-lg">Title</Label>
-            <Input 
-              id="title" 
-              placeholder="Enter a descriptive title" 
-              required 
-              value={title} 
+            <Input
+              id="title"
+              placeholder="Enter a descriptive title"
+              required
+              value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="text-base"
               maxLength={150}
@@ -133,12 +132,12 @@ export function PostForm({ postToEdit }: PostFormProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="content" className="text-lg">Content</Label>
-            <Textarea 
-              id="content" 
-              placeholder="What's on your mind?" 
-              required 
-              value={content} 
-              onChange={(e) => setContent(e.target.value)} 
+            <Textarea
+              id="content"
+              placeholder="What's on your mind?"
+              required
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
               rows={10}
               className="text-base"
             />
@@ -147,10 +146,10 @@ export function PostForm({ postToEdit }: PostFormProps) {
           <div className="space-y-2">
             <Label htmlFor="flairs" className="text-lg">Flairs/Tags (up to 5)</Label>
             <div className="flex items-center gap-2">
-              <Input 
-                id="flairs" 
-                placeholder="Add a flair (e.g., News, Events)" 
-                value={currentFlair} 
+              <Input
+                id="flairs"
+                placeholder="Add a flair (e.g., News, Events)"
+                value={currentFlair}
                 onChange={(e) => setCurrentFlair(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddFlair();}}}
                 className="flex-grow text-base"

@@ -3,16 +3,18 @@ import type { Timestamp } from 'firebase/firestore';
 
 export interface User {
   uid: string; // Firebase UID
-  name?: string | null;
+  name?: string | null; // Real name or full name
+  displayName?: string | null; // Public display name, can be different from name
   email?: string | null;
   avatarUrl?: string | null;
   role?: 'user' | 'moderator' | 'superuser';
-  createdAt?: Timestamp | Date; 
+  createdAt?: Timestamp | Date;
 }
 
 export interface AuthorInfo {
   uid: string;
-  name?: string | null;
+  name?: string | null; // Real name or full name
+  displayName?: string | null; // Public display name
   avatarUrl?: string | null;
 }
 

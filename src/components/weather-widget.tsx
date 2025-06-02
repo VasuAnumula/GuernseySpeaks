@@ -1,28 +1,25 @@
+
 "use client";
 
 import type { WeatherData } from '@/types';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Thermometer, Wind, Droplets, Sun, Cloud, Search } from 'lucide-react';
+import { Thermometer, Wind, Droplets, Sun, Cloud } from 'lucide-react';
 import Image from 'next/image';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Skeleton } from './ui/skeleton';
 
 // IMPORTANT: Replace with your actual WeatherAPI key. Store it in .env.local
 const WEATHER_API_KEY = process.env.NEXT_PUBLIC_WEATHER_API_KEY || 'YOUR_WEATHER_API_KEY';
-const DEFAULT_LOCATION = 'Guernsey';
-
+const DEFAULT_LOCATION = 'Guernsey'; // Hardcoded location
 
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [locationQuery, setLocationQuery] = useState(DEFAULT_LOCATION);
 
   const fetchWeather = async (location: string) => {
     if (WEATHER_API_KEY === 'YOUR_WEATHER_API_KEY') {
-      setError("Weather API key not configured.");
+      setError("Weather API key not configured. Add NEXT_PUBLIC_WEATHER_API_KEY to .env.local or apphosting.yaml.");
       setLoading(false);
       return;
     }
@@ -48,43 +45,24 @@ export function WeatherWidget() {
     fetchWeather(DEFAULT_LOCATION);
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (locationQuery.trim()) {
-      fetchWeather(locationQuery.trim());
-    }
-  };
 
   if (WEATHER_API_KEY === 'YOUR_WEATHER_API_KEY') {
     return (
       <Card className="w-full">
         <CardHeader>
-          <CardTitle className="text-lg">Weather</CardTitle>
+          <CardTitle className="text-lg">Weather in Guernsey</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-destructive">Weather API Key not configured. Please add NEXT_PUBLIC_WEATHER_API_KEY to your .env.local file.</p>
+          <p className="text-destructive">Weather API Key not configured. Please add NEXT_PUBLIC_WEATHER_API_KEY to your .env.local or apphosting.yaml file.</p>
         </CardContent>
       </Card>
     );
   }
 
-
   return (
     <Card className="w-full shadow-lg">
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">Weather</CardTitle>
-         <form onSubmit={handleSearch} className="flex gap-2 mt-2">
-          <Input 
-            type="text"
-            value={locationQuery}
-            onChange={(e) => setLocationQuery(e.target.value)}
-            placeholder="Enter location"
-            className="flex-grow"
-          />
-          <Button type="submit" size="icon" aria-label="Search weather">
-            <Search className="h-4 w-4" />
-          </Button>
-        </form>
+        <CardTitle className="text-xl font-semibold">Weather in Guernsey</CardTitle>
       </CardHeader>
       <CardContent>
         {loading && (
@@ -123,7 +101,6 @@ export function WeatherWidget() {
             <p className="text-center text-lg capitalize">{weather.current.condition.text}</p>
             <p className="text-center text-sm text-muted-foreground">Feels like {weather.current.feelslike_c}°C</p>
 
-
             <div className="grid grid-cols-2 gap-3 pt-3 text-sm">
               <div className="flex items-center">
                 <Wind className="mr-2 h-5 w-5 text-accent" />
@@ -137,6 +114,9 @@ export function WeatherWidget() {
                 <Thermometer className="mr-2 h-5 w-5 text-accent" />
                 <span>UV Index: {weather.current.uv}</span>
               </div>
+              {/* Example for Sun/Cloud icons based on condition text - can be expanded */}
+              {weather.current.condition.text.toLowerCase().includes("sun") && <Sun className="mr-2 h-5 w-5 text-yellow-500" />}
+              {weather.current.condition.text.toLowerCase().includes("cloud") && <Cloud className="mr-2 h-5 w-5 text-blue-300" />}
             </div>
           </div>
         )}

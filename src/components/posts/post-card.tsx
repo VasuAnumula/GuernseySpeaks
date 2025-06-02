@@ -24,7 +24,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"; // AlertDialogTrigger removed as it's used with asChild
+  AlertDialogTrigger, // Ensured this is imported
+} from "@/components/ui/alert-dialog";
 import { useAuth } from '@/hooks/use-auth';
 import { formatDistanceToNow } from 'date-fns';
 import { useState, useEffect } from 'react';
@@ -250,3 +251,4 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
     </Card>
   );
 }
+

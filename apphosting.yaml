@@ -5,7 +5,7 @@
 # Common European regions include: europe-west1 (Belgium), europe-west2 (London),
 # europe-west3 (Frankfurt), europe-north1 (Finland), etc.
 # Changing the region of an existing backend may require recreation.
-location: europe-west1
+location: europe-west2
 
 runConfig:
   # Increase this value if you'd like to automatically spin up

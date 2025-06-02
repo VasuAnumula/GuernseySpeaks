@@ -24,7 +24,6 @@ const processUserDoc = (docSnap: any): User | null => {
       if (obj[key] instanceof Timestamp) {
         obj[key] = obj[key].toDate();
       } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-        // Check if any nested value is a Timestamp before recursing
         if (Object.values(obj[key]).some(v => v instanceof Timestamp)) {
            convertTimestamps(obj[key]);
         }
@@ -65,17 +64,37 @@ export const getUserById = async (uid: string): Promise<User | null> => {
 export const updateUserProfile = async (uid: string, data: Partial<Pick<User, 'name' | 'displayName' | 'avatarUrl'>>): Promise<void> => {
   try {
     const userDocRef = doc(db, 'users', uid);
-    // Ensure displayName is explicitly handled
     const updateData: { [key: string]: any } = { ...data };
-    if (data.displayName === '') { // Allow clearing display name to fall back to name
+    if (data.displayName === '') { 
         updateData.displayName = null;
     }
     await updateDoc(userDocRef, {
         ...updateData,
-        updatedAt: serverTimestamp() // Assuming you add an updatedAt field
+        updatedAt: serverTimestamp()
     });
   } catch (error) {
     console.error('Error updating user profile:', error);
     throw new Error('Failed to update user profile.');
+  }
+};
+
+export const setUserRole = async (targetUserId: string, newRole: User['role']): Promise<void> => {
+  if (!targetUserId || !newRole) {
+    throw new Error('Target User ID and new role are required.');
+  }
+  // Basic validation for allowed roles, can be expanded
+  if (!['user', 'moderator', 'superuser'].includes(newRole!)) {
+    throw new Error('Invalid role specified.');
+  }
+
+  try {
+    const userDocRef = doc(db, 'users', targetUserId);
+    await updateDoc(userDocRef, {
+      role: newRole,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error(`Error setting user role for ${targetUserId} to ${newRole}:`, error);
+    throw new Error('Failed to update user role.');
   }
 };

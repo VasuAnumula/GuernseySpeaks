@@ -38,12 +38,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        console.log("[AuthContext] onAuthStateChanged: Firebase user detected:", firebaseUser.uid);
+        console.log("[AuthContext] onAuthStateChanged: Firebase user detected. UID:", firebaseUser.uid);
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         try {
           const userDocSnap = await getDoc(userDocRef);
           if (userDocSnap.exists()) {
-            console.log("[AuthContext] onAuthStateChanged: User document exists for UID:", firebaseUser.uid);
+            console.log("[AuthContext] onAuthStateChanged: User document FOUND for UID:", firebaseUser.uid);
             const userData = userDocSnap.data() as User;
             setUser({
               ...userData,
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               displayName: userData.displayName || userData.name || firebaseUser.displayName,
             });
           } else {
-            console.log("[AuthContext] onAuthStateChanged: User document DOES NOT exist for UID:", firebaseUser.uid, ". Creating new profile.");
+            console.log("[AuthContext] onAuthStateChanged: User document NOT FOUND for UID:", firebaseUser.uid, ". Attempting to create new profile.");
             const newName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous';
             const newUserProfile: User = {
               uid: firebaseUser.uid,
@@ -66,15 +66,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               createdAt: serverTimestamp() as Timestamp,
             };
             await setDoc(userDocRef, newUserProfile);
-            console.log("[AuthContext] onAuthStateChanged: New user profile CREATED for UID:", firebaseUser.uid);
+            console.log("[AuthContext] onAuthStateChanged: New user profile CREATED in Firestore for UID:", firebaseUser.uid);
             setUser(newUserProfile);
           }
         } catch (firestoreError: any) {
-          console.error(`[AuthContext] Firestore error in onAuthStateChanged for UID ${firebaseUser.uid}:`, firestoreError);
-          // If Firestore operations fail, user might be stuck in a partially authenticated state.
-          // Clearing user state or showing a global error might be necessary in a production app.
-          setUser(null); // Or set user with an error state
-          // This specific error is not directly toast-ed to the user from here, but it's critical for debugging.
+          console.error(`[AuthContext] Firestore error in onAuthStateChanged for UID ${firebaseUser.uid}:`, firestoreError.message, firestoreError);
+          setUser(null); 
         }
       } else {
         console.log("[AuthContext] onAuthStateChanged: No Firebase user.");
@@ -91,7 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
-      console.error("[AuthContext] Login error:", error);
+      console.error("[AuthContext] Email/Password Login error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -103,7 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
-      console.log("[AuthContext] Registration: Firebase user CREATED:", firebaseUser.uid);
+      console.log("[AuthContext] Registration: Firebase user CREATED via email/password. UID:", firebaseUser.uid);
       const newUserProfile: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
@@ -116,26 +113,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await setDoc(doc(db, 'users', firebaseUser.uid), newUserProfile);
       console.log("[AuthContext] Registration: User profile CREATED in Firestore for UID:", firebaseUser.uid);
     } catch (error: any) {
-      console.error("[AuthContext] Registration error:", error);
-      if (error.code && error.code.startsWith("auth/")) {
-        console.error("[AuthContext] This was an Firebase Auth error during registration.");
-      } else {
-        console.error("[AuthContext] This might be a Firestore error during profile creation post-registration.");
-      }
+      console.error("[AuthContext] Email/Password Registration error (Firebase Auth or Firestore):", error);
       throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSocialSignIn = async (firebaseUser: FirebaseUser) => {
-    console.log("[AuthContext] handleSocialSignIn for UID:", firebaseUser.uid);
+  const handleSocialSignIn = async (firebaseUser: FirebaseUser, providerName: string) => {
+    console.log(`[AuthContext] handleSocialSignIn called for ${providerName}. UID:`, firebaseUser.uid);
     const userDocRef = doc(db, 'users', firebaseUser.uid);
     try {
       const userDocSnap = await getDoc(userDocRef);
       if (!userDocSnap.exists()) {
-        console.log("[AuthContext] handleSocialSignIn: User document DOES NOT exist. Creating profile.");
-        const newName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous';
+        console.log(`[AuthContext] handleSocialSignIn (${providerName}): User document NOT FOUND for UID: ${firebaseUser.uid}. Creating new profile.`);
+        const newName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'AnonymousUser';
         const newUserProfile: User = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -146,38 +138,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           createdAt: serverTimestamp() as Timestamp,
         };
         await setDoc(userDocRef, newUserProfile);
-        console.log("[AuthContext] handleSocialSignIn: New user profile CREATED.");
-        setUser(newUserProfile);
+        console.log(`[AuthContext] handleSocialSignIn (${providerName}): New user profile CREATED in Firestore for UID: ${firebaseUser.uid}`);
+        setUser(newUserProfile); // Set user in context
       } else {
-        console.log("[AuthContext] handleSocialSignIn: User document exists. Setting user data.");
+        console.log(`[AuthContext] handleSocialSignIn (${providerName}): User document FOUND for UID: ${firebaseUser.uid}. Setting user data.`);
         const userData = userDocSnap.data() as User;
-         setUser({
+         setUser({ // Set user in context
             ...userData,
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            avatarUrl: firebaseUser.photoURL || userData.avatarUrl,
-            name: userData.name || firebaseUser.displayName,
-            displayName: userData.displayName || userData.name || firebaseUser.displayName,
+            avatarUrl: firebaseUser.photoURL || userData.avatarUrl, // Prioritize fresh photoURL from provider
+            name: userData.name || firebaseUser.displayName, // Keep existing name if set, else from provider
+            displayName: userData.displayName || userData.name || firebaseUser.displayName, // Similar logic for displayName
           });
       }
+       console.log(`[AuthContext] handleSocialSignIn (${providerName}): User profile processed successfully for UID: ${firebaseUser.uid}`);
     } catch (firestoreError: any) {
-      console.error("[AuthContext] Firestore error during social sign-in user profile handling:", firestoreError);
-      throw new Error(`Error setting up user profile: ${firestoreError.message}`); // This message will propagate to AuthForm's toast
+      console.error(`[AuthContext] Firestore error during ${providerName} sign-in profile handling for UID ${firebaseUser.uid}:`, firestoreError.message, firestoreError);
+      // This error will propagate to the calling function (signInWithGoogle/Facebook) and then to AuthForm
+      throw new Error(`Error setting up user profile after ${providerName} sign-in: ${firestoreError.message}`); 
     }
   };
 
   const signInWithGoogle = async () => {
     setLoading(true);
+    console.log("[AuthContext] Attempting Google Sign-In Popup...");
     const provider = new GoogleAuthProvider();
     try {
-      console.log("[AuthContext] Attempting Google Sign-In Popup...");
       const result = await signInWithPopup(auth, provider);
-      console.log("[AuthContext] Google Auth successful for UID:", result.user.uid);
-      await handleSocialSignIn(result.user);
-      console.log("[AuthContext] Google Sign-In: User profile handled successfully.");
+      console.log("[AuthContext] Google Firebase Auth successful. UID:", result.user.uid, "User:", result.user);
+      await handleSocialSignIn(result.user, "Google");
+      console.log("[AuthContext] Google Sign-In and profile handling complete for UID:", result.user.uid);
     } catch (error: any) {
-      console.error("[AuthContext] Error during Google Sign-in or profile handling:", error);
-      throw error; // Re-throw to be caught by AuthForm
+      console.error("[AuthContext] Error during Google Sign-in flow (Auth Popup or Profile Handling):", error.message, error);
+      // Error will be re-thrown to be caught by AuthForm's toast
+      if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error("Google Sign-in cancelled by user.");
+      } else if (error.code === 'auth/network-request-failed') {
+        throw new Error("Network error during Google Sign-in. Please check your connection.");
+      }
+      throw error; 
     } finally {
       setLoading(false);
     }
@@ -185,16 +185,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithFacebook = async () => {
     setLoading(true);
+    console.log("[AuthContext] Attempting Facebook Sign-In Popup...");
     const provider = new FacebookAuthProvider();
     try {
-      console.log("[AuthContext] Attempting Facebook Sign-In Popup...");
       const result = await signInWithPopup(auth, provider);
-      console.log("[AuthContext] Facebook Auth successful for UID:", result.user.uid);
-      await handleSocialSignIn(result.user);
-      console.log("[AuthContext] Facebook Sign-In: User profile handled successfully.");
+      console.log("[AuthContext] Facebook Firebase Auth successful. UID:", result.user.uid, "User:", result.user);
+      await handleSocialSignIn(result.user, "Facebook");
+      console.log("[AuthContext] Facebook Sign-In and profile handling complete for UID:", result.user.uid);
     } catch (error: any) {
-      console.error("[AuthContext] Error during Facebook Sign-in or profile handling:", error);
-      throw error; // Re-throw to be caught by AuthForm
+      console.error("[AuthContext] Error during Facebook Sign-in flow (Auth Popup or Profile Handling):", error.message, error);
+      // Error will be re-thrown to be caught by AuthForm's toast
+      if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error("Facebook Sign-in cancelled by user.");
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
+        throw new Error("An account already exists with the same email address but different sign-in credentials. Try signing in with Google or email.");
+      } else if (error.code === 'auth/network-request-failed') {
+        throw new Error("Network error during Facebook Sign-in. Please check your connection.");
+      }
+      throw error; 
     } finally {
       setLoading(false);
     }

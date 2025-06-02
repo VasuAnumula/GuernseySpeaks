@@ -37,11 +37,19 @@ export interface Comment {
   postId: string;
   author: AuthorInfo; // Embedded author information
   content: string;
+  parentId: string | null; // ID of the parent comment, null if top-level
   createdAt: Timestamp | Date; // Firestore Timestamp or JS Date
   updatedAt?: Timestamp | Date;
   likes: number;
   // likedBy: string[]; // Future: for comment liking
 }
+
+// For rendering threaded comments
+export interface CommentNode extends Comment {
+  replies: CommentNode[];
+  depth: number;
+}
+
 
 export interface WeatherData {
   location: {

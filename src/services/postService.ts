@@ -158,8 +158,14 @@ export async function togglePostLike(postId: string, userId: string): Promise<{ 
   }
 };
 
-// Store only public comment author information
-export async function createComment(postId: string, commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'likes'>): Promise<string> {
+// Omit 'id', 'createdAt', 'updatedAt', 'likes' and 'parentId' for the input type, as parentId is handled explicitly
+// The type for commentData should correctly reflect the fields needed for creation.
+// `parentId` is now a direct parameter to `createComment`.
+export async function createComment(
+  postId: string,
+  commentData: Pick<Comment, 'author' | 'content'>,
+  parentId: string | null = null // Explicitly pass parentId, default to null for top-level
+): Promise<string> {
   try {
     const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
     const author: AuthorInfo = {
@@ -168,8 +174,10 @@ export async function createComment(postId: string, commentData: Omit<Comment, '
         avatarUrl: commentData.author.avatarUrl
     };
     const docRef = await addDoc(commentsCollectionRef, {
-      ...commentData,
-      author, // Use the processed author object
+      postId: postId, // Storing postId on comment for potential denormalization/rules
+      author,
+      content: commentData.content,
+      parentId: parentId, // Store the parentId
       likes: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -190,9 +198,14 @@ export async function createComment(postId: string, commentData: Omit<Comment, '
 export async function getCommentsForPost(postId: string): Promise<Comment[]> {
   try {
     const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
-    const q = query(commentsCollectionRef, orderBy('createdAt', 'desc'));
+    // Fetch comments ordered by creation time to maintain chronological order for replies
+    const q = query(commentsCollectionRef, orderBy('createdAt', 'asc'));
     const querySnapshot = await getDocs(q);
-    const comments = querySnapshot.docs.map(docSnap => processDoc(docSnap) as Comment);
+    const comments = querySnapshot.docs.map(docSnap => {
+        const processed = processDoc(docSnap) as Comment;
+        // Ensure parentId is null if not present (for older comments or clarity)
+        return { ...processed, parentId: processed.parentId === undefined ? null : processed.parentId };
+    });
     return comments.filter(comment => comment !== null);
   } catch (error) {
     console.error('Error fetching comments:', error);
@@ -215,6 +228,9 @@ export async function updateComment(postId: string, commentId: string, newConten
 
 export async function deleteComment(postId: string, commentId: string): Promise<void> {
   try {
+    // Note: Deleting a comment with replies will orphan those replies.
+    // A more complex deletion would recursively delete all replies.
+    // For now, we keep it simple and just delete the target comment.
     const commentDocRef = doc(db, 'posts', postId, 'comments', commentId);
     await deleteDoc(commentDocRef);
 

@@ -79,7 +79,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   }
 
   const postSlug = post.slug || post.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-  const authorDisplayName = post.author?.displayName || post.author?.name || 'Anonymous';
+  const authorDisplayName = post.author?.displayName || 'Anonymous';
   const authorAvatar = post.author?.avatarUrl;
   const authorAvatarFallback = authorDisplayName.substring(0,1).toUpperCase();
 

@@ -81,8 +81,7 @@ export function PostForm({ postToEdit }: PostFormProps) {
       } else {
         const authorInfo: AuthorInfo = {
           uid: user.uid,
-          name: user.name, // User's full name
-          displayName: user.displayName || user.name, // User's display name, fallback to name
+          displayName: user.displayName,
           avatarUrl: user.avatarUrl,
         };
         const newPostPayload = {

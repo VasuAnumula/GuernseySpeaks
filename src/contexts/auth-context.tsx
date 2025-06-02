@@ -21,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>; // name is for both name and initial displayName
+  register: (email: string, password: string, name: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
   logout: () => Promise<void>;
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               displayName: userData.displayName || userData.name || firebaseUser.displayName,
             });
           } else {
-            console.log("[AuthContext] onAuthStateChanged: User document NOT FOUND for UID:", firebaseUser.uid, ". Attempting to create new profile.");
+            console.log("[AuthContext] onAuthStateChanged: User document NOT FOUND for UID:", firebaseUser.uid, ". Attempting to create new profile from onAuthStateChanged.");
             const newName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous';
             const newUserProfile: User = {
               uid: firebaseUser.uid,
@@ -65,13 +65,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               role: 'user',
               createdAt: serverTimestamp() as Timestamp,
             };
+            // Important: Ensure rules allow this setDoc operation
             await setDoc(userDocRef, newUserProfile);
             console.log("[AuthContext] onAuthStateChanged: New user profile CREATED in Firestore for UID:", firebaseUser.uid);
             setUser(newUserProfile);
           }
         } catch (firestoreError: any) {
           console.error(`[AuthContext] Firestore error in onAuthStateChanged for UID ${firebaseUser.uid}:`, firestoreError.message, firestoreError);
-          setUser(null); 
+          // If profile can't be fetched/created, it's a critical issue.
+          // Depending on policy, you might sign out the user or set a minimal user object.
+                  setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: firebaseUser.displayName || 'Error User',
+            displayName: firebaseUser.displayName || 'Error User',
+            avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=E`,
+            role: 'user', 
+          });
+          console.warn("[AuthContext] User state set to minimal due to Firestore error. App functionality might be limited.");
         }
       } else {
         console.log("[AuthContext] onAuthStateChanged: No Firebase user.");
@@ -105,13 +116,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         name: name,
-        displayName: name,
+        displayName: name, // Set displayName to name initially
         avatarUrl: `https://placehold.co/40x40.png?text=${name.substring(0,1)}`,
         role: 'user',
         createdAt: serverTimestamp() as Timestamp,
       };
       await setDoc(doc(db, 'users', firebaseUser.uid), newUserProfile);
       console.log("[AuthContext] Registration: User profile CREATED in Firestore for UID:", firebaseUser.uid);
+      // setUser will be handled by onAuthStateChanged
     } catch (error: any) {
       console.error("[AuthContext] Email/Password Registration error (Firebase Auth or Firestore):", error);
       throw error;
@@ -132,31 +144,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           name: newName,
-          displayName: newName,
+          displayName: newName, // Set displayName to name initially
           avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${newName.substring(0,1)}`,
           role: 'user',
           createdAt: serverTimestamp() as Timestamp,
         };
-        await setDoc(userDocRef, newUserProfile);
+        await setDoc(userDocRef, newUserProfile); // This is the Firestore write operation
         console.log(`[AuthContext] handleSocialSignIn (${providerName}): New user profile CREATED in Firestore for UID: ${firebaseUser.uid}`);
-        setUser(newUserProfile); // Set user in context
+        // setUser will be handled by onAuthStateChanged
       } else {
-        console.log(`[AuthContext] handleSocialSignIn (${providerName}): User document FOUND for UID: ${firebaseUser.uid}. Setting user data.`);
-        const userData = userDocSnap.data() as User;
-         setUser({ // Set user in context
-            ...userData,
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            avatarUrl: firebaseUser.photoURL || userData.avatarUrl, // Prioritize fresh photoURL from provider
-            name: userData.name || firebaseUser.displayName, // Keep existing name if set, else from provider
-            displayName: userData.displayName || userData.name || firebaseUser.displayName, // Similar logic for displayName
-          });
+        console.log(`[AuthContext] handleSocialSignIn (${providerName}): User document FOUND for UID: ${firebaseUser.uid}. Ensuring user data is consistent.`);
+        const existingData = userDocSnap.data() as User;
+        const updateData: Partial<User> = {};
+        if (!existingData.avatarUrl && firebaseUser.photoURL) {
+            updateData.avatarUrl = firebaseUser.photoURL;
+        }
+        if (!existingData.name && firebaseUser.displayName) {
+            updateData.name = firebaseUser.displayName;
+        }
+        if (!existingData.displayName && firebaseUser.displayName) {
+            updateData.displayName = firebaseUser.displayName;
+        }
+        if (Object.keys(updateData).length > 0) {
+            console.log(`[AuthContext] handleSocialSignIn (${providerName}): Updating existing profile with new data from provider. UID: ${firebaseUser.uid}`, updateData);
+            await updateDoc(userDocRef, {...updateData, updatedAt: serverTimestamp() });
+        }
+        // setUser will be handled by onAuthStateChanged
       }
        console.log(`[AuthContext] handleSocialSignIn (${providerName}): User profile processed successfully for UID: ${firebaseUser.uid}`);
     } catch (firestoreError: any) {
       console.error(`[AuthContext] Firestore error during ${providerName} sign-in profile handling for UID ${firebaseUser.uid}:`, firestoreError.message, firestoreError);
       // This error will propagate to the calling function (signInWithGoogle/Facebook) and then to AuthForm
-      throw new Error(`Error setting up user profile after ${providerName} sign-in: ${firestoreError.message}`); 
+      // The message from firestoreError.message is typically "Missing or insufficient permissions."
+      throw new Error(`Error setting up user profile after ${providerName} sign-in: ${firestoreError.message}`);
     }
   };
 
@@ -166,18 +186,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      console.log("[AuthContext] Google Firebase Auth successful. UID:", result.user.uid, "User:", result.user);
+      console.log("[AuthContext] Google Firebase Auth successful. UID:", result.user.uid);
       await handleSocialSignIn(result.user, "Google");
       console.log("[AuthContext] Google Sign-In and profile handling complete for UID:", result.user.uid);
+      // User state will be updated by onAuthStateChanged
     } catch (error: any) {
       console.error("[AuthContext] Error during Google Sign-in flow (Auth Popup or Profile Handling):", error.message, error);
-      // Error will be re-thrown to be caught by AuthForm's toast
       if (error.code === 'auth/popup-closed-by-user') {
         throw new Error("Google Sign-in cancelled by user.");
       } else if (error.code === 'auth/network-request-failed') {
         throw new Error("Network error during Google Sign-in. Please check your connection.");
       }
-      throw error; 
+      // Re-throw the error (which might be from handleSocialSignIn) to be caught by AuthForm
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -189,12 +210,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const provider = new FacebookAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      console.log("[AuthContext] Facebook Firebase Auth successful. UID:", result.user.uid, "User:", result.user);
+      console.log("[AuthContext] Facebook Firebase Auth successful. UID:", result.user.uid);
       await handleSocialSignIn(result.user, "Facebook");
       console.log("[AuthContext] Facebook Sign-In and profile handling complete for UID:", result.user.uid);
+      // User state will be updated by onAuthStateChanged
     } catch (error: any) {
       console.error("[AuthContext] Error during Facebook Sign-in flow (Auth Popup or Profile Handling):", error.message, error);
-      // Error will be re-thrown to be caught by AuthForm's toast
       if (error.code === 'auth/popup-closed-by-user') {
         throw new Error("Facebook Sign-in cancelled by user.");
       } else if (error.code === 'auth/account-exists-with-different-credential') {
@@ -202,7 +223,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else if (error.code === 'auth/network-request-failed') {
         throw new Error("Network error during Facebook Sign-in. Please check your connection.");
       }
-      throw error; 
+      // Re-throw the error (which might be from handleSocialSignIn) to be caught by AuthForm
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -212,7 +234,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       await signOut(auth);
-      setUser(null);
+      setUser(null); // Clear user state immediately
       router.push('/');
     } catch (error) {
       console.error("[AuthContext] Logout error:", error);

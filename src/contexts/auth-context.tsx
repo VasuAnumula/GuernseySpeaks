@@ -21,7 +21,12 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>; // name is for both name and initial displayName
+  register: (
+    email: string,
+    password: string,
+    displayName: string,
+    name?: string | null
+  ) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
   logout: () => Promise<void>;
@@ -87,7 +92,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (email: string, password: string, name: string) => {
+  const register = async (
+    email: string,
+    password: string,
+    displayName: string,
+    name?: string | null
+  ) => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -95,9 +105,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const newUserProfile: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
-        name: name, // Use provided name
-        displayName: name, // Use provided name as initial displayName
-        avatarUrl: `https://placehold.co/40x40.png?text=${name.substring(0,1)}`,
+        name: name || null,
+        displayName,
+        avatarUrl: `https://placehold.co/40x40.png?text=${displayName.substring(0,1)}`,
         role: 'user',
         createdAt: serverTimestamp() as Timestamp,
       };
@@ -119,7 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         name: newName,
-        displayName: newName, // Set displayName same as name initially
+        displayName: null,
         avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${newName.substring(0,1)}`,
         role: 'user',
         createdAt: serverTimestamp() as Timestamp,
@@ -134,7 +144,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             email: firebaseUser.email,
             avatarUrl: firebaseUser.photoURL || userData.avatarUrl,
             name: userData.name || firebaseUser.displayName,
-            displayName: userData.displayName || userData.name || firebaseUser.displayName,
+            displayName: userData.displayName || firebaseUser.displayName || null,
           });
     }
   };

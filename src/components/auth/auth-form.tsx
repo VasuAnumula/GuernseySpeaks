@@ -17,7 +17,8 @@ export function AuthForm() {
   const [loginPassword, setLoginPassword] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
-  const [registerName, setRegisterName] = useState(''); // This will be used for name and initial displayName
+  const [registerDisplayName, setRegisterDisplayName] = useState('');
+  const [registerName, setRegisterName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authAction, setAuthAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +53,7 @@ export function AuthForm() {
     setAuthAction('email');
     setError(null);
     try {
-      // Pass registerName to be used as both 'name' and initial 'displayName'
-      await register(registerEmail, registerPassword, registerName);
+      await register(registerEmail, registerPassword, registerDisplayName, registerName || null);
       toast({ title: "Registration Successful", description: "Welcome to GuernseySpeaks! Please set up your profile." });
       router.push(redirectPath); // Redirect to profile page
     } catch (err: any) {
@@ -151,8 +151,18 @@ export function AuthForm() {
             <form onSubmit={handleRegister}>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
+                  <Label htmlFor="register-display-name">Display Name</Label>
+                  <Input
+                    id="register-display-name"
+                    placeholder="cooluser123"
+                    required
+                    value={registerDisplayName}
+                    onChange={(e) => setRegisterDisplayName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="register-name">Full Name</Label>
-                  <Input id="register-name" placeholder="John Doe" required value={registerName} onChange={(e) => setRegisterName(e.target.value)} />
+                  <Input id="register-name" placeholder="John Doe" value={registerName} onChange={(e) => setRegisterName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="register-email">Email</Label>

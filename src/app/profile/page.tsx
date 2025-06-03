@@ -11,84 +11,75 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Mail, User as UserIcon, ShieldCheck, Edit3, Loader2, Save, Image as ImageIcon } from 'lucide-react';
+import { useEffect, useState } } from 'react';
+import { Mail, User as UserIcon, ShieldCheck, Loader2, UploadCloud } from 'lucide-react';
 import { format } from 'date-fns';
-import { updateUserProfile } from '@/services/userService';
+// import { updateUserProfile } from '@/services/userService'; // Upload logic not implemented here
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
-  const { user, loading: authLoading, updateUserInContext } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editDisplayName, setEditDisplayName] = useState('');
   const [formattedJoinedDate, setFormattedJoinedDate] = useState<string | null>(null);
-  // const [editAvatarUrl, setEditAvatarUrl] = useState(user?.avatarUrl || ''); // Avatar update deferred
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth?redirect=/profile');
     }
-    if (user) {
-      setEditName(user.name || '');
-      setEditDisplayName(user.displayName || user.name || ''); // Fallback for displayName
-      // setEditAvatarUrl(user.avatarUrl || '');
-      if (user.createdAt) {
-        try {
-          const date = user.createdAt instanceof Date ? user.createdAt : (user.createdAt as any).toDate();
-          setFormattedJoinedDate(format(date, "MMMM d, yyyy"));
-        } catch (e) {
-          console.error("Error formatting joined date:", e);
-          setFormattedJoinedDate("Invalid Date");
-        }
-      } else {
-        setFormattedJoinedDate("Not available");
+    if (user && user.createdAt) {
+      try {
+        const date = user.createdAt instanceof Date ? user.createdAt : (user.createdAt as any).toDate();
+        setFormattedJoinedDate(format(date, "MMMM d, yyyy"));
+      } catch (e) {
+        console.error("Error formatting joined date:", e);
+        setFormattedJoinedDate("Invalid Date");
       }
+    } else if (user && !user.createdAt) {
+        setFormattedJoinedDate("Not available");
     }
   }, [user, authLoading, router]);
 
-  const handleEditToggle = () => {
-    if (isEditing && user) { // Reset fields if canceling edit
-      setEditName(user.name || '');
-      setEditDisplayName(user.displayName || user.name || '');
-      // setEditAvatarUrl(user.avatarUrl || '');
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0]);
+    } else {
+      setSelectedFile(null);
     }
-    setIsEditing(!isEditing);
   };
 
-  const handleSaveProfile = async () => {
-    if (!user) return;
-    setIsSaving(true);
-    try {
-      const profileDataToUpdate: Partial<{ name: string; displayName: string; avatarUrl: string }> = {};
-      if (editName !== user.name) profileDataToUpdate.name = editName.trim();
-      if (editDisplayName !== (user.displayName || user.name)) {
-        // Allow setting display name to empty string, which service will convert to null
-        profileDataToUpdate.displayName = editDisplayName.trim() === '' ? '' : editDisplayName.trim();
-      }
-      // if (editAvatarUrl !== user.avatarUrl) profileDataToUpdate.avatarUrl = editAvatarUrl; // Avatar update deferred
-
-      if (Object.keys(profileDataToUpdate).length > 0) {
-        await updateUserProfile(user.uid, profileDataToUpdate);
-        updateUserInContext({ 
-          name: profileDataToUpdate.name ?? user.name,
-          displayName: profileDataToUpdate.displayName === '' ? null : (profileDataToUpdate.displayName ?? user.displayName) // handle empty string to null
-        }); 
-        toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
-      } else {
-        toast({ title: "No Changes", description: "No changes were made to your profile." });
-      }
-      setIsEditing(false);
-    } catch (error) {
-      console.error("Failed to update profile:", error);
-      toast({ title: "Error", description: "Could not update your profile. Please try again.", variant: "destructive" });
-    } finally {
-      setIsSaving(false);
+  const handleAvatarUpload = async () => {
+    if (!selectedFile || !user) {
+      toast({ title: "No File Selected", description: "Please select an image file to upload.", variant: "destructive" });
+      return;
     }
+    setIsUploading(true);
+    toast({ title: "Upload Started (Placeholder)", description: "Actual upload logic to Firebase Storage needs to be implemented." });
+    // Placeholder for actual upload logic:
+    // try {
+    //   // 1. Upload selectedFile to Firebase Storage (requires a service function)
+    //   // const avatarUrl = await uploadProfilePicture(user.uid, selectedFile);
+    //   // 2. Update user profile in Firestore with the new avatarUrl
+    //   // await updateUserProfile(user.uid, { avatarUrl });
+    //   // 3. Update user context
+    //   // updateUserInContext({ avatarUrl });
+    //   // toast({ title: "Avatar Updated", description: "Your new avatar has been set." });
+    //   setSelectedFile(null); // Clear selection
+    // } catch (error) {
+    //   console.error("Failed to upload avatar:", error);
+    //   toast({ title: "Upload Failed", description: "Could not upload your new avatar. Please try again.", variant: "destructive" });
+    // } finally {
+    //   setIsUploading(false);
+    // }
+    
+    // Simulate upload for now
+    setTimeout(() => {
+      setIsUploading(false);
+       toast({ title: "Note", description: "Avatar upload functionality is a placeholder. Backend integration needed." });
+    }, 2000);
   };
 
 
@@ -114,14 +105,6 @@ export default function ProfilePage() {
             <AvatarImage src={user.avatarUrl || undefined} alt={currentDisplayName} data-ai-hint="user large_avatar" />
             <AvatarFallback className="text-5xl">{userAvatarFallback}</AvatarFallback>
           </Avatar>
-          {/* Avatar upload button - deferred
-          {isEditing && (
-            <Button size="icon" variant="outline" className="absolute top-20 right-1/2 translate-x-[calc(50%_+_4rem)]  bg-background hover:bg-accent">
-              <ImageIcon className="h-5 w-5" />
-              <span className="sr-only">Change Avatar</span>
-            </Button>
-          )}
-          */}
           <CardTitle className="text-3xl">{currentDisplayName}</CardTitle>
           {user.email && (
             <CardDescription className="flex items-center justify-center gap-1">
@@ -135,91 +118,54 @@ export default function ProfilePage() {
           )}
         </CardHeader>
         <CardContent className="space-y-6">
-          {isEditing ? (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="displayName" className="text-base">Display Name (Public)</Label>
-                <Input
-                  id="displayName"
-                  value={editDisplayName}
-                  onChange={(e) => setEditDisplayName(e.target.value)}
-                  placeholder="Your public username"
-                  className="mt-1"
-                />
-                 <p className="text-xs text-muted-foreground mt-1">This name will be shown on your posts and comments. Leave blank to use your full name.</p>
-              </div>
-              <div>
-                <Label htmlFor="fullName" className="text-base">Full Name (Private)</Label>
-                <Input
-                  id="fullName"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Your full name"
-                  className="mt-1"
-                />
-                 <p className="text-xs text-muted-foreground mt-1">This name is not typically shown publicly if a display name is set.</p>
-              </div>
-              {/* Avatar URL edit - deferred
-              <div>
-                <Label htmlFor="avatarUrl">Avatar URL</Label>
-                <Input id="avatarUrl" value={editAvatarUrl} onChange={(e) => setEditAvatarUrl(e.target.value)} placeholder="https://example.com/avatar.png" />
-              </div>
-              */}
+          <div>
+            <h3 className="text-lg font-semibold mb-1">Full Name</h3>
+            <p className="text-muted-foreground">{user.name || 'Not set'}</p>
+          </div>
+           <div>
+            <h3 className="text-lg font-semibold mb-1">Display Name (Public)</h3>
+            <p className="text-muted-foreground">{user.displayName || user.name || 'Not set'}</p>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Change Profile Picture</h3>
+            <div className="flex flex-col sm:flex-row items-center gap-2 mt-1">
+              <Label htmlFor="avatar-upload" className="sr-only">Choose profile picture</Label>
+              <Input 
+                id="avatar-upload" 
+                type="file" 
+                accept="image/png, image/jpeg, image/gif"
+                onChange={handleFileChange}
+                className="flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                disabled={isUploading}
+              />
+              <Button onClick={handleAvatarUpload} disabled={isUploading || !selectedFile} className="w-full sm:w-auto">
+                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                Upload Avatar
+              </Button>
             </div>
-          ) : (
-            <>
-              <div>
-                <h3 className="text-lg font-semibold mb-1">Full Name</h3>
-                <p className="text-muted-foreground">{user.name || 'Not set'}</p>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Activity</h3>
-                <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                  <li>Posts created: (Coming soon)</li>
-                  <li>Comments made: (Coming soon)</li>
-                  <li>Joined: {formattedJoinedDate || 'Loading...'}</li>
-                </ul>
-              </div>
-            </>
-          )}
+            {selectedFile && <p className="text-xs text-muted-foreground mt-1">Selected: {selectedFile.name}</p>}
+             <p className="text-xs text-muted-foreground mt-2">
+              Note: Actual image upload to Firebase Storage and profile update is not yet implemented. This is a UI placeholder.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Activity</h3>
+            <ul className="list-disc list-inside text-muted-foreground space-y-1">
+              <li>Posts created: (Coming soon)</li>
+              <li>Comments made: (Coming soon)</li>
+              <li>Joined: {formattedJoinedDate || 'Loading...'}</li>
+            </ul>
+          </div>
+           <p className="text-sm text-muted-foreground border-t pt-4 mt-4">
+            Profile editing is currently disabled. Your display name and full name are set during registration.
+          </p>
         </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row justify-end gap-2">
-          {isEditing ? (
-            <>
-              <Button variant="outline" onClick={handleEditToggle} disabled={isSaving}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveProfile} disabled={isSaving || (!editDisplayName.trim() && !(user.displayName || user.name))}>
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save Changes
-              </Button>
-            </>
-          ) : (
-            <Button onClick={handleEditToggle}>
-              <Edit3 className="mr-2 h-4 w-4" /> Edit Profile
-            </Button>
-          )}
+        <CardFooter className="flex justify-end">
+            {/* Footer can be used for other actions if needed in the future */}
         </CardFooter>
       </Card>
-       {/* Prompt to set display name if not set and not editing */}
-      {!isEditing && user && !user.displayName && (
-        <Card className="max-w-2xl mx-auto shadow-lg mt-6 border-primary">
-          <CardHeader>
-            <CardTitle className="text-xl text-primary">Set Your Public Display Name!</CardTitle>
-            <CardDescription>
-              Your display name is how others will see you on GuernseySpeaks. Why not set one now?
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-             <p className="text-muted-foreground mb-3">
-              Currently, your full name "{user.name}" is being used. You can set a different public display name.
-            </p>
-            <Button onClick={() => setIsEditing(true)} className="w-full">
-              <Edit3 className="mr-2 h-4 w-4" /> Set Display Name
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </MainLayout>
   );
 }
+
+    

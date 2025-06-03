@@ -1,7 +1,7 @@
 
 'use server';
 
-import { db, auth } from '@/lib/firebase/config'; // Added auth
+import { db, auth, storage } from '@/lib/firebase/config'; // Added storage
 import type { User } from '@/types';
 import {
   collection,
@@ -13,11 +13,12 @@ import {
   updateDoc,
   getDoc,
   serverTimestamp,
-  writeBatch, // Added for batch updates
-  collectionGroup, // Added for collection group queries
-  where, // Added for where clauses
+  writeBatch,
+  collectionGroup,
+  where,
 } from 'firebase/firestore';
-import { updateProfile as updateAuthProfile } from 'firebase/auth'; // To update Firebase Auth user profile
+import { updateProfile as updateAuthProfile } from 'firebase/auth';
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'; // Firebase Storage imports
 
 const processUserDoc = (docSnap: any): User | null => {
   const data = docSnap.data();
@@ -65,18 +66,43 @@ export const getUserById = async (uid: string): Promise<User | null> => {
   }
 };
 
-// This function is now more generic for profile updates.
-// We'll create a specific one for display name propagation.
+export const uploadProfilePicture = async (uid: string, file: File): Promise<string> => {
+  if (!uid || !file) {
+    throw new Error('User ID and file are required for upload.');
+  }
+  // Sanitize file name or use a fixed name/UUID to prevent issues
+  const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+  const filePath = `profile_pictures/${uid}/${Date.now()}_${sanitizedFileName}`;
+  const fileRef = storageRef(storage, filePath);
+
+  try {
+    // Check for an existing profile picture to delete (optional, implement if needed)
+    // This example overwrites or creates new ones based on timestamped names
+    // If you want to replace a fixed name like 'avatar.jpg', you'd fetch the user doc,
+    // get the old avatarUrl, parse its storage path, and delete it before uploading new one.
+
+    await uploadBytes(fileRef, file);
+    const downloadURL = await getDownloadURL(fileRef);
+    return downloadURL;
+  } catch (error: any) {
+    console.error('Error uploading profile picture to Firebase Storage:', error);
+    if (error.code === 'storage/unauthorized') {
+        throw new Error('Permission denied. Check Firebase Storage security rules.');
+    }
+    throw new Error('Failed to upload profile picture.');
+  }
+};
+
 export const updateUserProfile = async (uid: string, data: Partial<Pick<User, 'name' | 'displayName' | 'avatarUrl'>>): Promise<void> => {
   try {
     const userDocRef = doc(db, 'users', uid);
     const updateData: { [key: string]: any } = { ...data };
     
-    // Firebase Auth Profile update for display name and avatar
     if (auth.currentUser && auth.currentUser.uid === uid) {
         const authUpdate: { displayName?: string | null, photoURL?: string | null } = {};
         if (data.displayName !== undefined) authUpdate.displayName = data.displayName || null;
         if (data.avatarUrl !== undefined) authUpdate.photoURL = data.avatarUrl || null;
+        
         if (Object.keys(authUpdate).length > 0) {
             await updateAuthProfile(auth.currentUser, authUpdate);
         }
@@ -94,7 +120,7 @@ export const updateUserProfile = async (uid: string, data: Partial<Pick<User, 'n
 
 
 export const updateUserDisplayNameAndPropagate = async (uid: string, newDisplayName: string): Promise<void> => {
-  if (!uid || typeof newDisplayName !== 'string') { // Basic validation
+  if (!uid || typeof newDisplayName !== 'string') {
     throw new Error('User ID and a valid new display name are required.');
   }
   const trimmedDisplayName = newDisplayName.trim();
@@ -105,24 +131,17 @@ export const updateUserDisplayNameAndPropagate = async (uid: string, newDisplayN
   const userDocRef = doc(db, 'users', uid);
 
   try {
-    // 1. Update Firebase Auth Profile
     if (auth.currentUser && auth.currentUser.uid === uid) {
       await updateAuthProfile(auth.currentUser, { displayName: trimmedDisplayName });
     } else {
-      // This case should ideally not happen if the function is called by an authenticated user for themselves.
-      // If admin functionality is later added to change others' names, this might need adjustment or removal.
       console.warn(`Attempting to update display name for UID ${uid} but current auth user is different or null.`);
     }
 
-    // 2. Update User Document in Firestore
     await updateDoc(userDocRef, {
       displayName: trimmedDisplayName,
       updatedAt: serverTimestamp(),
     });
 
-    // 3. Propagate to Posts
-    // Note: For production, consider a Cloud Function for this propagation
-    // to handle large datasets and ensure atomicity/retries.
     const postsQuery = query(collection(db, 'posts'), where('author.uid', '==', uid));
     const postsSnapshot = await getDocs(postsQuery);
     if (!postsSnapshot.empty) {
@@ -133,7 +152,6 @@ export const updateUserDisplayNameAndPropagate = async (uid: string, newDisplayN
       await postBatch.commit();
     }
 
-    // 4. Propagate to Comments (using a collection group query)
     const commentsQuery = query(collectionGroup(db, 'comments'), where('author.uid', '==', uid));
     const commentsSnapshot = await getDocs(commentsQuery);
     if (!commentsSnapshot.empty) {

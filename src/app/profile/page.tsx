@@ -11,10 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Mail, User as UserIcon, ShieldCheck, Loader2, UploadCloud, Save } from 'lucide-react';
 import { format } from 'date-fns';
-import { updateUserDisplayNameAndPropagate } from '@/services/userService'; // Updated service function
+import { updateUserDisplayNameAndPropagate, uploadProfilePicture, updateUserProfile } from '@/services/userService';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
@@ -27,6 +27,7 @@ export default function ProfilePage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [editableDisplayName, setEditableDisplayName] = useState('');
   const [isSavingDisplayName, setIsSavingDisplayName] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -50,7 +51,21 @@ export default function ProfilePage() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setSelectedFile(event.target.files[0]);
+      const file = event.target.files[0];
+      // Basic client-side validation (optional but good practice)
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({ title: "File Too Large", description: "Please select an image smaller than 5MB.", variant: "destructive" });
+        setSelectedFile(null);
+        if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+        return;
+      }
+      if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+        toast({ title: "Invalid File Type", description: "Please select a JPG, PNG, or GIF image.", variant: "destructive" });
+        setSelectedFile(null);
+        if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+        return;
+      }
+      setSelectedFile(file);
     } else {
       setSelectedFile(null);
     }
@@ -62,13 +77,20 @@ export default function ProfilePage() {
       return;
     }
     setIsUploadingAvatar(true);
-    toast({ title: "Upload Placeholder", description: "Avatar upload functionality is a UI placeholder. Backend logic for Firebase Storage needs to be implemented." });
-    console.log("Simulating avatar upload for file:", selectedFile.name);
-    setTimeout(() => {
-      setSelectedFile(null);
+    try {
+      const downloadURL = await uploadProfilePicture(user.uid, selectedFile);
+      await updateUserProfile(user.uid, { avatarUrl: downloadURL });
+      updateUserInContext({ avatarUrl: downloadURL }); // Update context immediately
+
+      toast({ title: "Avatar Updated", description: "Your new profile picture has been uploaded." });
+      setSelectedFile(null); // Clear selection
+      if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+    } catch (error: any) {
+      console.error("Failed to upload avatar:", error);
+      toast({ title: "Upload Failed", description: error.message || "Could not upload avatar. Please try again.", variant: "destructive" });
+    } finally {
       setIsUploadingAvatar(false);
-      toast({ title: "Note", description: "Remember to implement the actual Firebase Storage upload logic." });
-    }, 2000);
+    }
   };
 
   const handleDisplayNameChange = async () => {
@@ -116,7 +138,7 @@ export default function ProfilePage() {
             <AvatarImage src={user.avatarUrl || undefined} alt={currentDisplayName} data-ai-hint="user large_avatar" />
             <AvatarFallback className="text-5xl">{userAvatarFallback}</AvatarFallback>
           </Avatar>
-          <CardTitle className="text-3xl">{user.displayName || user.name}</CardTitle>
+          <CardTitle className="text-3xl">{currentDisplayName}</CardTitle>
           {user.email && (
             <CardDescription className="flex items-center justify-center gap-1">
               <Mail className="h-4 w-4 text-muted-foreground" /> {user.email}
@@ -145,7 +167,10 @@ export default function ProfilePage() {
                 disabled={isSavingDisplayName}
                 maxLength={50}
               />
-              <Button onClick={handleDisplayNameChange} disabled={isSavingDisplayName || editableDisplayName.trim() === (user.displayName || user.name)}>
+              <Button 
+                onClick={handleDisplayNameChange} 
+                disabled={isSavingDisplayName || editableDisplayName.trim() === (user.displayName || user.name || '') || !editableDisplayName.trim()}
+              >
                 {isSavingDisplayName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Save Name
               </Button>
@@ -157,7 +182,8 @@ export default function ProfilePage() {
             <div className="flex flex-col sm:flex-row items-center gap-2 mt-1">
               <Label htmlFor="avatar-upload" className="sr-only">Choose profile picture</Label>
               <Input 
-                id="avatar-upload" 
+                id="avatar-upload"
+                ref={fileInputRef}
                 type="file" 
                 accept="image/png, image/jpeg, image/gif"
                 onChange={handleFileChange}
@@ -171,7 +197,7 @@ export default function ProfilePage() {
             </div>
             {selectedFile && <p className="text-xs text-muted-foreground mt-1">Selected: {selectedFile.name}</p>}
              <p className="text-xs text-muted-foreground mt-2">
-              Note: Actual image upload to Firebase Storage and profile update is not yet fully implemented. This is a UI placeholder.
+              Max file size: 5MB. Allowed types: JPG, PNG, GIF.
             </p>
           </div>
           <div>

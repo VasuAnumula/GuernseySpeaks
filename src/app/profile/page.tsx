@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } } from 'react';
 import { Mail, User as UserIcon, ShieldCheck, Loader2, UploadCloud } from 'lucide-react';
 import { format } from 'date-fns';
-// import { updateUserProfile } from '@/services/userService'; // Upload logic not implemented here
+// import { updateUserProfile } from '@/services/userService'; // Actual upload logic would require this service
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
@@ -57,28 +57,27 @@ export default function ProfilePage() {
       return;
     }
     setIsUploading(true);
-    toast({ title: "Upload Started (Placeholder)", description: "Actual upload logic to Firebase Storage needs to be implemented." });
-    // Placeholder for actual upload logic:
-    // try {
-    //   // 1. Upload selectedFile to Firebase Storage (requires a service function)
-    //   // const avatarUrl = await uploadProfilePicture(user.uid, selectedFile);
-    //   // 2. Update user profile in Firestore with the new avatarUrl
-    //   // await updateUserProfile(user.uid, { avatarUrl });
-    //   // 3. Update user context
-    //   // updateUserInContext({ avatarUrl });
-    //   // toast({ title: "Avatar Updated", description: "Your new avatar has been set." });
-    //   setSelectedFile(null); // Clear selection
-    // } catch (error) {
-    //   console.error("Failed to upload avatar:", error);
-    //   toast({ title: "Upload Failed", description: "Could not upload your new avatar. Please try again.", variant: "destructive" });
-    // } finally {
-    //   setIsUploading(false);
-    // }
+    // Placeholder for actual upload logic.
+    // In a real implementation, you would:
+    // 1. Create a service function (e.g., in userService.ts) to upload the file to Firebase Storage.
+    //    This function would return the public URL of the uploaded image.
+    // 2. Call that service function here: e.g., `const avatarUrl = await uploadProfilePicture(user.uid, selectedFile);`
+    // 3. Update the user's profile in Firestore with the new `avatarUrl` using another service function:
+    //    `await updateUserProfile(user.uid, { avatarUrl });`
+    // 4. Update the user object in the AuthContext so the UI reflects the change immediately:
+    //    `updateUserInContext({ avatarUrl });`
     
-    // Simulate upload for now
+    toast({ title: "Upload Placeholder", description: "Avatar upload functionality is a UI placeholder. Backend logic for Firebase Storage needs to be implemented." });
+    console.log("Simulating avatar upload for file:", selectedFile.name);
+    
+    // Simulate an upload delay
     setTimeout(() => {
+      // Example of how you might update context if upload were real:
+      // const simulatedNewUrl = `https://placehold.co/128x128.png?text=${user.displayName?.substring(0,1) || 'U'}&random=${Math.random()}`;
+      // updateUserInContext({ avatarUrl: simulatedUrl }); // This would require updateUserInContext in useAuth
+      setSelectedFile(null);
       setIsUploading(false);
-       toast({ title: "Note", description: "Avatar upload functionality is a placeholder. Backend integration needed." });
+      toast({ title: "Note", description: "Remember to implement the actual Firebase Storage upload logic." });
     }, 2000);
   };
 
@@ -145,7 +144,7 @@ export default function ProfilePage() {
             </div>
             {selectedFile && <p className="text-xs text-muted-foreground mt-1">Selected: {selectedFile.name}</p>}
              <p className="text-xs text-muted-foreground mt-2">
-              Note: Actual image upload to Firebase Storage and profile update is not yet implemented. This is a UI placeholder.
+              Note: Actual image upload to Firebase Storage and profile update is not yet fully implemented. This is a UI placeholder.
             </p>
           </div>
           <div>
@@ -157,7 +156,7 @@ export default function ProfilePage() {
             </ul>
           </div>
            <p className="text-sm text-muted-foreground border-t pt-4 mt-4">
-            Profile editing is currently disabled. Your display name and full name are set during registration.
+            Editing your profile information (name, display name) is currently managed during registration and via social provider updates. Direct editing on this page is disabled.
           </p>
         </CardContent>
         <CardFooter className="flex justify-end">
@@ -167,5 +166,3 @@ export default function ProfilePage() {
     </MainLayout>
   );
 }
-
-    

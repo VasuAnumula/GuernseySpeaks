@@ -20,7 +20,7 @@ interface PostFormProps {
   postToEdit?: Post | null;
 }
 
-const PREDEFINED_FLAIRS = ["Events", "News", "Discussion", "Casual", "Help", "Local Issue", "Question", "Recommendation", "Miscellaneous"];
+const PREDEFINED_FLAIRS = ["Events", "News", "Discussion", "Casual", "Help", "Local Issue", "Question", "Recommendations", "Opinions"];
 const MAX_FLAIRS = 5;
 
 export function PostForm({ postToEdit }: PostFormProps) {

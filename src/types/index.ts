@@ -73,3 +73,17 @@ export interface WeatherData {
     uv: number;
   };
 }
+
+export interface Advertisement {
+  id: string;
+  title: string;
+  imageUrl: string;
+  linkUrl: string;
+  isActive: boolean;
+  uploaderUid: string;
+  createdAt: Timestamp | Date;
+  updatedAt?: Timestamp | Date;
+  // Optional: for tracking clicks or impressions if needed later
+  // clicks?: number;
+  // impressions?: number;
+}

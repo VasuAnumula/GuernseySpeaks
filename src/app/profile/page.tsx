@@ -11,35 +11,40 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } } from 'react';
-import { Mail, User as UserIcon, ShieldCheck, Loader2, UploadCloud } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Mail, User as UserIcon, ShieldCheck, Loader2, UploadCloud, Save } from 'lucide-react';
 import { format } from 'date-fns';
-// import { updateUserProfile } from '@/services/userService'; // Actual upload logic would require this service
+import { updateUserDisplayNameAndPropagate } from '@/services/userService'; // Updated service function
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, updateUserInContext } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   const [formattedJoinedDate, setFormattedJoinedDate] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [editableDisplayName, setEditableDisplayName] = useState('');
+  const [isSavingDisplayName, setIsSavingDisplayName] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth?redirect=/profile');
     }
-    if (user && user.createdAt) {
-      try {
-        const date = user.createdAt instanceof Date ? user.createdAt : (user.createdAt as any).toDate();
-        setFormattedJoinedDate(format(date, "MMMM d, yyyy"));
-      } catch (e) {
-        console.error("Error formatting joined date:", e);
-        setFormattedJoinedDate("Invalid Date");
-      }
-    } else if (user && !user.createdAt) {
+    if (user) {
+      setEditableDisplayName(user.displayName || user.name || '');
+      if (user.createdAt) {
+        try {
+          const date = user.createdAt instanceof Date ? user.createdAt : (user.createdAt as any).toDate();
+          setFormattedJoinedDate(format(date, "MMMM d, yyyy"));
+        } catch (e) {
+          console.error("Error formatting joined date:", e);
+          setFormattedJoinedDate("Invalid Date");
+        }
+      } else {
         setFormattedJoinedDate("Not available");
+      }
     }
   }, [user, authLoading, router]);
 
@@ -56,31 +61,38 @@ export default function ProfilePage() {
       toast({ title: "No File Selected", description: "Please select an image file to upload.", variant: "destructive" });
       return;
     }
-    setIsUploading(true);
-    // Placeholder for actual upload logic.
-    // In a real implementation, you would:
-    // 1. Create a service function (e.g., in userService.ts) to upload the file to Firebase Storage.
-    //    This function would return the public URL of the uploaded image.
-    // 2. Call that service function here: e.g., `const avatarUrl = await uploadProfilePicture(user.uid, selectedFile);`
-    // 3. Update the user's profile in Firestore with the new `avatarUrl` using another service function:
-    //    `await updateUserProfile(user.uid, { avatarUrl });`
-    // 4. Update the user object in the AuthContext so the UI reflects the change immediately:
-    //    `updateUserInContext({ avatarUrl });`
-    
+    setIsUploadingAvatar(true);
     toast({ title: "Upload Placeholder", description: "Avatar upload functionality is a UI placeholder. Backend logic for Firebase Storage needs to be implemented." });
     console.log("Simulating avatar upload for file:", selectedFile.name);
-    
-    // Simulate an upload delay
     setTimeout(() => {
-      // Example of how you might update context if upload were real:
-      // const simulatedNewUrl = `https://placehold.co/128x128.png?text=${user.displayName?.substring(0,1) || 'U'}&random=${Math.random()}`;
-      // updateUserInContext({ avatarUrl: simulatedUrl }); // This would require updateUserInContext in useAuth
       setSelectedFile(null);
-      setIsUploading(false);
+      setIsUploadingAvatar(false);
       toast({ title: "Note", description: "Remember to implement the actual Firebase Storage upload logic." });
     }, 2000);
   };
 
+  const handleDisplayNameChange = async () => {
+    if (!user || !editableDisplayName.trim()) {
+      toast({ title: "Invalid Input", description: "Display name cannot be empty.", variant: "destructive" });
+      return;
+    }
+    if (editableDisplayName.trim() === (user.displayName || user.name)) {
+      toast({ title: "No Changes", description: "Display name is the same.", variant: "default" });
+      return;
+    }
+
+    setIsSavingDisplayName(true);
+    try {
+      await updateUserDisplayNameAndPropagate(user.uid, editableDisplayName.trim());
+      updateUserInContext({ displayName: editableDisplayName.trim() });
+      toast({ title: "Display Name Updated", description: "Your display name has been updated successfully. Changes will reflect across your content." });
+    } catch (error: any) {
+      console.error("Failed to update display name:", error);
+      toast({ title: "Update Failed", description: error.message || "Could not update display name.", variant: "destructive" });
+    } finally {
+      setIsSavingDisplayName(false);
+    }
+  };
 
   if (authLoading || !user) {
     return (
@@ -104,7 +116,7 @@ export default function ProfilePage() {
             <AvatarImage src={user.avatarUrl || undefined} alt={currentDisplayName} data-ai-hint="user large_avatar" />
             <AvatarFallback className="text-5xl">{userAvatarFallback}</AvatarFallback>
           </Avatar>
-          <CardTitle className="text-3xl">{currentDisplayName}</CardTitle>
+          <CardTitle className="text-3xl">{user.displayName || user.name}</CardTitle>
           {user.email && (
             <CardDescription className="flex items-center justify-center gap-1">
               <Mail className="h-4 w-4 text-muted-foreground" /> {user.email}
@@ -118,13 +130,28 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold mb-1">Full Name</h3>
+            <h3 className="text-lg font-semibold mb-1">Full Name (Not editable)</h3>
             <p className="text-muted-foreground">{user.name || 'Not set'}</p>
           </div>
-           <div>
-            <h3 className="text-lg font-semibold mb-1">Display Name (Public)</h3>
-            <p className="text-muted-foreground">{user.displayName || user.name || 'Not set'}</p>
+           
+          <div className="space-y-2">
+            <Label htmlFor="displayName" className="text-lg font-semibold">Display Name (Public)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="displayName"
+                value={editableDisplayName}
+                onChange={(e) => setEditableDisplayName(e.target.value)}
+                className="text-base"
+                disabled={isSavingDisplayName}
+                maxLength={50}
+              />
+              <Button onClick={handleDisplayNameChange} disabled={isSavingDisplayName || editableDisplayName.trim() === (user.displayName || user.name)}>
+                {isSavingDisplayName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Name
+              </Button>
+            </div>
           </div>
+
           <div>
             <h3 className="text-lg font-semibold mb-2">Change Profile Picture</h3>
             <div className="flex flex-col sm:flex-row items-center gap-2 mt-1">
@@ -135,10 +162,10 @@ export default function ProfilePage() {
                 accept="image/png, image/jpeg, image/gif"
                 onChange={handleFileChange}
                 className="flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                disabled={isUploading}
+                disabled={isUploadingAvatar}
               />
-              <Button onClick={handleAvatarUpload} disabled={isUploading || !selectedFile} className="w-full sm:w-auto">
-                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+              <Button onClick={handleAvatarUpload} disabled={isUploadingAvatar || !selectedFile} className="w-full sm:w-auto">
+                {isUploadingAvatar ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
                 Upload Avatar
               </Button>
             </div>
@@ -155,14 +182,12 @@ export default function ProfilePage() {
               <li>Joined: {formattedJoinedDate || 'Loading...'}</li>
             </ul>
           </div>
-           <p className="text-sm text-muted-foreground border-t pt-4 mt-4">
-            Editing your profile information (name, display name) is currently managed during registration and via social provider updates. Direct editing on this page is disabled.
-          </p>
         </CardContent>
         <CardFooter className="flex justify-end">
-            {/* Footer can be used for other actions if needed in the future */}
         </CardFooter>
       </Card>
     </MainLayout>
   );
 }
+
+    

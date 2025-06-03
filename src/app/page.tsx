@@ -13,7 +13,10 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { getPosts, type GetPostsFilters } from '@/services/postService';
 import { useAuth } from '@/hooks/use-auth';
 import type { OrderByDirection } from 'firebase/firestore';
-import { Card, CardContent } from '@/components/ui/card'; // Added for error display
+import { Card, CardContent } from '@/components/ui/card';
+
+// Define the canonical list of flairs
+const PREDEFINED_FLAIRS = ["Events", "News", "Discussion", "Casual", "Help", "Local Issue", "Question", "Recommendation", "Miscellaneous"];
 
 export default function HomePage() {
   const [allFetchedPosts, setAllFetchedPosts] = useState<Post[]>([]);
@@ -38,6 +41,8 @@ export default function HomePage() {
       sortOrder: sortOrder || 'desc',
     };
     if (selectedFlair) {
+      // Ensure the selectedFlair is one of the predefined ones or handle as needed
+      // For now, we assume selectedFlair is directly usable if it's from our PREDEFINED_FLAIRS
       firestoreFilters.flair = selectedFlair;
     }
 
@@ -75,30 +80,12 @@ export default function HomePage() {
 
   const handlePostDeleted = (deletedPostId: string) => {
     setAllFetchedPosts(prevPosts => prevPosts.filter(post => post.id !== deletedPostId));
-    // displayedPosts will update automatically via the useEffect dependency on allFetchedPosts
   };
 
   const handleApplyFilters = () => {
-    // This will trigger the useEffect for fetchAndFilterPosts due to state changes in selectedFlair or sortBy,
-    // or simply re-fetch with current filters if they haven't changed.
     fetchAndFilterPosts();
   };
   
-  // Memoize available flairs (currently static in PostListFilters)
-  // If you want dynamic flairs from posts, you'd calculate it here based on allFetchedPosts
-  const availableFlairs = useMemo(() => {
-    // Example: if you want dynamic flairs (not used by PostListFilters by default yet)
-    // const flairsSet = new Set<string>();
-    // allFetchedPosts.forEach(post => {
-    //   if (post.flairs) {
-    //     post.flairs.forEach(flair => flairsSet.add(flair));
-    //   }
-    // });
-    // return Array.from(flairsSet).map(f => f.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '));
-    return ["News", "Discussion", "Events", "Local Issue", "Question", "Recommendation", "Miscellaneous"]; // Default static flairs for now
-  }, []);
-
-
   return (
     <MainLayout
       weatherWidget={<WeatherWidget />}
@@ -123,7 +110,7 @@ export default function HomePage() {
         sortBy={sortBy}
         onSortByChange={setSortBy}
         onApplyFilters={handleApplyFilters}
-        availableFlairs={availableFlairs} // Pass static or dynamic flairs
+        availableFlairs={PREDEFINED_FLAIRS} // Pass predefined flairs
       />
 
       {loadingPosts && (
@@ -160,7 +147,7 @@ export default function HomePage() {
               />
             ))
           ) : (
-             allFetchedPosts.length === 0 && !searchTerm.trim() && !selectedFlair ? ( // Check if any filters applied
+             allFetchedPosts.length === 0 && !searchTerm.trim() && !selectedFlair ? (
                 <p className="text-center text-muted-foreground py-10">No posts yet. Be the first to share something!</p>
              ) : (
                 <p className="text-center text-muted-foreground py-10">No posts match your current filters or search term.</p>

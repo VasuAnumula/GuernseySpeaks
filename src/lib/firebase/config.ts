@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage'; // Added
 
 // --- Enhanced Environment Variable Inspection (Server-Side) ---
 console.log("🔎 [Firebase Config] Initial inspection of `process.env` for 'NEXT_PUBLIC_FIREBASE_' variables (server-side at module load):");
@@ -110,6 +111,7 @@ console.log("🚀 [Firebase Config] Final firebaseConfig object for initializeAp
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
+let storage: FirebaseStorage; // Added
 
 if (!getApps().length) {
   try {
@@ -129,13 +131,19 @@ if (!getApps().length) {
 try {
   auth = getAuth(app);
   db = getFirestore(app);
-  console.log("🔑 Firebase Auth and Firestore services initialized.");
+  storage = getStorage(app); // Initialize storage
+  console.log("🔑 Firebase Auth, Firestore, and Storage services initialized.");
 } catch (e: any) {
-  console.error("🚨 Error getting Firebase Auth/Firestore instances:", e.message);
+  console.error("🚨 Error getting Firebase Auth/Firestore/Storage instances:", e.message);
   if (e.message.includes('invalid-api-key') || e.message.includes('auth/invalid-api-key')) {
      console.error("🚨 This specific error (invalid-api-key) strongly suggests the API Key value (from .env.local or hosting config) is incorrect or not valid for your Firebase project, even if it was loaded.");
+  }
+   if (e.message.includes('storage/unauthorized') || e.message.includes('storage/object-not-found')) {
+    console.error("🚨 This specific error related to Storage suggests issues with Security Rules or the Storage Bucket configuration. Ensure your Storage bucket is correctly specified in `firebaseConfig` and your rules allow access.");
   }
   throw e;
 }
 
-export { app, auth, db };
+export { app, auth, db, storage }; // Export storage
+
+    

@@ -2,7 +2,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getStorage, type FirebaseStorage } from 'firebase/storage'; // Added
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
 // --- Enhanced Environment Variable Inspection (Server-Side) ---
 console.log("🔎 [Firebase Config] Initial inspection of `process.env` for 'NEXT_PUBLIC_FIREBASE_' variables (server-side at module load):");
@@ -111,7 +111,7 @@ console.log("🚀 [Firebase Config] Final firebaseConfig object for initializeAp
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
-let storage: FirebaseStorage; // Added
+let storage: FirebaseStorage;
 
 if (!getApps().length) {
   try {
@@ -131,7 +131,7 @@ if (!getApps().length) {
 try {
   auth = getAuth(app);
   db = getFirestore(app);
-  storage = getStorage(app); // Initialize storage
+  storage = getStorage(app);
   console.log("🔑 Firebase Auth, Firestore, and Storage services initialized.");
 } catch (e: any) {
   console.error("🚨 Error getting Firebase Auth/Firestore/Storage instances:", e.message);
@@ -144,5 +144,4 @@ try {
   throw e;
 }
 
-export { app, auth, db, storage }; // Export storage
-    
+export { app, auth, db, storage };

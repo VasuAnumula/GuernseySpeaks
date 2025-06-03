@@ -20,7 +20,9 @@ interface PostFormProps {
   postToEdit?: Post | null;
 }
 
-const PREDEFINED_FLAIRS = ["Events", "News", "Discussion", "Casual", "Help", "Local Issue", "Question", "Recommendations", "Opinions"];
+// Ensure this list is consistent and used as the single source of truth for predefined flairs.
+// This list is now also used in src/app/page.tsx for PostListFilters.
+const PREDEFINED_FLAIRS = ["Events", "News", "Discussion", "Casual", "Help", "Local Issue", "Question", "Recommendation", "Miscellaneous"];
 const MAX_FLAIRS = 5;
 
 export function PostForm({ postToEdit }: PostFormProps) {
@@ -31,7 +33,7 @@ export function PostForm({ postToEdit }: PostFormProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [flairs, setFlairs] = useState<string[]>([]);
-  const [selectedFlairToAdd, setSelectedFlairToAdd] = useState<string>(''); // For the Select component
+  const [selectedFlairToAdd, setSelectedFlairToAdd] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditMode = !!postToEdit;
@@ -45,18 +47,20 @@ export function PostForm({ postToEdit }: PostFormProps) {
   }, [isEditMode, postToEdit]);
 
   const handleAddFlair = (flairToAdd: string) => {
-    if (!flairToAdd) return;
+    if (!flairToAdd || !flairToAdd.trim()) return; // Ensure flair is not empty or just whitespace
+
+    const trimmedFlair = flairToAdd.trim();
 
     if (flairs.length >= MAX_FLAIRS) {
       toast({ title: "Flair Limit Reached", description: `You can add up to ${MAX_FLAIRS} flairs.`, variant: "destructive" });
       return;
     }
-    if (flairs.includes(flairToAdd)) {
-      toast({ title: "Flair Already Added", description: `"${flairToAdd}" is already in your list.`, variant: "default" });
+    if (flairs.includes(trimmedFlair)) {
+      toast({ title: "Flair Already Added", description: `"${trimmedFlair}" is already in your list.`, variant: "default" });
       return;
     }
-    setFlairs([...flairs, flairToAdd]);
-    setSelectedFlairToAdd(''); // Reset select component placeholder if needed or clear selection
+    setFlairs([...flairs, trimmedFlair]);
+    setSelectedFlairToAdd('');
   };
 
   const handleRemoveFlair = (flairToRemove: string) => {
@@ -158,8 +162,7 @@ export function PostForm({ postToEdit }: PostFormProps) {
               <Select
                 value={selectedFlairToAdd}
                 onValueChange={(value) => {
-                  // Directly add the flair when selected, no separate "Add" button needed for Select
-                  if (value) {
+                  if (value && value.trim()) { // Ensure value is not empty/whitespace before adding
                     handleAddFlair(value);
                   }
                 }}
@@ -169,11 +172,11 @@ export function PostForm({ postToEdit }: PostFormProps) {
                   <SelectValue placeholder="Select a flair to add" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PREDEFINED_FLAIRS.map(flair => (
-                    <SelectItem 
-                      key={flair} 
-                      value={flair}
-                      disabled={flairs.includes(flair)} // Disable if already added
+                  {PREDEFINED_FLAIRS.filter(f => f && f.trim() !== "").map(flair => (
+                    <SelectItem
+                      key={flair}
+                      value={flair} // This value must not be an empty string
+                      disabled={flairs.includes(flair)}
                     >
                       {flair}
                     </SelectItem>

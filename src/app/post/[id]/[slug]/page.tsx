@@ -49,17 +49,18 @@ interface PostPageParams {
 }
 
 interface CommentCardProps {
-  commentNode: CommentNode; // Changed from comment to commentNode
+  commentNode: CommentNode;
   postId: string;
   onCommentDeleted: (commentId: string) => void;
   onCommentEdited: (editedComment: CommentType) => void;
-  onReplySubmitted: () => void; // To trigger re-fetch of comments
+  onReplySubmitted: () => void;
+  isLastChild: boolean; // To control bottom border for the last comment in a list
 }
 
-function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, onReplySubmitted }: CommentCardProps) {
+function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, onReplySubmitted, isLastChild }: CommentCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [comment, setComment] = useState<CommentType>(commentNode); // Internal state for base comment data
+  const [comment, setComment] = useState<CommentType>(commentNode);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(comment.content);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -70,7 +71,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
   useEffect(() => {
-    setComment(commentNode); // Update if commentNode prop changes
+    setComment(commentNode);
     setEditedContent(commentNode.content);
   }, [commentNode]);
 
@@ -85,7 +86,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
   if (comment.updatedAt && comment.createdAt) {
     const createdAtDate = comment.createdAt instanceof Date ? comment.createdAt : (comment.createdAt as any).toDate();
     const updatedAtDate = comment.updatedAt instanceof Date ? comment.updatedAt : (comment.updatedAt as any).toDate();
-    if (updatedAtDate.getTime() - createdAtDate.getTime() > 60000) { // More than 1 minute difference
+    if (updatedAtDate.getTime() - createdAtDate.getTime() > 60000) { // Only show if updated more than a minute after creation
         lastUpdatedDate = ` (edited ${formatDistanceToNow(updatedAtDate, { addSuffix: true })})`;
     }
   }
@@ -105,7 +106,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
       await updateComment(postId, comment.id, editedContent.trim());
       const updatedCommentData = { ...comment, content: editedContent.trim(), updatedAt: new Date() };
       setComment(updatedCommentData);
-      onCommentEdited(updatedCommentData);
+      onCommentEdited(updatedCommentData); // Propagate update to parent state
       setIsEditing(false);
       toast({ title: "Comment Updated" });
     } catch (error) {
@@ -120,8 +121,9 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
     setIsDeleting(true);
     try {
       await deleteComment(postId, comment.id);
-      onCommentDeleted(comment.id);
+      onCommentDeleted(comment.id); // Propagate delete to parent state
       toast({ title: "Comment Deleted" });
+      // The comment card will be removed from the DOM by the parent component re-rendering
     } catch (error) {
       console.error("Failed to delete comment:", error);
       toast({ title: "Error", description: "Could not delete comment.", variant: "destructive" });
@@ -140,13 +142,13 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
     try {
       const authorInfo: AuthorInfo = {
         uid: user.uid,
-        displayName: user.displayName,
+        displayName: user.displayName || user.name || 'User', // Ensure displayName has a fallback
         avatarUrl: user.avatarUrl,
       };
       await createComment(postId, { author: authorInfo, content: replyContent.trim() }, comment.id);
       setReplyContent('');
       setShowReplyForm(false);
-      onReplySubmitted(); // Trigger re-fetch in parent
+      onReplySubmitted(); // This will trigger a re-fetch of all comments in the parent
       toast({ title: "Reply posted!" });
     } catch (err) {
       console.error("Failed to submit reply:", err);
@@ -157,68 +159,67 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
   };
 
   return (
-    <Card 
-        className="mb-4 bg-secondary/50 shadow-sm"
-        style={{ marginLeft: `${commentNode.depth * 20}px` }}
+    <div
+      className={`py-3 ${!isLastChild || (commentNode.replies && commentNode.replies.length > 0) ? 'border-b mb-3' : 'mb-3'}`}
+      style={{ marginLeft: `${commentNode.depth * 20}px` }} // Indentation for replies
     >
-      <CardHeader className="pb-2 px-4 pt-4 sm:px-6 sm:pt-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} data-ai-hint="commenter avatar"/>
-              <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="text-sm font-semibold">{authorDisplayName}</p>
-              <p className="text-xs text-muted-foreground">
-                {formattedDate}
-                {lastUpdatedDate && <i className="text-xs">{lastUpdatedDate}</i>}
-              </p>
-            </div>
+      <div className="flex items-start justify-between mb-1 px-1">
+        <div className="flex items-center gap-2">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} data-ai-hint="commenter avatar"/>
+            <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-semibold">{authorDisplayName}</p>
+            <p className="text-xs text-muted-foreground">
+              {formattedDate}
+              {lastUpdatedDate && <i className="text-xs">{lastUpdatedDate}</i>}
+            </p>
           </div>
-           {canModifyComment && !isEditing && (
-             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isDeleting}>
-                  {isDeleting ? <Loader2 className="h-4 w-4 animate-spin"/> : <MoreHorizontal className="h-4 w-4" />}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                  <Edit className="mr-2 h-4 w-4" /> Edit
-                </DropdownMenuItem>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                    </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete this comment. Any replies to this comment will remain but may lose context.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
         </div>
-      </CardHeader>
-      <CardContent className="pt-0 pb-3 px-4 sm:px-6">
+        {canModifyComment && !isEditing && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isDeleting}>
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin"/> : <MoreHorizontal className="h-4 w-4" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                <Edit className="mr-2 h-4 w-4" /> Edit
+              </DropdownMenuItem>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem
+                    onSelect={(e) => e.preventDefault()} // Prevents menu from closing
+                    className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete this comment. Any replies to this comment will remain but may lose context.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+
+      <div className="mt-1 px-1">
         {isEditing ? (
-          <div className="space-y-2 mt-2">
+          <div className="space-y-2">
             <Textarea
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
@@ -238,10 +239,12 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
         ) : (
           <p className="text-foreground/90 whitespace-pre-wrap text-sm">{comment.content}</p>
         )}
-      </CardContent>
-      <CardFooter className="pt-2 pb-3 px-4 sm:px-6 border-t flex-col items-start">
+      </div>
+      
+      <div className="mt-2 px-1">
         <div className="flex items-center">
-            <Button variant="ghost" size="sm" className="text-muted-foreground group" disabled>
+            {/* Comment liking is not yet implemented */}
+            <Button variant="ghost" size="sm" className="text-muted-foreground group -ml-2" disabled>
                 <ThumbsUp className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {comment.likes}
             </Button>
             {user && (
@@ -271,12 +274,11 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
             </div>
           </form>
         )}
-      </CardFooter>
+      </div>
       
-      {/* Recursive rendering of replies */}
       {commentNode.replies && commentNode.replies.length > 0 && (
-        <div className="pt-2 pb-0 px-0 border-t border-dashed">
-          {commentNode.replies.map(replyNode => (
+        <div className="mt-3"> {/* Spacing before nested replies */}
+          {commentNode.replies.map((replyNode, index, arr) => (
             <CommentCard
               key={replyNode.id}
               commentNode={replyNode}
@@ -284,24 +286,25 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
               onCommentDeleted={onCommentDeleted}
               onCommentEdited={onCommentEdited}
               onReplySubmitted={onReplySubmitted}
+              isLastChild={index === arr.length - 1}
             />
           ))}
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 
+// Helper to build the comment tree structure
 function buildCommentTree(comments: CommentType[], parentId: string | null = null, depth = 0): CommentNode[] {
   return comments
-    .filter(comment => (comment.parentId || null) === parentId) // Ensure parentId is compared against null if undefined
+    .filter(comment => (comment.parentId || null) === parentId)
     .map(comment => ({
       ...comment,
       depth: depth,
       replies: buildCommentTree(comments, comment.id, depth + 1)
     }))
-    // Replies should be shown oldest first under their parent for natural conversation flow
-    .sort((a, b) => {
+    .sort((a, b) => { // Sort direct children by creation date (ascending for typical thread flow)
         const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.toMillis() || 0;
         const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.toMillis() || 0;
         return dateA - dateB;
@@ -319,9 +322,8 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   const [isLiking, setIsLiking] = useState(false);
   const [isDeletingPost, setIsDeletingPost] = useState(false);
 
-  // Store comments as a flat list, tree will be derived for rendering
-  const [allComments, setAllComments] = useState<CommentType[]>([]);
-  const [commentTree, setCommentTree] = useState<CommentNode[]>([]);
+  const [allComments, setAllComments] = useState<CommentType[]>([]); // Flat list from Firestore
+  const [commentTree, setCommentTree] = useState<CommentNode[]>([]); // Nested structure for rendering
 
   const [newComment, setNewComment] = useState('');
   const [isLoadingPost, setIsLoadingPost] = useState(true);
@@ -329,6 +331,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetches the post and all its comments, then rebuilds the comment tree
   const fetchPostAndComments = useCallback(async () => {
     if (!params.id) {
       setError("Post ID is missing.");
@@ -336,6 +339,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       setIsLoadingComments(false);
       return;
     }
+    // Set loading states at the beginning of the fetch operation
     setIsLoadingPost(true);
     setIsLoadingComments(true);
     setError(null);
@@ -346,55 +350,60 @@ export default function PostPage({ params }: { params: PostPageParams }) {
         if(user && fetchedPost.likedBy) {
           setIsLiked(fetchedPost.likedBy.includes(user.uid));
         }
+        // Fetch comments after post is confirmed to exist
         const fetchedCommentsRaw = await getCommentsForPost(params.id);
-        // Process parentId to ensure it's null if undefined for tree building
+         // Ensure parentId is explicitly null if undefined from Firestore (important for tree building)
         const processedComments = fetchedCommentsRaw.map(c => ({...c, parentId: c.parentId === undefined ? null : c.parentId }));
         setAllComments(processedComments);
-        setCommentTree(buildCommentTree(processedComments, null, 0).sort((a,b) => { // Sort top-level comments newest first
-            const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.toMillis() || 0;
-            const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.toMillis() || 0;
-            return dateB - dateA;
-        }));
-
       } else {
         setError("Post not found.");
+        setPost(null); // Ensure post is null if not found
+        setAllComments([]); // Clear comments if post not found
       }
     } catch (err) {
       console.error("Error fetching post details:", err);
       setError("Failed to load post details. Please try again.");
+      setPost(null);
+      setAllComments([]);
     } finally {
       setIsLoadingPost(false);
       setIsLoadingComments(false);
     }
-  }, [params.id, user]);
+  }, [params.id, user]); // user dependency for isLiked state
 
   useEffect(() => {
     fetchPostAndComments();
   }, [fetchPostAndComments]);
 
-  // Rebuild tree when allComments changes
+  // Rebuild comment tree whenever allComments changes
   useEffect(() => {
+    // Ensure parentId is explicitly null if it's undefined from Firestore
     const processedComments = allComments.map(c => ({...c, parentId: c.parentId === undefined ? null : c.parentId }));
-    setCommentTree(buildCommentTree(processedComments, null, 0).sort((a,b) => {
+    // Build tree and sort top-level comments newest first for display
+    const tree = buildCommentTree(processedComments, null, 0).sort((a,b) => {
         const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.toMillis() || 0;
         const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.toMillis() || 0;
-        return dateB - dateA;
-    }));
+        return dateB - dateA; // Newest top-level comments first
+    });
+    setCommentTree(tree);
   }, [allComments]);
 
 
   const handleCommentDeleted = (deletedCommentId: string) => {
+    // Remove the comment from the flat list, which will trigger tree rebuild
     setAllComments(prevComments => prevComments.filter(c => c.id !== deletedCommentId));
+    // Decrement post's comment count
     setPost(prevPost => prevPost ? { ...prevPost, commentsCount: Math.max(0, prevPost.commentsCount - 1) } : null);
   };
 
   const handleCommentEdited = (editedComment: CommentType) => {
+    // Update the comment in the flat list, triggering tree rebuild
     setAllComments(prevComments => prevComments.map(c => c.id === editedComment.id ? editedComment : c));
   };
 
   const handleReplySubmitted = () => {
-    // Re-fetch all comments to update the tree with the new reply
-    fetchPostAndComments();
+    // Re-fetch all comments to get the new reply and update counts, then rebuild tree
+    fetchPostAndComments(); 
   };
 
 
@@ -406,20 +415,23 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     if (isLiking) return;
     setIsLiking(true);
 
+    // Optimistic UI update
     const originalLikedState = isLiked;
     const originalLikesCount = post.likes;
-    const originalLikedBy = [...post.likedBy];
+    const originalLikedBy = [...post.likedBy]; // Shallow copy
 
     setIsLiked(!originalLikedState);
     setPost(p => p ? ({ ...p, likes: originalLikedState ? p.likes - 1 : p.likes + 1, likedBy: originalLikedState ? p.likedBy.filter(uid => uid !== user.uid) : [...p.likedBy, user.uid] }) : null);
 
     try {
       const updatedPostData = await togglePostLike(post.id, user.uid);
-      setPost(p => p ? ({ ...p, ...updatedPostData }) : null);
+      // Sync with server response
+      setPost(p => p ? ({ ...p, ...updatedPostData }) : null); // Ensure all fields from server are updated
       setIsLiked(updatedPostData.likedBy.includes(user.uid));
     } catch (error) {
       console.error("Failed to toggle like:", error);
       toast({ title: "Error", description: "Could not update like. Please try again.", variant: "destructive" });
+      // Revert optimistic update on error
       setIsLiked(originalLikedState);
       setPost(p => p ? ({ ...p, likes: originalLikesCount, likedBy: originalLikedBy }) : null);
     } finally {
@@ -433,7 +445,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     try {
       await deletePost(post.id);
       toast({ title: "Post Deleted", description: "The post has been successfully deleted." });
-      router.push('/');
+      router.push('/'); // Navigate away after deletion
     } catch (error) {
       console.error("Failed to delete post:", error);
       toast({ title: "Error", description: "Could not delete post. Please try again.", variant: "destructive" });
@@ -445,21 +457,23 @@ export default function PostPage({ params }: { params: PostPageParams }) {
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !user || !post) return;
+    if (!newComment.trim() || !user || !post) {
+        toast({title: "Cannot Submit", description: "Comment cannot be empty and you must be logged in to an existing post.", variant: "destructive"});
+        return;
+    }
 
     setIsSubmittingComment(true);
     try {
         const authorInfo: AuthorInfo = {
           uid: user.uid,
-          displayName: user.displayName,
+          displayName: user.displayName || user.name || 'User', // Ensure fallback for displayName
           avatarUrl: user.avatarUrl,
         };
-      // For top-level comments, parentId is null
-      await createComment(post.id, { author: authorInfo, content: newComment.trim() }, null);
+      await createComment(post.id, { author: authorInfo, content: newComment.trim() }, null); // parentId is null for top-level comments
       
-      setNewComment('');
+      setNewComment(''); // Clear input
       toast({ title: "Comment posted!" });
-      fetchPostAndComments(); // Re-fetch to update the comment list and tree
+      fetchPostAndComments(); // Re-fetch to update comment list and count
     } catch (err) {
       console.error("Failed to submit comment:", err);
       toast({ title: "Error", description: "Could not post comment. Please try again.", variant: "destructive" });
@@ -468,6 +482,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     }
   };
 
+  // Loading state for the entire post page (primarily for the post itself)
   if (isLoadingPost) {
     return (
        <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
@@ -479,7 +494,8 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     );
   }
 
-  if (error) {
+  // Error state if post fetching failed
+  if (error && !post) { // Check !post too, in case error is set but post data somehow exists (shouldn't happen with current logic)
     return (
        <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
         <div className="text-center py-10">
@@ -490,7 +506,8 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     );
   }
 
-  if (!post) {
+  // If post is definitively not found (and not loading, no error related to fetching it)
+  if (!post && !isLoadingPost && !error) {
      return (
        <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
         <div className="text-center py-10">
@@ -501,6 +518,10 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       </MainLayout>
     );
   }
+  
+  // This should not be reached if !post, but as a safeguard.
+  if (!post) return null; 
+
 
   let formattedPostDate = "Unknown date";
   if (post.createdAt) {
@@ -514,7 +535,8 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   if (post.updatedAt && post.createdAt) {
     const createdAtDate = post.createdAt instanceof Date ? post.createdAt : (post.createdAt as any).toDate();
     const updatedAtDate = post.updatedAt instanceof Date ? post.updatedAt : (post.updatedAt as any).toDate();
-    if (updatedAtDate.getTime() - createdAtDate.getTime() > 60000) {
+    // Only show "edited" if it was updated significantly after creation (e.g., > 1 minute)
+    if (updatedAtDate.getTime() - createdAtDate.getTime() > 60000) { 
         postLastUpdatedDate = ` (edited ${formatDistanceToNow(updatedAtDate, { addSuffix: true })})`;
     }
   }
@@ -554,7 +576,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <DropdownMenuItem
-                          onSelect={(e) => e.preventDefault()}
+                          onSelect={(e) => e.preventDefault()} // Prevents menu from closing
                           className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"
                         >
                           <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -618,7 +640,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                 size="sm"
                 className={`group ${isLiked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50'}`}
                 onClick={handleLikeToggle}
-                disabled={isLiking || !user}
+                disabled={isLiking || !user || authLoading} // Disable if auth is loading too
               >
                 {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />}
                  {post.likes} Like{post.likes !== 1 && 's'}
@@ -627,6 +649,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                 <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.commentsCount} Comment{post.commentsCount !== 1 && 's'}
               </Button>
             </div>
+            {/* Future: Save/Bookmark button can go here */}
           </CardFooter>
         </Card>
 
@@ -670,9 +693,9 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                <p className="ml-2 text-muted-foreground">Loading comments...</p>
             </div>
           ) : (
-            <div className="space-y-0"> {/* Changed space-y-4 to space-y-0 as CommentCard handles its own margin */}
+            <div className="space-y-0"> {/* Ensure no extra space between comment cards naturally */}
               {commentTree.length > 0 ? (
-                commentTree.map(commentNode => (
+                commentTree.map((commentNode, index, arr) => (
                   <CommentCard
                     key={commentNode.id}
                     commentNode={commentNode}
@@ -680,6 +703,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                     onCommentDeleted={handleCommentDeleted}
                     onCommentEdited={handleCommentEdited}
                     onReplySubmitted={handleReplySubmitted}
+                    isLastChild={index === arr.length - 1} // Correctly pass isLastChild
                   />
                 ))
               ) : (
@@ -692,3 +716,4 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     </MainLayout>
   );
 }
+    

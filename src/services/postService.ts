@@ -20,22 +20,30 @@ import {
   deleteDoc,
   arrayUnion,
   arrayRemove,
-  limit
+  limit,
+  where,
+  QueryConstraint,
+  OrderByDirection
 } from 'firebase/firestore';
 
 
 interface CreatePostInputData {
   title: string;
   content: string;
-  author: AuthorInfo; // AuthorInfo should now include displayName
+  author: AuthorInfo; 
   flairs: string[];
+}
+
+export interface GetPostsFilters {
+  flair?: string;
+  sortBy?: 'createdAt' | 'likes' | 'commentsCount'; // Added commentsCount
+  sortOrder?: OrderByDirection;
 }
 
 export async function createPost(postData: CreatePostInputData): Promise<string> {
   try {
     const slug = await generateSlug(postData.title);
-    // Only include public author information
-  const author: AuthorInfo = {
+    const author: AuthorInfo = {
         uid: postData.author.uid,
         displayName: postData.author.displayName,
         avatarUrl: postData.author.avatarUrl
@@ -43,7 +51,7 @@ export async function createPost(postData: CreatePostInputData): Promise<string>
 
     const docRef = await addDoc(collection(db, 'posts'), {
       ...postData,
-      author, // Use the processed author object
+      author, 
       slug,
       commentsCount: 0,
       likes: 0,
@@ -97,15 +105,50 @@ export async function deletePost(postId: string): Promise<void> {
   }
 };
 
-export async function getPosts(): Promise<Post[]> {
+export async function getPosts(filters?: GetPostsFilters): Promise<Post[]> {
   try {
     const postsCollection = collection(db, 'posts');
-    const q = query(postsCollection, orderBy('createdAt', 'desc'), limit(20));
+    const queryConstraints: QueryConstraint[] = [];
+
+    if (filters?.flair) {
+      // Flairs are stored as an array, e.g., ["news", "local-issue"]
+      // The value in filters.flair should match one of these exactly.
+      queryConstraints.push(where('flairs', 'array-contains', filters.flair));
+    }
+
+    const sortByField = filters?.sortBy || 'createdAt';
+    const sortDirection = filters?.sortOrder || 'desc';
+    queryConstraints.push(orderBy(sortByField, sortDirection));
+    
+    // If sorting by a field other than the one used in an inequality filter (none here),
+    // and also not createdAt, Firestore might require it as the first orderBy.
+    // If `flair` filter is active, and sorting is by `likes` or `commentsCount`,
+    // Firestore might require an index on `flairs` and `likes`/`commentsCount`.
+    // The error message for missing indexes is helpful.
+    if (sortByField !== 'createdAt' && filters?.flair) {
+        // If also sorting by createdAt for tie-breaking after likes/commentsCount,
+        // ensure 'createdAt' is the last orderBy if the primary sort is different.
+        // However, Firestore usually allows multiple orderBy clauses if indexed correctly.
+        // For simplicity, we'll rely on the main sort for now.
+        // queryConstraints.push(orderBy('createdAt', 'desc')); // Example tie-breaker
+    }
+
+
+    queryConstraints.push(limit(25)); // Default limit
+
+
+    const q = query(postsCollection, ...queryConstraints);
     const querySnapshot = await getDocs(q);
     const posts = querySnapshot.docs.map(docSnap => processDoc(docSnap) as Post);
     return posts.filter(post => post !== null);
   } catch (error: any) {
     console.error('[postService] Error fetching posts:', error);
+    if (error.code === 'failed-precondition' && error.message.toLowerCase().includes('index')) {
+        let detailedMessage = `Failed to fetch posts. A Firestore index is likely missing. Please check Firebase console logs for details and a link to create the index.`;
+        detailedMessage += ` Query involved: ${filters?.flair ? `flair='${filters.flair}'` : ''} sorted by ${filters?.sortBy || 'createdAt'} ${filters?.sortOrder || 'desc'}.`;
+        console.error(detailedMessage);
+        throw new Error(detailedMessage + ` Original error: ${error.message}`);
+    }
     throw new Error(`Failed to fetch posts. Original error: ${error.message}`);
   }
 };
@@ -158,13 +201,10 @@ export async function togglePostLike(postId: string, userId: string): Promise<{ 
   }
 };
 
-// Omit 'id', 'createdAt', 'updatedAt', 'likes' and 'parentId' for the input type, as parentId is handled explicitly
-// The type for commentData should correctly reflect the fields needed for creation.
-// `parentId` is now a direct parameter to `createComment`.
 export async function createComment(
   postId: string,
   commentData: Pick<Comment, 'author' | 'content'>,
-  parentId: string | null = null // Explicitly pass parentId, default to null for top-level
+  parentId: string | null = null
 ): Promise<string> {
   try {
     const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
@@ -174,10 +214,10 @@ export async function createComment(
         avatarUrl: commentData.author.avatarUrl
     };
     const docRef = await addDoc(commentsCollectionRef, {
-      postId: postId, // Storing postId on comment for potential denormalization/rules
+      postId: postId, 
       author,
       content: commentData.content,
-      parentId: parentId, // Store the parentId
+      parentId: parentId, 
       likes: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -198,12 +238,13 @@ export async function createComment(
 export async function getCommentsForPost(postId: string): Promise<Comment[]> {
   try {
     const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
-    // Fetch comments ordered by creation time to maintain chronological order for replies
+    // Sort by createdAt ascending to maintain chronological order for replies within a thread.
+    // Top-level comments are sorted newest first on the client-side after tree construction.
     const q = query(commentsCollectionRef, orderBy('createdAt', 'asc'));
     const querySnapshot = await getDocs(q);
     const comments = querySnapshot.docs.map(docSnap => {
         const processed = processDoc(docSnap) as Comment;
-        // Ensure parentId is null if not present (for older comments or clarity)
+        // Ensure parentId is explicitly null if it's undefined from Firestore
         return { ...processed, parentId: processed.parentId === undefined ? null : processed.parentId };
     });
     return comments.filter(comment => comment !== null);
@@ -228,16 +269,18 @@ export async function updateComment(postId: string, commentId: string, newConten
 
 export async function deleteComment(postId: string, commentId: string): Promise<void> {
   try {
-    // Note: Deleting a comment with replies will orphan those replies.
-    // A more complex deletion would recursively delete all replies.
-    // For now, we keep it simple and just delete the target comment.
+    // Future enhancement: Consider transactional delete or handling orphaned replies if business logic requires it.
+    // For now, it's a direct delete. If a comment with replies is deleted, its replies become "orphaned"
+    // in terms of parentId linkage but will still exist. The UI's tree building might hide them
+    // or they might appear as top-level if not handled carefully.
+    // A more robust delete would recursively delete replies or re-parent them.
+
     const commentDocRef = doc(db, 'posts', postId, 'comments', commentId);
     await deleteDoc(commentDocRef);
 
-    // Decrement commentsCount on the post
     const postDocRef = doc(db, 'posts', postId);
     await updateDoc(postDocRef, {
-      commentsCount: increment(-1),
+      commentsCount: increment(-1), // Ensure this doesn't go below zero if counts get out of sync.
     });
   } catch (error) {
     console.error('Error deleting comment:', error);
@@ -250,7 +293,7 @@ export async function generateSlug(title: string): Promise<string> {
   return title
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
+    .replace(/[^\w\s-]/g, '') // Remove non-word characters except spaces and hyphens
+    .replace(/\s+/g, '-')     // Replace spaces with hyphens
+    .replace(/-+/g, '-');     // Replace multiple hyphens with a single one
 };

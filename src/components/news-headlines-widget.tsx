@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 const NEWS_API_KEY = process.env.NEXT_PUBLIC_NEWS_API_KEY;
-const NEWS_API_ENDPOINT = `https://newsapi.org/v2/everything?q=Guernsey&sortBy=publishedAt&pageSize=5&apiKey=${NEWS_API_KEY}`;
+const NEWS_API_ENDPOINT_BASE = `https://newsapi.org/v2/everything`;
 
 interface NewsArticle {
   source: {
@@ -37,8 +37,8 @@ export function NewsHeadlinesWidget() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!NEWS_API_KEY || NEWS_API_KEY === "YOUR_NEWS_API_KEY") {
-      setError("News API key not configured. Add NEXT_PUBLIC_NEWS_API_KEY.");
+    if (!NEWS_API_KEY || NEWS_API_KEY === "YOUR_NEWS_API_KEY_PLACEHOLDER" || NEWS_API_KEY.length < 30) { // Basic check for a real key
+      setError("News API key not configured or invalid. Please check NEXT_PUBLIC_NEWS_API_KEY.");
       setLoading(false);
       return;
     }
@@ -46,20 +46,25 @@ export function NewsHeadlinesWidget() {
     async function fetchNews() {
       setLoading(true);
       setError(null);
+      const newsApiUrl = `${NEWS_API_ENDPOINT_BASE}?q=Guernsey&sortBy=publishedAt&pageSize=5&apiKey=${NEWS_API_KEY}`;
       try {
-        const response = await fetch(NEWS_API_ENDPOINT);
+        const response = await fetch(newsApiUrl);
         const data: NewsApiResponse = await response.json();
 
         if (data.status === "ok") {
           setHeadlines(data.articles);
         } else {
-          console.error("NewsAPI Error:", data);
-          setError(data.message || "Failed to fetch news headlines.");
+          console.error("NewsAPI Error Response:", data);
+          let errorMessage = data.message || "Failed to fetch news headlines.";
+          if (data.code) {
+            errorMessage += ` (Code: ${data.code})`;
+          }
+          setError(errorMessage);
           setHeadlines([]);
         }
       } catch (e: any) {
         console.error("Error fetching news:", e);
-        setError("An error occurred while fetching news.");
+        setError("An error occurred while fetching news. Check browser console for details.");
         setHeadlines([]);
       } finally {
         setLoading(false);
@@ -100,7 +105,10 @@ export function NewsHeadlinesWidget() {
             <AlertTriangle className="h-8 w-8 mb-2" />
             <p className="font-semibold">Error loading news</p>
             <p className="text-xs">{error}</p>
-             {error.includes("apiKeyDisabled") && <p className="text-xs mt-1">The API key may be disabled (e.g. for developer accounts on production).</p>}
+             {error.toLowerCase().includes("apikey") && error.toLowerCase().includes("disabled") && 
+              <p className="text-xs mt-1">Note: Developer NewsAPI keys are often disabled on deployed sites and only work on localhost.</p>}
+             {error.toLowerCase().includes("ratelimit") && 
+              <p className="text-xs mt-1">You may have hit the API rate limit.</p>}
           </div>
         )}
         {!loading && !error && headlines.length === 0 && (
@@ -123,7 +131,7 @@ export function NewsHeadlinesWidget() {
         )}
         {!loading && (
           <p className="text-xs text-muted-foreground mt-4 text-center">
-             {headlines.length > 0 ? `News provided by NewsAPI.org` : ''}
+             {headlines.length > 0 && !error ? `News provided by NewsAPI.org` : ''}
           </p>
         )}
       </CardContent>

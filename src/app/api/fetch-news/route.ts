@@ -1,5 +1,7 @@
 'use server';
 
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 
 interface CustomNewsArticle {
@@ -68,7 +70,10 @@ export async function GET() {
 
   for (const feed of FEEDS) {
     try {
-      const res = await fetch(feed.url, { next: { revalidate: 3600 } });
+      const res = await fetch(feed.url, {
+        cache: 'no-store',
+        headers: { 'User-Agent': 'GuernseySpeaks/1.0' },
+      });
       if (!res.ok) {
         console.error(`Failed to fetch ${feed.sourceName}: ${res.status}`);
         continue;

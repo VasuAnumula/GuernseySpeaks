@@ -24,60 +24,18 @@ export function NewsHeadlinesWidget() {
     async function fetchCustomNews() {
       setLoading(true);
       setError(null);
-      setArticles([]); // Clear previous articles
+      setArticles([]);
 
-      // --- Placeholder: Simulate fetching from two websites ---
-      // In a real implementation, this would involve:
-      // 1. Making HTTP requests to the target websites (server-side, e.g., in an API route or Server Action).
-      // 2. Parsing the HTML response (e.g., using a library like 'cheerio' if RSS feeds are not available).
-      // 3. Extracting headlines, links, and other relevant data.
-      // 4. Handling errors for each website individually.
-      // This process is complex and site-specific.
-
-      // For now, we'll use mock data.
       try {
-        // Simulate a delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        const mockArticles: CustomNewsArticle[] = [
-          {
-            sourceName: "Placeholder Site 1",
-            title: "Important Update from Site 1",
-            url: "#",
-            publishedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-            description: "This is a placeholder article description from the first mock website."
-          },
-          {
-            sourceName: "Placeholder Site 1",
-            title: "Another Story from Site 1",
-            url: "#",
-            publishedDate: new Date(Date.now() - 86400000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), // Yesterday
-          },
-          {
-            sourceName: "Placeholder Site 2",
-            title: "Breaking News from Site 2",
-            url: "#",
-            publishedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-            description: "Details about the latest developments from the second mock website."
-          },
-          {
-            sourceName: "Placeholder Site 2",
-            title: "Featured Article on Site 2",
-            url: "#",
-          },
-        ];
-        
-        // Simulate a potential error for one site (for demonstration)
-        // if (Math.random() > 0.5) {
-        //   throw new Error("Simulated error fetching from Placeholder Site 2");
-        // }
-
-        setArticles(mockArticles.slice(0, 5)); // Limit to 5 articles
-        setError(null); // Clear any previous error
-
+        const res = await fetch('/api/fetch-news');
+        if (!res.ok) {
+          throw new Error(`Request failed with status ${res.status}`);
+        }
+        const data = await res.json();
+        setArticles(data.articles || []);
       } catch (e: any) {
-        console.error("Error fetching custom news (simulated):", e);
-        setError("Could not load news from custom sources. " + e.message);
+        console.error('Error fetching custom news:', e);
+        setError('Could not load news from custom sources. ' + e.message);
         setArticles([]);
       } finally {
         setLoading(false);

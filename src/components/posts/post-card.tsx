@@ -5,7 +5,7 @@ import type { Post } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ThumbsUp, MessageCircle, Bookmark, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Bookmark, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -29,7 +29,7 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { formatDistanceToNow } from 'date-fns';
 import { useState, useEffect } from 'react';
-import { deletePost, togglePostLike } from '@/services/postService';
+import { deletePost, togglePostLike, togglePostDislike } from '@/services/postService';
 import { useToast } from '@/hooks/use-toast';
 
 interface PostCardProps {
@@ -46,6 +46,8 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   const [post, setPost] = useState<Post>(initialPost);
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [isDisliked, setIsDisliked] = useState(false);
+  const [isDisliking, setIsDisliking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -66,7 +68,12 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
     } else {
       setIsLiked(false);
     }
-  }, [user, post.likedBy]);
+    if (user && post.dislikedBy) {
+      setIsDisliked(post.dislikedBy.includes(user.uid));
+    } else {
+      setIsDisliked(false);
+    }
+  }, [user, post.likedBy, post.dislikedBy]);
 
   let formattedDate = "Unknown date";
   if (post.createdAt) {
@@ -116,6 +123,48 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
       setPost(prevPost => ({ ...prevPost, likes: originalLikesCount, likedBy: originalLikedState ? [...prevPost.likedBy, user.uid] : prevPost.likedBy.filter(uid => uid !== user.uid) }));
     } finally {
       setIsLiking(false);
+    }
+  };
+
+  const handleDislikeToggle = async () => {
+    if (!user) {
+      toast({ title: "Login Required", description: "You need to be logged in to dislike posts.", variant: "destructive" });
+      return;
+    }
+    if (isDisliking) return;
+    setIsDisliking(true);
+
+    const originalDislikedState = isDisliked;
+    const originalDislikesCount = post.dislikes;
+
+    setIsDisliked(!originalDislikedState);
+    setPost(prevPost => ({
+      ...prevPost,
+      dislikes: originalDislikedState ? prevPost.dislikes - 1 : prevPost.dislikes + 1,
+      dislikedBy: originalDislikedState
+        ? prevPost.dislikedBy.filter(uid => uid !== user.uid)
+        : [...prevPost.dislikedBy, user.uid],
+      // if switching from like to dislike
+      likes: prevPost.likedBy.includes(user.uid) && !originalDislikedState ? prevPost.likes - 1 : prevPost.likes,
+      likedBy: prevPost.likedBy.includes(user.uid) && !originalDislikedState ? prevPost.likedBy.filter(uid => uid !== user.uid) : prevPost.likedBy
+    }));
+
+    try {
+      const updatedPostData = await togglePostDislike(post.id, user.uid);
+      setPost(prevPost => ({ ...prevPost, ...updatedPostData }));
+      setIsDisliked(updatedPostData.dislikedBy.includes(user.uid));
+      setIsLiked(updatedPostData.likedBy.includes(user.uid));
+    } catch (error) {
+      console.error("Failed to toggle dislike:", error);
+      toast({ title: "Error", description: "Could not update dislike. Please try again.", variant: "destructive" });
+      setIsDisliked(originalDislikedState);
+      setPost(prevPost => ({
+        ...prevPost,
+        dislikes: originalDislikesCount,
+        dislikedBy: originalDislikedState ? [...prevPost.dislikedBy, user.uid] : prevPost.dislikedBy.filter(uid => uid !== user.uid)
+      }));
+    } finally {
+      setIsDisliking(false);
     }
   };
 
@@ -237,6 +286,10 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
           <Button variant="ghost" size="sm" className={`group ${isLiked ? 'text-primary hover:text-primary/90' : 'hover:text-primary'}`} onClick={handleLikeToggle} disabled={isLiking || !user}>
             {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />}
             {post.likes}
+          </Button>
+          <Button variant="ghost" size="sm" className={`group ${isDisliked ? 'text-primary hover:text-primary/90' : 'hover:text-primary'}`} onClick={handleDislikeToggle} disabled={isDisliking || !user}>
+            {isDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''}`} />}
+            {post.dislikes}
           </Button>
           <Link href={`/post/${post.id}/${postSlug}#comments`} passHref>
             <Button variant="ghost" size="sm" className="group hover:text-primary">

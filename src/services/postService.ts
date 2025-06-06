@@ -1,7 +1,7 @@
 
 'use server';
 
-import { db } from '@/lib/firebase/config';
+import { db, storage } from '@/lib/firebase/config';
 import type { Post, Comment, AuthorInfo } from '@/types';
 import { processDoc } from '@/lib/firestoreUtils';
 import {
@@ -25,13 +25,15 @@ import {
   QueryConstraint,
   OrderByDirection
 } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
 interface CreatePostInputData {
   title: string;
   content: string;
-  author: AuthorInfo; 
+  author: AuthorInfo;
   flairs: string[];
+  imageUrls?: string[];
 }
 
 export interface GetPostsFilters {
@@ -53,6 +55,7 @@ export async function createPost(postData: CreatePostInputData): Promise<string>
       ...postData,
       author,
       slug,
+      imageUrls: postData.imageUrls || [],
       commentsCount: 0,
       likes: 0,
       likedBy: [],
@@ -250,7 +253,7 @@ export async function togglePostDislike(postId: string, userId: string): Promise
 
 export async function createComment(
   postId: string,
-  commentData: Pick<Comment, 'author' | 'content'>,
+  commentData: Pick<Comment, 'author' | 'content' | 'imageUrls'>,
   parentId: string | null = null
 ): Promise<string> {
   try {
@@ -265,6 +268,7 @@ export async function createComment(
       author,
       content: commentData.content,
       parentId: parentId,
+      imageUrls: commentData.imageUrls || [],
       likes: 0,
       likedBy: [],
       dislikes: 0,
@@ -336,6 +340,32 @@ export async function deleteComment(postId: string, commentId: string): Promise<
     console.error('Error deleting comment:', error);
     throw new Error('Failed to delete comment.');
   }
+}
+
+export async function uploadPostImages(uid: string, files: File[]): Promise<string[]> {
+  const urls: string[] = [];
+  for (const file of files) {
+    const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+    const path = `post_images/${uid}/${Date.now()}_${sanitized}`;
+    const ref = storageRef(storage, path);
+    await uploadBytes(ref, file);
+    const url = await getDownloadURL(ref);
+    urls.push(url);
+  }
+  return urls;
+}
+
+export async function uploadCommentImages(uid: string, files: File[]): Promise<string[]> {
+  const urls: string[] = [];
+  for (const file of files) {
+    const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+    const path = `comment_images/${uid}/${Date.now()}_${sanitized}`;
+    const ref = storageRef(storage, path);
+    await uploadBytes(ref, file);
+    const url = await getDownloadURL(ref);
+    urls.push(url);
+  }
+  return urls;
 }
 
 export async function toggleCommentLike(postId: string, commentId: string, userId: string): Promise<Comment> {

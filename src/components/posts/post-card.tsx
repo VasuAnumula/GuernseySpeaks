@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ThumbsUp, ThumbsDown, MessageCircle, Bookmark, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -277,6 +278,13 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
       </CardHeader>
       <CardContent>
         <p className="text-foreground/90 line-clamp-3 whitespace-pre-wrap">{post.content}</p>
+        {post.imageUrls && post.imageUrls.length > 0 && (
+          <div className="mt-2 space-y-2">
+            {post.imageUrls.map(url => (
+              <Image key={url} src={url} alt="post attachment" width={400} height={400} className="rounded" />
+            ))}
+          </div>
+        )}
         <Link href={`/post/${post.id}/${postSlug}`} className="text-sm text-primary hover:underline hover:text-primary/80 transition-colors duration-200 mt-2 inline-block">
             Read more
         </Link>

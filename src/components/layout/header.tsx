@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, PlusSquare, LogIn, LogOut, UserCircle, Settings, Loader2, ShieldCheck } from 'lucide-react';
+import { Home, PlusSquare, LogIn, LogOut, UserCircle, Loader2, ShieldCheck } from 'lucide-react'; // Removed Settings
 import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/shared/logo';
 
@@ -20,6 +20,8 @@ export function Header() {
   const { user, logout, loading: authLoading } = useAuth();
 
   const canAccessAdmin = user && (user.role === 'superuser' || user.role === 'moderator');
+  const userDisplayNameForMenu = user?.displayName || user?.name || user?.email || 'User';
+  const userAvatarFallbackChar = userDisplayNameForMenu.substring(0, 1).toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -49,13 +51,13 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.avatarUrl || undefined} alt={user.name || 'User'} data-ai-hint="profile avatar" />
-                    <AvatarFallback>{user.name ? user.name.substring(0, 1).toUpperCase() : <UserCircle />}</AvatarFallback>
+                    <AvatarImage src={user.avatarUrl || undefined} alt={userDisplayNameForMenu} data-ai-hint="profile avatar" />
+                    <AvatarFallback>{userAvatarFallbackChar || <UserCircle />}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{user.name || user.email}</DropdownMenuLabel>
+                <DropdownMenuLabel>{userDisplayNameForMenu}</DropdownMenuLabel>
                 {user.role && <DropdownMenuLabel className="text-xs text-muted-foreground -mt-2 capitalize">Role: {user.role}</DropdownMenuLabel>}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>

@@ -9,15 +9,21 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { X, Plus, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { createPost, updatePost, generateSlug } from '@/services/postService';
 import type { Post, AuthorInfo } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface PostFormProps {
   postToEdit?: Post | null;
 }
+
+// Ensure this list is consistent and used as the single source of truth for predefined flairs.
+// This list is now also used in src/app/page.tsx for PostListFilters.
+const PREDEFINED_FLAIRS = ["Events", "News", "Discussion", "Casual", "Help", "Local Issue", "Question", "Recommendation", "Miscellaneous"];
+const MAX_FLAIRS = 5;
 
 export function PostForm({ postToEdit }: PostFormProps) {
   const { user } = useAuth();
@@ -27,7 +33,7 @@ export function PostForm({ postToEdit }: PostFormProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [flairs, setFlairs] = useState<string[]>([]);
-  const [currentFlair, setCurrentFlair] = useState('');
+  const [selectedFlairToAdd, setSelectedFlairToAdd] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditMode = !!postToEdit;
@@ -40,13 +46,21 @@ export function PostForm({ postToEdit }: PostFormProps) {
     }
   }, [isEditMode, postToEdit]);
 
-  const handleAddFlair = () => {
-    if (currentFlair.trim() && !flairs.includes(currentFlair.trim()) && flairs.length < 5) {
-      setFlairs([...flairs, currentFlair.trim()]);
-      setCurrentFlair('');
-    } else if (flairs.length >= 5) {
-      toast({ title: "Flair Limit Reached", description: "You can add up to 5 flairs.", variant: "destructive" });
+  const handleAddFlair = (flairToAdd: string) => {
+    if (!flairToAdd || !flairToAdd.trim()) return; // Ensure flair is not empty or just whitespace
+
+    const trimmedFlair = flairToAdd.trim();
+
+    if (flairs.length >= MAX_FLAIRS) {
+      toast({ title: "Flair Limit Reached", description: `You can add up to ${MAX_FLAIRS} flairs.`, variant: "destructive" });
+      return;
     }
+    if (flairs.includes(trimmedFlair)) {
+      toast({ title: "Flair Already Added", description: `"${trimmedFlair}" is already in your list.`, variant: "default" });
+      return;
+    }
+    setFlairs([...flairs, trimmedFlair]);
+    setSelectedFlairToAdd('');
   };
 
   const handleRemoveFlair = (flairToRemove: string) => {
@@ -64,12 +78,11 @@ export function PostForm({ postToEdit }: PostFormProps) {
         return;
     }
     setIsSubmitting(true);
-    
+
     const trimmedTitle = title.trim();
 
     try {
       if (isEditMode && postToEdit) {
-        // Update existing post
         const postUpdateData: Partial<Pick<Post, 'title' | 'content' | 'flairs'>> = {
           title: trimmedTitle,
           content: content.trim(),
@@ -80,29 +93,28 @@ export function PostForm({ postToEdit }: PostFormProps) {
         toast({ title: "Post Updated", description: "Your post has been successfully updated!" });
         router.push(`/post/${postToEdit.id}/${updatedSlug}`);
       } else {
-        // Create new post
         const authorInfo: AuthorInfo = {
           uid: user.uid,
-          name: user.name,
+          displayName: user.displayName || user.name || 'Anonymous',
           avatarUrl: user.avatarUrl,
         };
-        const newPostPayload = { // Payload for createPost, does not include slug
+        const newPostPayload = {
           title: trimmedTitle,
           content: content.trim(),
           author: authorInfo,
           flairs,
         };
-        const postId = await createPost(newPostPayload); // createPost now generates slug internally
-        const newSlug = await generateSlug(trimmedTitle); // generate slug for client-side navigation
+        const postId = await createPost(newPostPayload);
+        const newSlug = await generateSlug(trimmedTitle);
         toast({ title: "Post Submitted", description: "Your post is now live!" });
         router.push(`/post/${postId}/${newSlug}`);
       }
     } catch (error) {
       console.error(`Failed to ${isEditMode ? 'update' : 'create'} post:`, error);
-      toast({ 
-        title: `${isEditMode ? 'Update' : 'Submission'} Failed`, 
-        description: `Could not ${isEditMode ? 'update' : 'create'} your post. Please try again.`, 
-        variant: "destructive" 
+      toast({
+        title: `${isEditMode ? 'Update' : 'Submission'} Failed`,
+        description: `Could not ${isEditMode ? 'update' : 'create'} your post. Please try again.`,
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
@@ -121,11 +133,11 @@ export function PostForm({ postToEdit }: PostFormProps) {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="title" className="text-lg">Title</Label>
-            <Input 
-              id="title" 
-              placeholder="Enter a descriptive title" 
-              required 
-              value={title} 
+            <Input
+              id="title"
+              placeholder="Enter a descriptive title"
+              required
+              value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="text-base"
               maxLength={150}
@@ -133,32 +145,44 @@ export function PostForm({ postToEdit }: PostFormProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="content" className="text-lg">Content</Label>
-            <Textarea 
-              id="content" 
-              placeholder="What's on your mind?" 
-              required 
-              value={content} 
-              onChange={(e) => setContent(e.target.value)} 
+            <Textarea
+              id="content"
+              placeholder="What's on your mind?"
+              required
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
               rows={10}
               className="text-base"
             />
              <p className="text-xs text-muted-foreground">Markdown is not currently supported, but will be in a future update!</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="flairs" className="text-lg">Flairs/Tags (up to 5)</Label>
+            <Label htmlFor="flairs-select" className="text-lg">Flairs/Tags (up to {MAX_FLAIRS})</Label>
             <div className="flex items-center gap-2">
-              <Input 
-                id="flairs" 
-                placeholder="Add a flair (e.g., News, Events)" 
-                value={currentFlair} 
-                onChange={(e) => setCurrentFlair(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddFlair();}}}
-                className="flex-grow text-base"
-                maxLength={20}
-              />
-              <Button type="button" onClick={handleAddFlair} variant="outline" size="icon" aria-label="Add flair">
-                <Plus className="h-4 w-4" />
-              </Button>
+              <Select
+                value={selectedFlairToAdd}
+                onValueChange={(value) => {
+                  if (value && value.trim()) { // Ensure value is not empty/whitespace before adding
+                    handleAddFlair(value);
+                  }
+                }}
+                disabled={flairs.length >= MAX_FLAIRS}
+              >
+                <SelectTrigger id="flairs-select" className="flex-grow text-base">
+                  <SelectValue placeholder="Select a flair to add" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PREDEFINED_FLAIRS.filter(f => f && f.trim() !== "").map(flair => (
+                    <SelectItem
+                      key={flair}
+                      value={flair} // This value must not be an empty string
+                      disabled={flairs.includes(flair)}
+                    >
+                      {flair}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             {flairs.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -171,6 +195,9 @@ export function PostForm({ postToEdit }: PostFormProps) {
                   </Badge>
                 ))}
               </div>
+            )}
+            {flairs.length >= MAX_FLAIRS && (
+                <p className="text-xs text-muted-foreground">Maximum {MAX_FLAIRS} flairs reached.</p>
             )}
           </div>
         </CardContent>

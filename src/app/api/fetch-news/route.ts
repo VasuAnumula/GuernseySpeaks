@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+
 import { parseStringPromise } from 'xml2js';
 
 interface CustomNewsArticle {

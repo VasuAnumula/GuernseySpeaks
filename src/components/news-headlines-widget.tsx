@@ -5,15 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Newspaper, ExternalLink, Loader2, AlertTriangle, Link as LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-
-// Placeholder for articles fetched from custom websites
-interface CustomNewsArticle {
-  sourceName: string; // e.g., "Website A News"
-  title: string;
-  url: string;
-  publishedDate?: string; // Optional: if available and parsable
-  description?: string; // Optional summary
-}
+import type { CustomNewsArticle } from '@/types/news';
 
 export function NewsHeadlinesWidget() {
   const [articles, setArticles] = useState<CustomNewsArticle[]>([]);

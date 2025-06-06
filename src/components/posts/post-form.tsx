@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { X, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
-import { createPost, updatePost, generateSlug } from '@/services/postService';
+import { createPost, updatePost, generateSlug, uploadPostImages } from '@/services/postService';
 import type { Post, AuthorInfo } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -35,6 +35,7 @@ export function PostForm({ postToEdit }: PostFormProps) {
   const [flairs, setFlairs] = useState<string[]>([]);
   const [selectedFlairToAdd, setSelectedFlairToAdd] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
 
   const isEditMode = !!postToEdit;
 
@@ -63,8 +64,14 @@ export function PostForm({ postToEdit }: PostFormProps) {
     setSelectedFlairToAdd('');
   };
 
-  const handleRemoveFlair = (flairToRemove: string) => {
-    setFlairs(flairs.filter(flair => flair !== flairToRemove));
+const handleRemoveFlair = (flairToRemove: string) => {
+  setFlairs(flairs.filter(flair => flair !== flairToRemove));
+};
+
+  const handleImageFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setImageFiles(Array.from(e.target.files));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -98,15 +105,21 @@ export function PostForm({ postToEdit }: PostFormProps) {
           displayName: user.displayName || user.name || 'Anonymous',
           avatarUrl: user.avatarUrl,
         };
+        let uploadedUrls: string[] = [];
+        if (imageFiles.length > 0) {
+          uploadedUrls = await uploadPostImages(user.uid, imageFiles);
+        }
         const newPostPayload = {
           title: trimmedTitle,
           content: content.trim(),
           author: authorInfo,
           flairs,
+          imageUrls: uploadedUrls,
         };
         const postId = await createPost(newPostPayload);
         const newSlug = await generateSlug(trimmedTitle);
         toast({ title: "Post Submitted", description: "Your post is now live!" });
+        setImageFiles([]);
         router.push(`/post/${postId}/${newSlug}`);
       }
     } catch (error) {
@@ -145,17 +158,24 @@ export function PostForm({ postToEdit }: PostFormProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="content" className="text-lg">Content</Label>
-            <Textarea
-              id="content"
-              placeholder="What's on your mind?"
-              required
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={10}
-              className="text-base"
-            />
-             <p className="text-xs text-muted-foreground">Markdown is not currently supported, but will be in a future update!</p>
+          <Textarea
+            id="content"
+            placeholder="What's on your mind?"
+            required
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={10}
+            className="text-base"
+          />
+           <p className="text-xs text-muted-foreground">Markdown is not currently supported, but will be in a future update!</p>
+          <div className="mt-2">
+            <Label htmlFor="post-images" className="text-sm">Attach Images/GIFs</Label>
+            <Input id="post-images" type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleImageFilesChange} />
+            {imageFiles.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">{imageFiles.length} file(s) selected</p>
+            )}
           </div>
+        </div>
           <div className="space-y-2">
             <Label htmlFor="flairs-select" className="text-lg">Flairs/Tags (up to {MAX_FLAIRS})</Label>
             <div className="flex items-center gap-2">

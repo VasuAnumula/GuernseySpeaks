@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ThumbsUp, MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle, MessageSquareReply } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ThumbsUp, ThumbsDown, MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle, MessageSquareReply } from 'lucide-react';
+import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
@@ -35,7 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getPostById, getCommentsForPost, createComment, togglePostLike, deletePost, updateComment, deleteComment } from '@/services/postService';
+import { getPostById, getCommentsForPost, createComment, togglePostLike, togglePostDislike, deletePost, updateComment, deleteComment, toggleCommentLike, toggleCommentDislike, uploadCommentImages } from '@/services/postService';
 import { db } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { processDoc } from '@/lib/firestoreUtils';
@@ -66,14 +68,36 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [isCommentLiked, setIsCommentLiked] = useState(false);
+  const [isCommentDisliked, setIsCommentDisliked] = useState(false);
+  const [isCommentLiking, setIsCommentLiking] = useState(false);
+  const [isCommentDisliking, setIsCommentDisliking] = useState(false);
+
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+  const [replyImageFiles, setReplyImageFiles] = useState<File[]>([]);
+
+  const handleReplyImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setReplyImageFiles(Array.from(e.target.files));
+    }
+  };
 
   useEffect(() => {
     setComment(commentNode);
     setEditedContent(commentNode.content);
-  }, [commentNode]);
+    if (user && commentNode.likedBy) {
+      setIsCommentLiked(commentNode.likedBy.includes(user.uid));
+    } else {
+      setIsCommentLiked(false);
+    }
+    if (user && commentNode.dislikedBy) {
+      setIsCommentDisliked(commentNode.dislikedBy.includes(user.uid));
+    } else {
+      setIsCommentDisliked(false);
+    }
+  }, [commentNode, user]);
 
   let formattedDate = "Unknown date";
   if (comment.createdAt) {
@@ -145,8 +169,13 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
         displayName: user.displayName || user.name || 'User', // Ensure displayName has a fallback
         avatarUrl: user.avatarUrl,
       };
-      await createComment(postId, { author: authorInfo, content: replyContent.trim() }, comment.id);
+      let uploadedUrls: string[] = [];
+      if (replyImageFiles.length > 0) {
+        uploadedUrls = await uploadCommentImages(user.uid, replyImageFiles);
+      }
+      await createComment(postId, { author: authorInfo, content: replyContent.trim(), imageUrls: uploadedUrls }, comment.id);
       setReplyContent('');
+      setReplyImageFiles([]);
       setShowReplyForm(false);
       onReplySubmitted(); // This will trigger a re-fetch of all comments in the parent
       toast({ title: "Reply posted!" });
@@ -155,6 +184,84 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
       toast({ title: "Error", description: "Could not post reply. Please try again.", variant: "destructive" });
     } finally {
       setIsSubmittingReply(false);
+    }
+  };
+
+  const handleCommentLikeToggle = async () => {
+    if (!user) {
+      toast({ title: "Login Required", description: "You need to be logged in to like comments.", variant: "destructive" });
+      return;
+    }
+    if (isCommentLiking) return;
+    setIsCommentLiking(true);
+
+    const originalLiked = isCommentLiked;
+    const originalDisliked = isCommentDisliked;
+    const originalData = { ...comment };
+
+    setIsCommentLiked(!originalLiked);
+    setIsCommentDisliked(false);
+    setComment(c => ({
+      ...c,
+      likes: originalLiked ? c.likes - 1 : c.likes + 1,
+      likedBy: originalLiked ? c.likedBy.filter(uid => uid !== user.uid) : [...c.likedBy, user.uid],
+      dislikes: c.dislikedBy.includes(user.uid) && !originalLiked ? c.dislikes - 1 : c.dislikes,
+      dislikedBy: c.dislikedBy.includes(user.uid) && !originalLiked ? c.dislikedBy.filter(uid => uid !== user.uid) : c.dislikedBy
+    }));
+
+    try {
+      const updated = await toggleCommentLike(postId, comment.id, user.uid);
+      setComment(updated);
+      onCommentEdited(updated);
+      setIsCommentLiked(updated.likedBy.includes(user.uid));
+      setIsCommentDisliked(updated.dislikedBy.includes(user.uid));
+    } catch (error) {
+      console.error('Failed to toggle comment like:', error);
+      toast({ title: 'Error', description: 'Could not update like.', variant: 'destructive' });
+      setComment(originalData);
+      setIsCommentLiked(originalLiked);
+      setIsCommentDisliked(originalDisliked);
+    } finally {
+      setIsCommentLiking(false);
+    }
+  };
+
+  const handleCommentDislikeToggle = async () => {
+    if (!user) {
+      toast({ title: "Login Required", description: "You need to be logged in to dislike comments.", variant: "destructive" });
+      return;
+    }
+    if (isCommentDisliking) return;
+    setIsCommentDisliking(true);
+
+    const originalDisliked = isCommentDisliked;
+    const originalLiked = isCommentLiked;
+    const originalData = { ...comment };
+
+    setIsCommentDisliked(!originalDisliked);
+    setIsCommentLiked(false);
+    setComment(c => ({
+      ...c,
+      dislikes: originalDisliked ? c.dislikes - 1 : c.dislikes + 1,
+      dislikedBy: originalDisliked ? c.dislikedBy.filter(uid => uid !== user.uid) : [...c.dislikedBy, user.uid],
+      likes: c.likedBy.includes(user.uid) && !originalDisliked ? c.likes - 1 : c.likes,
+      likedBy: c.likedBy.includes(user.uid) && !originalDisliked ? c.likedBy.filter(uid => uid !== user.uid) : c.likedBy
+    }));
+
+    try {
+      const updated = await toggleCommentDislike(postId, comment.id, user.uid);
+      setComment(updated);
+      onCommentEdited(updated);
+      setIsCommentDisliked(updated.dislikedBy.includes(user.uid));
+      setIsCommentLiked(updated.likedBy.includes(user.uid));
+    } catch (error) {
+      console.error('Failed to toggle comment dislike:', error);
+      toast({ title: 'Error', description: 'Could not update dislike.', variant: 'destructive' });
+      setComment(originalData);
+      setIsCommentDisliked(originalDisliked);
+      setIsCommentLiked(originalLiked);
+    } finally {
+      setIsCommentDisliking(false);
     }
   };
 
@@ -237,15 +344,28 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
             </div>
           </div>
         ) : (
-          <p className="text-foreground/90 whitespace-pre-wrap text-sm">{comment.content}</p>
+          <>
+            <p className="text-foreground/90 whitespace-pre-wrap text-sm">{comment.content}</p>
+            {comment.imageUrls && comment.imageUrls.length > 0 && (
+              <div className="mt-2 space-y-2">
+                {comment.imageUrls.map(url => (
+                  <Image key={url} src={url} alt="comment attachment" width={400} height={400} className="rounded" />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
       
       <div className="mt-2 px-1">
         <div className="flex items-center">
-            {/* Comment liking is not yet implemented */}
-            <Button variant="ghost" size="sm" className="text-muted-foreground group -ml-2" disabled>
-                <ThumbsUp className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {comment.likes}
+            <Button variant="ghost" size="sm" className={`group -ml-2 ${isCommentLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} onClick={handleCommentLikeToggle} disabled={isCommentLiking}>
+                {isCommentLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className="mr-1.5 h-4 w-4" />}
+                {comment.likes}
+            </Button>
+            <Button variant="ghost" size="sm" className={`group ${isCommentDisliked ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} onClick={handleCommentDislikeToggle} disabled={isCommentDisliking}>
+                {isCommentDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className="mr-1.5 h-4 w-4" />}
+                {comment.dislikes}
             </Button>
             {user && (
             <Button variant="ghost" size="sm" className="text-muted-foreground group" onClick={() => setShowReplyForm(!showReplyForm)}>
@@ -256,18 +376,19 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
 
         {showReplyForm && user && (
           <form onSubmit={handleReplySubmit} className="w-full mt-2 space-y-2">
-            <Textarea
-              placeholder={`Replying to ${authorDisplayName}...`}
-              value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
-              rows={2}
-              className="text-sm"
-              disabled={isSubmittingReply}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => { setShowReplyForm(false); setReplyContent(''); }} disabled={isSubmittingReply}>
-                Cancel
-              </Button>
+          <Textarea
+            placeholder={`Replying to ${authorDisplayName}...`}
+            value={replyContent}
+            onChange={(e) => setReplyContent(e.target.value)}
+            rows={2}
+            className="text-sm"
+            disabled={isSubmittingReply}
+          />
+          <Input type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleReplyImageChange} className="text-sm" />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => { setShowReplyForm(false); setReplyContent(''); }} disabled={isSubmittingReply}>
+              Cancel
+            </Button>
               <Button type="submit" size="sm" disabled={isSubmittingReply || !replyContent.trim()}>
                 {isSubmittingReply ? <Loader2 className="mr-1 h-4 w-4 animate-spin"/> : <Send className="mr-1 h-4 w-4"/>} Submit Reply
               </Button>
@@ -320,6 +441,8 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   const [post, setPost] = useState<Post | null>(null);
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [isDisliked, setIsDisliked] = useState(false);
+  const [isDisliking, setIsDisliking] = useState(false);
   const [isDeletingPost, setIsDeletingPost] = useState(false);
 
   const [allComments, setAllComments] = useState<CommentType[]>([]); // Flat list from Firestore
@@ -329,7 +452,14 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   const [isLoadingPost, setIsLoadingPost] = useState(true);
   const [isLoadingComments, setIsLoadingComments] = useState(true);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [commentImageFiles, setCommentImageFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const handleCommentImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setCommentImageFiles(Array.from(e.target.files));
+    }
+  };
 
   // Fetches the post and all its comments, then rebuilds the comment tree
   const fetchPostAndComments = useCallback(async () => {
@@ -349,6 +479,9 @@ export default function PostPage({ params }: { params: PostPageParams }) {
         setPost(fetchedPost);
         if(user && fetchedPost.likedBy) {
           setIsLiked(fetchedPost.likedBy.includes(user.uid));
+        }
+        if(user && fetchedPost.dislikedBy) {
+          setIsDisliked(fetchedPost.dislikedBy.includes(user.uid));
         }
         // Fetch comments after post is confirmed to exist
         const fetchedCommentsRaw = await getCommentsForPost(params.id);
@@ -419,23 +552,76 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     const originalLikedState = isLiked;
     const originalLikesCount = post.likes;
     const originalLikedBy = [...post.likedBy]; // Shallow copy
+    const originalDislikedState = isDisliked;
+    const originalDislikesCount = post.dislikes;
+    const originalDislikedBy = [...post.dislikedBy];
 
     setIsLiked(!originalLikedState);
-    setPost(p => p ? ({ ...p, likes: originalLikedState ? p.likes - 1 : p.likes + 1, likedBy: originalLikedState ? p.likedBy.filter(uid => uid !== user.uid) : [...p.likedBy, user.uid] }) : null);
+    setIsDisliked(false);
+    setPost(p => p ? ({
+      ...p,
+      likes: originalLikedState ? p.likes - 1 : p.likes + 1,
+      likedBy: originalLikedState ? p.likedBy.filter(uid => uid !== user.uid) : [...p.likedBy, user.uid],
+      dislikes: p.dislikedBy.includes(user.uid) && !originalLikedState ? p.dislikes - 1 : p.dislikes,
+      dislikedBy: p.dislikedBy.includes(user.uid) && !originalLikedState ? p.dislikedBy.filter(uid => uid !== user.uid) : p.dislikedBy
+    }) : null);
 
     try {
       const updatedPostData = await togglePostLike(post.id, user.uid);
       // Sync with server response
-      setPost(p => p ? ({ ...p, ...updatedPostData }) : null); // Ensure all fields from server are updated
+      setPost(p => p ? ({ ...p, ...updatedPostData }) : null);
       setIsLiked(updatedPostData.likedBy.includes(user.uid));
+      setIsDisliked(updatedPostData.dislikedBy.includes(user.uid));
     } catch (error) {
       console.error("Failed to toggle like:", error);
       toast({ title: "Error", description: "Could not update like. Please try again.", variant: "destructive" });
       // Revert optimistic update on error
       setIsLiked(originalLikedState);
-      setPost(p => p ? ({ ...p, likes: originalLikesCount, likedBy: originalLikedBy }) : null);
+      setIsDisliked(originalDislikedState);
+      setPost(p => p ? ({ ...p, likes: originalLikesCount, likedBy: originalLikedBy, dislikes: originalDislikesCount, dislikedBy: originalDislikedBy }) : null);
     } finally {
       setIsLiking(false);
+    }
+  };
+
+  const handleDislikeToggle = async () => {
+    if (!user || !post) {
+      toast({ title: "Login Required", description: "You need to be logged in to dislike posts.", variant: "destructive" });
+      return;
+    }
+    if (isDisliking) return;
+    setIsDisliking(true);
+
+    const originalDislikedState = isDisliked;
+    const originalDislikesCount = post.dislikes;
+    const originalDislikedBy = [...post.dislikedBy];
+    const originalLikedState = isLiked;
+    const originalLikesCount = post.likes;
+    const originalLikedBy = [...post.likedBy];
+
+    setIsDisliked(!originalDislikedState);
+    setIsLiked(false);
+    setPost(p => p ? ({
+      ...p,
+      dislikes: originalDislikedState ? p.dislikes - 1 : p.dislikes + 1,
+      dislikedBy: originalDislikedState ? p.dislikedBy.filter(uid => uid !== user.uid) : [...p.dislikedBy, user.uid],
+      likes: p.likedBy.includes(user.uid) && !originalDislikedState ? p.likes - 1 : p.likes,
+      likedBy: p.likedBy.includes(user.uid) && !originalDislikedState ? p.likedBy.filter(uid => uid !== user.uid) : p.likedBy
+    }) : null);
+
+    try {
+      const updatedPostData = await togglePostDislike(post.id, user.uid);
+      setPost(p => p ? ({ ...p, ...updatedPostData }) : null);
+      setIsDisliked(updatedPostData.dislikedBy.includes(user.uid));
+      setIsLiked(updatedPostData.likedBy.includes(user.uid));
+    } catch (error) {
+      console.error("Failed to toggle dislike:", error);
+      toast({ title: "Error", description: "Could not update dislike. Please try again.", variant: "destructive" });
+      setIsDisliked(originalDislikedState);
+      setIsLiked(originalLikedState);
+      setPost(p => p ? ({ ...p, dislikes: originalDislikesCount, dislikedBy: originalDislikedBy, likes: originalLikesCount, likedBy: originalLikedBy }) : null);
+    } finally {
+      setIsDisliking(false);
     }
   };
 
@@ -466,12 +652,17 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     try {
         const authorInfo: AuthorInfo = {
           uid: user.uid,
-          displayName: user.displayName || user.name || 'User', // Ensure fallback for displayName
+          displayName: user.displayName || user.name || 'User',
           avatarUrl: user.avatarUrl,
         };
-      await createComment(post.id, { author: authorInfo, content: newComment.trim() }, null); // parentId is null for top-level comments
-      
-      setNewComment(''); // Clear input
+        let uploadedUrls: string[] = [];
+        if (commentImageFiles.length > 0) {
+          uploadedUrls = await uploadCommentImages(user.uid, commentImageFiles);
+        }
+      await createComment(post.id, { author: authorInfo, content: newComment.trim(), imageUrls: uploadedUrls }, null);
+
+      setNewComment('');
+      setCommentImageFiles([]);
       toast({ title: "Comment posted!" });
       fetchPostAndComments(); // Re-fetch to update comment list and count
     } catch (err) {
@@ -632,6 +823,13 @@ export default function PostPage({ params }: { params: PostPageParams }) {
           </CardHeader>
           <CardContent className="px-4 sm:px-5 md:px-6 pt-0 pb-4 md:pb-6 prose prose-sm sm:prose-base md:prose-lg max-w-none dark:prose-invert whitespace-pre-wrap">
             {post.content}
+            {post.imageUrls && post.imageUrls.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {post.imageUrls.map(url => (
+                  <Image key={url} src={url} alt="post attachment" width={500} height={500} className="rounded" />
+                ))}
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 md:p-6 border-t">
             <div className="flex gap-1 sm:gap-2 text-muted-foreground">
@@ -640,10 +838,20 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                 size="sm"
                 className={`group ${isLiked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50'}`}
                 onClick={handleLikeToggle}
-                disabled={isLiking || !user || authLoading} // Disable if auth is loading too
+                disabled={isLiking || !user || authLoading}
               >
                 {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />}
                  {post.likes} Like{post.likes !== 1 && 's'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`group ${isDisliked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50'}`}
+                onClick={handleDislikeToggle}
+                disabled={isDisliking || !user || authLoading}
+              >
+                {isDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''}`} />}
+                 {post.dislikes} Dislike{post.dislikes !== 1 && 's'}
               </Button>
               <Button variant="outline" size="sm" className="group hover:text-primary hover:border-primary/50">
                 <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.commentsCount} Comment{post.commentsCount !== 1 && 's'}
@@ -674,6 +882,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                     rows={3}
                     className="mb-3 text-sm sm:text-base"
                   />
+                  <Input type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleCommentImageChange} className="mb-3" />
                   <Button type="submit" disabled={!newComment.trim() || isSubmittingComment} className="w-full sm:w-auto">
                     {isSubmittingComment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                     Post Comment

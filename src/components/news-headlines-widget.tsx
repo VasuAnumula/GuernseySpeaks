@@ -6,29 +6,11 @@ import { Newspaper, ExternalLink, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-const NEWS_API_KEY = process.env.NEXT_PUBLIC_NEWS_API_KEY;
-const NEWS_API_ENDPOINT_BASE = `https://newsapi.org/v2/everything`;
 
 interface NewsArticle {
-  source: {
-    id: string | null;
-    name: string;
-  };
-  author: string | null;
   title: string;
-  description: string | null;
   url: string;
-  urlToImage: string | null;
-  publishedAt: string;
-  content: string | null;
-}
-
-interface NewsApiResponse {
-  status: string;
-  totalResults: number;
-  articles: NewsArticle[];
-  code?: string; // For error responses
-  message?: string; // For error responses
+  source: string;
 }
 
 export function NewsHeadlinesWidget() {
@@ -37,34 +19,19 @@ export function NewsHeadlinesWidget() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!NEWS_API_KEY || NEWS_API_KEY === "YOUR_NEWS_API_KEY_PLACEHOLDER" || NEWS_API_KEY.length < 30) { // Basic check for a real key
-      setError("News API key not configured or invalid. Please check NEXT_PUBLIC_NEWS_API_KEY.");
-      setLoading(false);
-      return;
-    }
-
     async function fetchNews() {
       setLoading(true);
       setError(null);
-      const newsApiUrl = `${NEWS_API_ENDPOINT_BASE}?q=Guernsey&sortBy=publishedAt&pageSize=5&apiKey=${NEWS_API_KEY}`;
       try {
-        const response = await fetch(newsApiUrl);
-        const data: NewsApiResponse = await response.json();
-
-        if (data.status === "ok") {
-          setHeadlines(data.articles);
-        } else {
-          console.error("NewsAPI Error Response:", data);
-          let errorMessage = data.message || "Failed to fetch news headlines.";
-          if (data.code) {
-            errorMessage += ` (Code: ${data.code})`;
-          }
-          setError(errorMessage);
-          setHeadlines([]);
+        const response = await fetch('/api/news');
+        if (!response.ok) {
+          throw new Error(`Status ${response.status}`);
         }
+        const data: NewsArticle[] = await response.json();
+        setHeadlines(data);
       } catch (e: any) {
-        console.error("Error fetching news:", e);
-        setError("An error occurred while fetching news. Check browser console for details.");
+        console.error('Error fetching news:', e);
+        setError('Failed to fetch news headlines.');
         setHeadlines([]);
       } finally {
         setLoading(false);
@@ -74,16 +41,7 @@ export function NewsHeadlinesWidget() {
   }, []);
 
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-      });
-    } catch (e) {
-      return 'Invalid Date';
-    }
-  };
+  // Headlines fetched from the API do not include publication dates.
 
   return (
     <Card className="w-full shadow-lg">
@@ -105,10 +63,6 @@ export function NewsHeadlinesWidget() {
             <AlertTriangle className="h-8 w-8 mb-2" />
             <p className="font-semibold">Error loading news</p>
             <p className="text-xs">{error}</p>
-             {error.toLowerCase().includes("apikey") && error.toLowerCase().includes("disabled") && 
-              <p className="text-xs mt-1">Note: Developer NewsAPI keys are often disabled on deployed sites and only work on localhost.</p>}
-             {error.toLowerCase().includes("ratelimit") && 
-              <p className="text-xs mt-1">You may have hit the API rate limit.</p>}
           </div>
         )}
         {!loading && !error && headlines.length === 0 && (
@@ -121,7 +75,7 @@ export function NewsHeadlinesWidget() {
                 <Link href={headline.url} target="_blank" rel="noopener noreferrer" className="group hover:text-primary transition-colors">
                   <h4 className="font-medium text-sm group-hover:underline leading-tight">{headline.title}</h4>
                   <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                    <span>{headline.source.name} - {formatDate(headline.publishedAt)}</span>
+                    <span>{headline.source}</span>
                     <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </Link>
@@ -131,7 +85,7 @@ export function NewsHeadlinesWidget() {
         )}
         {!loading && (
           <p className="text-xs text-muted-foreground mt-4 text-center">
-             {headlines.length > 0 && !error ? `News provided by NewsAPI.org` : ''}
+            {headlines.length > 0 && !error ? 'Latest headlines from local news sources' : ''}
           </p>
         )}
       </CardContent>

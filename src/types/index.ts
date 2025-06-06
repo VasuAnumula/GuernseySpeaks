@@ -26,8 +26,11 @@ export interface Post {
   createdAt: Timestamp | Date; // Firestore Timestamp or JS Date
   updatedAt?: Timestamp | Date; // Firestore Timestamp or JS Date for edits
   flairs: string[];
+  imageUrls: string[]; // URLs of images/gifs attached to the post
   likes: number;
   likedBy: string[]; // Array of UIDs who liked the post
+  dislikes: number;
+  dislikedBy: string[]; // Array of UIDs who disliked the post
   commentsCount: number;
   slug: string;
 }
@@ -40,8 +43,11 @@ export interface Comment {
   parentId: string | null; // ID of the parent comment, null if top-level
   createdAt: Timestamp | Date; // Firestore Timestamp or JS Date
   updatedAt?: Timestamp | Date;
+  imageUrls: string[]; // URLs of images/gifs attached to the comment
   likes: number;
-  // likedBy: string[]; // Future: for comment liking
+  likedBy: string[];
+  dislikes: number;
+  dislikedBy: string[];
 }
 
 // For rendering threaded comments

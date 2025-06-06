@@ -1,7 +1,7 @@
 
 'use server';
 
-import { db } from '@/lib/firebase/config';
+import { db, storage } from '@/lib/firebase/config';
 import type { Post, Comment, AuthorInfo } from '@/types';
 import { processDoc } from '@/lib/firestoreUtils';
 import {
@@ -25,13 +25,15 @@ import {
   QueryConstraint,
   OrderByDirection
 } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
 interface CreatePostInputData {
   title: string;
   content: string;
-  author: AuthorInfo; 
+  author: AuthorInfo;
   flairs: string[];
+  imageUrls?: string[];
 }
 
 export interface GetPostsFilters {
@@ -51,11 +53,14 @@ export async function createPost(postData: CreatePostInputData): Promise<string>
 
     const docRef = await addDoc(collection(db, 'posts'), {
       ...postData,
-      author, 
+      author,
       slug,
+      imageUrls: postData.imageUrls || [],
       commentsCount: 0,
       likes: 0,
       likedBy: [],
+      dislikes: 0,
+      dislikedBy: [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -167,7 +172,7 @@ export async function getPostById(postId: string): Promise<Post | null> {
   }
 };
 
-export async function togglePostLike(postId: string, userId: string): Promise<{ likes: number; likedBy: string[] }> {
+export async function togglePostLike(postId: string, userId: string): Promise<{ likes: number; likedBy: string[]; dislikes: number; dislikedBy: string[] }> {
   try {
     const postDocRef = doc(db, 'posts', postId);
     const postSnap = await getDoc(postDocRef);
@@ -176,34 +181,79 @@ export async function togglePostLike(postId: string, userId: string): Promise<{ 
     }
     const postData = postSnap.data() as Post;
     const currentlyLikedBy = postData.likedBy || [];
-    let newLikes;
-    let newLikedBy;
+    const currentlyDislikedBy = postData.dislikedBy || [];
+    const updateData: any = {};
 
     if (currentlyLikedBy.includes(userId)) {
-      newLikes = increment(-1);
-      newLikedBy = arrayRemove(userId);
+      updateData.likes = increment(-1);
+      updateData.likedBy = arrayRemove(userId);
     } else {
-      newLikes = increment(1);
-      newLikedBy = arrayUnion(userId);
+      updateData.likes = increment(1);
+      updateData.likedBy = arrayUnion(userId);
+      if (currentlyDislikedBy.includes(userId)) {
+        updateData.dislikes = increment(-1);
+        updateData.dislikedBy = arrayRemove(userId);
+      }
     }
 
-    await updateDoc(postDocRef, {
-      likes: newLikes,
-      likedBy: newLikedBy
-    });
+    await updateDoc(postDocRef, updateData);
 
     const updatedPostSnap = await getDoc(postDocRef);
     const updatedData = updatedPostSnap.data() as Post;
-    return { likes: updatedData.likes, likedBy: updatedData.likedBy };
+    return {
+      likes: updatedData.likes,
+      likedBy: updatedData.likedBy,
+      dislikes: updatedData.dislikes,
+      dislikedBy: updatedData.dislikedBy,
+    };
   } catch (error) {
     console.error('Error toggling post like:', error);
     throw new Error('Failed to toggle like on post.');
   }
 };
 
+export async function togglePostDislike(postId: string, userId: string): Promise<{ likes: number; likedBy: string[]; dislikes: number; dislikedBy: string[] }> {
+  try {
+    const postDocRef = doc(db, 'posts', postId);
+    const postSnap = await getDoc(postDocRef);
+    if (!postSnap.exists()) {
+      throw new Error("Post not found");
+    }
+    const postData = postSnap.data() as Post;
+    const currentlyDislikedBy = postData.dislikedBy || [];
+    const currentlyLikedBy = postData.likedBy || [];
+    const updateData: any = {};
+
+    if (currentlyDislikedBy.includes(userId)) {
+      updateData.dislikes = increment(-1);
+      updateData.dislikedBy = arrayRemove(userId);
+    } else {
+      updateData.dislikes = increment(1);
+      updateData.dislikedBy = arrayUnion(userId);
+      if (currentlyLikedBy.includes(userId)) {
+        updateData.likes = increment(-1);
+        updateData.likedBy = arrayRemove(userId);
+      }
+    }
+
+    await updateDoc(postDocRef, updateData);
+    const updatedPostSnap = await getDoc(postDocRef);
+    const updatedData = updatedPostSnap.data() as Post;
+    return {
+      likes: updatedData.likes,
+      likedBy: updatedData.likedBy,
+      dislikes: updatedData.dislikes,
+      dislikedBy: updatedData.dislikedBy,
+    };
+  } catch (error) {
+    console.error('Error toggling post dislike:', error);
+    throw new Error('Failed to toggle dislike on post.');
+  }
+};
+
 export async function createComment(
   postId: string,
-  commentData: Pick<Comment, 'author' | 'content'>,
+  commentData: Pick<Comment, 'author' | 'content' | 'imageUrls'>,
   parentId: string | null = null
 ): Promise<string> {
   try {
@@ -214,11 +264,15 @@ export async function createComment(
         avatarUrl: commentData.author.avatarUrl
     };
     const docRef = await addDoc(commentsCollectionRef, {
-      postId: postId, 
+      postId: postId,
       author,
       content: commentData.content,
-      parentId: parentId, 
+      parentId: parentId,
+      imageUrls: commentData.imageUrls || [],
       likes: 0,
+      likedBy: [],
+      dislikes: 0,
+      dislikedBy: [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -285,6 +339,96 @@ export async function deleteComment(postId: string, commentId: string): Promise<
   } catch (error) {
     console.error('Error deleting comment:', error);
     throw new Error('Failed to delete comment.');
+  }
+}
+
+export async function uploadPostImages(uid: string, files: File[]): Promise<string[]> {
+  const urls: string[] = [];
+  for (const file of files) {
+    const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+    const path = `post_images/${uid}/${Date.now()}_${sanitized}`;
+    const ref = storageRef(storage, path);
+    await uploadBytes(ref, file);
+    const url = await getDownloadURL(ref);
+    urls.push(url);
+  }
+  return urls;
+}
+
+export async function uploadCommentImages(uid: string, files: File[]): Promise<string[]> {
+  const urls: string[] = [];
+  for (const file of files) {
+    const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+    const path = `comment_images/${uid}/${Date.now()}_${sanitized}`;
+    const ref = storageRef(storage, path);
+    await uploadBytes(ref, file);
+    const url = await getDownloadURL(ref);
+    urls.push(url);
+  }
+  return urls;
+}
+
+export async function toggleCommentLike(postId: string, commentId: string, userId: string): Promise<Comment> {
+  try {
+    const commentDocRef = doc(db, 'posts', postId, 'comments', commentId);
+    const commentSnap = await getDoc(commentDocRef);
+    if (!commentSnap.exists()) throw new Error('Comment not found');
+
+    const data = commentSnap.data() as Comment;
+    const likedBy = data.likedBy || [];
+    const dislikedBy = data.dislikedBy || [];
+    const updateData: any = {};
+
+    if (likedBy.includes(userId)) {
+      updateData.likes = increment(-1);
+      updateData.likedBy = arrayRemove(userId);
+    } else {
+      updateData.likes = increment(1);
+      updateData.likedBy = arrayUnion(userId);
+      if (dislikedBy.includes(userId)) {
+        updateData.dislikes = increment(-1);
+        updateData.dislikedBy = arrayRemove(userId);
+      }
+    }
+
+    await updateDoc(commentDocRef, updateData);
+    const updatedSnap = await getDoc(commentDocRef);
+    return processDoc(updatedSnap) as Comment;
+  } catch (error) {
+    console.error('Error toggling comment like:', error);
+    throw new Error('Failed to toggle like on comment.');
+  }
+}
+
+export async function toggleCommentDislike(postId: string, commentId: string, userId: string): Promise<Comment> {
+  try {
+    const commentDocRef = doc(db, 'posts', postId, 'comments', commentId);
+    const commentSnap = await getDoc(commentDocRef);
+    if (!commentSnap.exists()) throw new Error('Comment not found');
+
+    const data = commentSnap.data() as Comment;
+    const dislikedBy = data.dislikedBy || [];
+    const likedBy = data.likedBy || [];
+    const updateData: any = {};
+
+    if (dislikedBy.includes(userId)) {
+      updateData.dislikes = increment(-1);
+      updateData.dislikedBy = arrayRemove(userId);
+    } else {
+      updateData.dislikes = increment(1);
+      updateData.dislikedBy = arrayUnion(userId);
+      if (likedBy.includes(userId)) {
+        updateData.likes = increment(-1);
+        updateData.likedBy = arrayRemove(userId);
+      }
+    }
+
+    await updateDoc(commentDocRef, updateData);
+    const updatedSnap = await getDoc(commentDocRef);
+    return processDoc(updatedSnap) as Comment;
+  } catch (error) {
+    console.error('Error toggling comment dislike:', error);
+    throw new Error('Failed to toggle dislike on comment.');
   }
 }
 

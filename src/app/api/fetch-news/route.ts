@@ -1,14 +1,7 @@
 'use server';
 
 import { NextResponse } from 'next/server';
-
-interface CustomNewsArticle {
-  sourceName: string;
-  title: string;
-  url: string;
-  publishedDate?: string;
-  description?: string;
-}
+import type { CustomNewsArticle } from '@/types/news';
 
 const FEEDS = [
   {

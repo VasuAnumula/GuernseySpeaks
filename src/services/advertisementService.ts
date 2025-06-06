@@ -23,7 +23,6 @@ import {
   getDownloadURL,
   deleteObject,
 } from 'firebase/storage';
-import {ניווט מהיר למאמרים על ידי לחיצה על שם של הכותרת שלהם}
 interface CreateAdvertisementInput {
   title: string;
   linkUrl: string;

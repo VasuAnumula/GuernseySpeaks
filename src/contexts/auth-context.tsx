@@ -28,7 +28,7 @@ interface AuthContextType {
     displayName: string,
     name?: string | null
   ) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  // register: (email: string, password: string, name: string) => Promise<void>; // Duplicate removed
   signInWithGoogle: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
   logout: () => Promise<void>;
@@ -45,16 +45,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        console.log("[AuthContext] onAuthStateChanged: Firebase user detected. UID:", firebaseUser.uid);
+        console.debug("[AuthContext] onAuthStateChanged: Firebase user detected. UID:", firebaseUser.uid);
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         try {
           const userDocSnap = await getDoc(userDocRef);
           if (userDocSnap.exists()) {
-            console.log("[AuthContext] onAuthStateChanged: User document FOUND for UID:", firebaseUser.uid);
+            console.debug("[AuthContext] onAuthStateChanged: User document FOUND for UID:", firebaseUser.uid);
             const userData = userDocSnap.data() as User;
-            // Ensure Firebase Auth profile is up-to-date with Firestore if necessary
-            // This can happen if Firestore has a more recent displayName or avatarUrl
-            // than what was cached in Firebase Auth at the time of login.
             if (auth.currentUser && 
                 (auth.currentUser.displayName !== (userData.displayName || userData.name) ||
                  auth.currentUser.photoURL !== userData.avatarUrl)) {
@@ -63,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                         displayName: userData.displayName || userData.name,
                         photoURL: userData.avatarUrl
                     });
-                    console.log("[AuthContext] onAuthStateChanged: Firebase Auth profile updated from Firestore data for UID:", firebaseUser.uid);
+                    console.debug("[AuthContext] onAuthStateChanged: Firebase Auth profile updated from Firestore data for UID:", firebaseUser.uid);
                 } catch (profileUpdateError) {
                     console.error("[AuthContext] onAuthStateChanged: Error updating Firebase Auth profile:", profileUpdateError);
                 }
@@ -71,13 +68,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUser({
               ...userData,
               uid: firebaseUser.uid,
-              email: firebaseUser.email, // Always trust Firebase Auth for email
-              avatarUrl: firebaseUser.photoURL || userData.avatarUrl, // Prefer Firebase Auth if available, then Firestore
-              name: userData.name || firebaseUser.displayName, // Prefer Firestore's 'name', then Firebase Auth
-              displayName: userData.displayName || firebaseUser.displayName || userData.name, // Prefer Firestore's 'displayName', then Firebase Auth, then Firestore 'name'
+              email: firebaseUser.email, 
+              avatarUrl: firebaseUser.photoURL || userData.avatarUrl, 
+              name: userData.name || firebaseUser.displayName, 
+              displayName: userData.displayName || firebaseUser.displayName || userData.name, 
             });
           } else {
-            console.log("[AuthContext] onAuthStateChanged: User document NOT FOUND for UID:", firebaseUser.uid, ". Attempting to create new profile from onAuthStateChanged.");
+            console.warn("[AuthContext] onAuthStateChanged: User document NOT FOUND for UID:", firebaseUser.uid, ". Attempting to create new profile from onAuthStateChanged.");
             const newName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous';
             const newUserProfile: User = {
               uid: firebaseUser.uid,
@@ -89,12 +86,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               createdAt: serverTimestamp() as Timestamp,
             };
             await setDoc(userDocRef, newUserProfile);
-            console.log("[AuthContext] onAuthStateChanged: New user profile CREATED in Firestore for UID:", firebaseUser.uid);
-            setUser(newUserProfile); // Set user with the newly created profile
+            console.debug("[AuthContext] onAuthStateChanged: New user profile CREATED in Firestore for UID:", firebaseUser.uid);
+            setUser(newUserProfile); 
           }
         } catch (firestoreError: any) {
           console.error(`[AuthContext] Firestore error in onAuthStateChanged for UID ${firebaseUser.uid}:`, firestoreError.message, firestoreError);
-          setUser({ // Fallback to minimal user object from Firebase Auth if Firestore fails
+          setUser({ 
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             name: firebaseUser.displayName || 'Error User',
@@ -105,7 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.warn("[AuthContext] User state set to minimal due to Firestore error. App functionality might be limited.");
         }
       } else {
-        console.log("[AuthContext] onAuthStateChanged: No Firebase user.");
+        console.debug("[AuthContext] onAuthStateChanged: No Firebase user.");
         setUser(null);
       }
       setLoading(false);
@@ -116,11 +113,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     setLoading(true);
-    console.log("[AuthContext] Attempting Email/Password Login...");
+    console.debug("[AuthContext] Attempting Email/Password Login...");
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      console.log("[AuthContext] Email/Password Login successful.");
-      // User state will be updated by onAuthStateChanged
+      console.debug("[AuthContext] Email/Password Login successful.");
     } catch (error) {
       console.error("[AuthContext] Email/Password Login error:", error);
       throw error;
@@ -132,38 +128,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (
     email: string,
     password: string,
-    displayName: string,
-    name?: string | null
+    displayName: string, // This is intended as the preferred public name
+    name?: string | null // This is intended as the "full name" or "real name"
   ) => {
     setLoading(true);
-    console.log("[AuthContext] Attempting Email/Password Registration...");
+    console.debug("[AuthContext] Attempting Email/Password Registration...");
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
-      console.log("[AuthContext] Registration: Firebase user CREATED via email/password. UID:", firebaseUser.uid);
+      console.debug("[AuthContext] Registration: Firebase user CREATED via email/password. UID:", firebaseUser.uid);
       
-      // Update Firebase Auth profile directly
+      const actualDisplayName = displayName.trim() || (name ? name.trim() : firebaseUser.email?.split('@')[0]) || 'User';
+      const actualName = name ? name.trim() : actualDisplayName;
+      const avatarFallbackChar = actualDisplayName.substring(0,1).toUpperCase() || 'U';
+
+
       await updateProfile(firebaseUser, { 
-        displayName: name, 
-        photoURL: `https://placehold.co/40x40.png?text=${name.substring(0,1)}`
+        displayName: actualDisplayName, 
+        photoURL: `https://placehold.co/40x40.png?text=${avatarFallbackChar}`
       });
-      console.log("[AuthContext] Registration: Firebase Auth profile (displayName, photoURL) updated for UID:", firebaseUser.uid);
+      console.debug("[AuthContext] Registration: Firebase Auth profile (displayName, photoURL) updated for UID:", firebaseUser.uid);
 
       const newUserProfile: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
-        name: name || null,
-        displayName,
-        avatarUrl: `https://placehold.co/40x40.png?text=${displayName.substring(0,1)}`,
-        name: name,
-        displayName: name, 
+        name: actualName, 
+        displayName: actualDisplayName,
         avatarUrl: firebaseUser.photoURL, // Use the updated photoURL from Firebase Auth profile
         role: 'user',
         createdAt: serverTimestamp() as Timestamp,
       };
       await setDoc(doc(db, 'users', firebaseUser.uid), newUserProfile);
-      console.log("[AuthContext] Registration: User profile CREATED in Firestore for UID:", firebaseUser.uid);
-      // setUser will be handled by onAuthStateChanged, which will now pick up the updated Firebase Auth profile
+      console.debug("[AuthContext] Registration: User profile CREATED in Firestore for UID:", firebaseUser.uid);
     } catch (error: any) {
       console.error("[AuthContext] Email/Password Registration error (Firebase Auth or Firestore):", error);
       throw error;
@@ -173,91 +169,87 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleSocialSignIn = async (firebaseUser: FirebaseUser, providerName: string) => {
-    console.log(`[AuthContext] handleSocialSignIn called for ${providerName}. UID:`, firebaseUser.uid);
+    console.debug(`[AuthContext] handleSocialSignIn called for ${providerName}. UID:`, firebaseUser.uid);
     const userDocRef = doc(db, 'users', firebaseUser.uid);
-    const userDocSnap = await getDoc(userDocRef);
-    if (!userDocSnap.exists()) {
-      const newName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Anonymous';
-      const newUserProfile: User = {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        name: newName,
-        displayName: null,
-        avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${newName.substring(0,1)}`,
-        role: 'user',
-        createdAt: serverTimestamp() as Timestamp,
-      };
-      await setDoc(userDocRef, newUserProfile);
-      setUser(newUserProfile);
-    } else {
-        const userData = userDocSnap.data() as User;
-         setUser({
-            ...userData,
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            avatarUrl: firebaseUser.photoURL || userData.avatarUrl,
-            name: userData.name || firebaseUser.displayName,
-            displayName: userData.displayName || firebaseUser.displayName || null,
-          });
+    
     try {
       const userDocSnap = await getDoc(userDocRef);
       if (!userDocSnap.exists()) {
-        console.log(`[AuthContext] handleSocialSignIn (${providerName}): User document NOT FOUND for UID: ${firebaseUser.uid}. Creating new profile.`);
-        const newName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'AnonymousUser';
+        console.warn(`[AuthContext] handleSocialSignIn (${providerName}): User document NOT FOUND for UID: ${firebaseUser.uid}. Creating new profile.`);
+        const baseName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'AnonymousUser';
+        const avatarFallbackChar = baseName.substring(0,1).toUpperCase() || 'U';
         const newUserProfile: User = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
-          name: newName,
-          displayName: newName,
-          avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${newName.substring(0,1)}`,
+          name: baseName, // Social provider's display name becomes 'name'
+          displayName: baseName, // And also 'displayName' initially
+          avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${avatarFallbackChar}`,
           role: 'user',
           createdAt: serverTimestamp() as Timestamp,
         };
         await setDoc(userDocRef, newUserProfile); 
-        console.log(`[AuthContext] handleSocialSignIn (${providerName}): New user profile CREATED in Firestore for UID: ${firebaseUser.uid}`);
+        console.debug(`[AuthContext] handleSocialSignIn (${providerName}): New user profile CREATED in Firestore for UID: ${firebaseUser.uid}`);
+        setUser(newUserProfile); // Set user immediately
       } else {
-        console.log(`[AuthContext] handleSocialSignIn (${providerName}): User document FOUND for UID: ${firebaseUser.uid}. Ensuring Firestore data is consistent.`);
+        console.debug(`[AuthContext] handleSocialSignIn (${providerName}): User document FOUND for UID: ${firebaseUser.uid}. Ensuring data consistency.`);
         const existingData = userDocSnap.data() as User;
         const updateData: Partial<User> = { updatedAt: serverTimestamp() as Timestamp };
-        let changed = false;
+        let changedInFirestore = false;
+        let authProfileNeedsUpdate = false;
+        const authUpdatePayload: { displayName?: string | null; photoURL?: string | null } = {};
 
-        // Prioritize Firebase Auth info for avatar and display name on social sign-in if Firestore is empty for those
+
+        // Sync from Firebase Auth to Firestore if Firestore is missing info
+        if (!existingData.name && firebaseUser.displayName) {
+            updateData.name = firebaseUser.displayName;
+            changedInFirestore = true;
+        }
+        if (!existingData.displayName && firebaseUser.displayName) {
+            updateData.displayName = firebaseUser.displayName;
+            changedInFirestore = true;
+        }
         if (!existingData.avatarUrl && firebaseUser.photoURL) {
             updateData.avatarUrl = firebaseUser.photoURL;
-            changed = true;
+            changedInFirestore = true;
         }
-        if (!existingData.name && firebaseUser.displayName) { // If Firestore 'name' is empty, use Firebase 'displayName'
-            updateData.name = firebaseUser.displayName;
-            changed = true;
+        
+        // Sync from Firestore to Firebase Auth if Firebase Auth is missing or different
+        if (existingData.displayName && auth.currentUser && auth.currentUser.displayName !== existingData.displayName) {
+            authUpdatePayload.displayName = existingData.displayName;
+            authProfileNeedsUpdate = true;
         }
-        if (!existingData.displayName && firebaseUser.displayName) { // If Firestore 'displayName' is empty, use Firebase 'displayName'
-            updateData.displayName = firebaseUser.displayName;
-            changed = true;
+        if (existingData.avatarUrl && auth.currentUser && auth.currentUser.photoURL !== existingData.avatarUrl) {
+            authUpdatePayload.photoURL = existingData.avatarUrl;
+            authProfileNeedsUpdate = true;
         }
-         // Also ensure Firebase Auth profile is updated if Firestore has something more specific
-        if (auth.currentUser && 
-            ((existingData.displayName && auth.currentUser.displayName !== existingData.displayName) || 
-             (existingData.avatarUrl && auth.currentUser.photoURL !== existingData.avatarUrl) )) {
+
+        if (authProfileNeedsUpdate && auth.currentUser) {
              try {
-                await updateProfile(auth.currentUser, {
-                    displayName: existingData.displayName || auth.currentUser.displayName,
-                    photoURL: existingData.avatarUrl || auth.currentUser.photoURL
-                });
-                console.log(`[AuthContext] handleSocialSignIn (${providerName}): Firebase Auth profile updated from existing Firestore data for UID: ${firebaseUser.uid}`);
+                await updateProfile(auth.currentUser, authUpdatePayload);
+                console.debug(`[AuthContext] handleSocialSignIn (${providerName}): Firebase Auth profile updated from existing Firestore data for UID: ${firebaseUser.uid}`);
              } catch (profileUpdateError) {
                  console.error(`[AuthContext] handleSocialSignIn (${providerName}): Error updating Firebase Auth profile from Firestore:`, profileUpdateError);
              }
         }
 
-
-        if (changed) {
-            console.log(`[AuthContext] handleSocialSignIn (${providerName}): Updating existing Firestore profile with new data from provider. UID: ${firebaseUser.uid}`, updateData);
+        if (changedInFirestore) {
+            console.debug(`[AuthContext] handleSocialSignIn (${providerName}): Updating existing Firestore profile with new data. UID: ${firebaseUser.uid}`, updateData);
             await updateDoc(userDocRef, updateData);
         } else {
-            console.log(`[AuthContext] handleSocialSignIn (${providerName}): No new provider data to update in existing Firestore profile for UID: ${firebaseUser.uid}`);
+            console.debug(`[AuthContext] handleSocialSignIn (${providerName}): No new data to update in existing Firestore profile for UID: ${firebaseUser.uid}`);
         }
+         // Set user from potentially merged data (onAuthStateChanged will also run and might refine this)
+        setUser({
+            ...existingData, // Start with existing Firestore data
+            ...updateData,   // Overlay any changes made
+            uid: firebaseUser.uid, // Ensure core Firebase Auth fields are current
+            email: firebaseUser.email,
+            avatarUrl: auth.currentUser?.photoURL || existingData.avatarUrl, // Prefer live auth.currentUser if available
+            displayName: auth.currentUser?.displayName || existingData.displayName,
+            name: existingData.name || auth.currentUser?.displayName, // name might be more static
+          });
       }
-       console.log(`[AuthContext] handleSocialSignIn (${providerName}): User profile processed successfully for UID: ${firebaseUser.uid}`);
+       console.debug(`[AuthContext] handleSocialSignIn (${providerName}): User profile processed successfully for UID: ${firebaseUser.uid}`);
     } catch (firestoreError: any) {
       console.error(`[AuthContext] Firestore error during ${providerName} sign-in profile handling for UID ${firebaseUser.uid}:`, firestoreError.message, firestoreError);
       throw new Error(`Error setting up user profile after ${providerName} sign-in: ${firestoreError.message}`);
@@ -266,13 +258,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithGoogle = async () => {
     setLoading(true);
-    console.log("[AuthContext] Attempting Google Sign-In Popup...");
+    console.debug("[AuthContext] Attempting Google Sign-In Popup...");
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      console.log("[AuthContext] Google Firebase Auth successful. User from popup:", result.user);
+      console.debug("[AuthContext] Google Firebase Auth successful. User from popup:", result.user);
       await handleSocialSignIn(result.user, "Google");
-      console.log("[AuthContext] Google Sign-In and profile handling complete for UID:", result.user.uid);
+      console.debug("[AuthContext] Google Sign-In and profile handling complete for UID:", result.user.uid);
     } catch (error: any) {
       console.error("[AuthContext] Error during Google Sign-in flow (Auth Popup or Profile Handling):", error.message, error);
       if (error.code === 'auth/popup-closed-by-user') {
@@ -291,13 +283,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithFacebook = async () => {
     setLoading(true);
-    console.log("[AuthContext] Attempting Facebook Sign-In Popup...");
+    console.debug("[AuthContext] Attempting Facebook Sign-In Popup...");
     const provider = new FacebookAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      console.log("[AuthContext] Facebook Firebase Auth successful. User from popup:", result.user);
+      console.debug("[AuthContext] Facebook Firebase Auth successful. User from popup:", result.user);
       await handleSocialSignIn(result.user, "Facebook");
-      console.log("[AuthContext] Facebook Sign-In and profile handling complete for UID:", result.user.uid);
+      console.debug("[AuthContext] Facebook Sign-In and profile handling complete for UID:", result.user.uid);
     } catch (error: any) {
       console.error("[AuthContext] Error during Facebook Sign-in flow (Auth Popup or Profile Handling):", error.message, error);
       if (error.code === 'auth/popup-closed-by-user') {
@@ -318,11 +310,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     setLoading(true);
-    console.log("[AuthContext] Attempting Logout...");
+    console.debug("[AuthContext] Attempting Logout...");
     try {
       await signOut(auth);
       setUser(null); 
-      console.log("[AuthContext] Logout successful. User set to null.");
+      console.debug("[AuthContext] Logout successful. User set to null.");
       router.push('/');
     } catch (error) {
       console.error("[AuthContext] Logout error:", error);
@@ -335,7 +327,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(prevUser => {
       if (prevUser) {
         const newUser = { ...prevUser, ...updatedUserData };
-        console.log("[AuthContext] updateUserInContext: User data updated in context.", newUser);
+        console.debug("[AuthContext] updateUserInContext: User data updated in context.", newUser);
         return newUser;
       }
       return null;
@@ -348,6 +340,3 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     </AuthContext.Provider>
   );
 };
-
-
-    

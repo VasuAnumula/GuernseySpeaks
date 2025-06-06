@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, PlusSquare, LogIn, LogOut, UserCircle, Settings, Loader2, ShieldCheck } from 'lucide-react';
+import { Home, PlusSquare, LogIn, LogOut, UserCircle, Loader2, ShieldCheck } from 'lucide-react'; // Removed Settings
 import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/shared/logo';
 

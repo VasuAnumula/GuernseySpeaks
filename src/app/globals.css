@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,74 +9,74 @@ body {
 
 @layer base {
   :root {
-    --background: 240 10% 98%; /* Light Cool Gray */
-    --foreground: 240 10% 3.9%; /* Dark Cool Gray */
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 350 75% 55%; /* Modern Red */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 240 5% 96%; /* Light Cool Gray */
-    --secondary-foreground: 240 5% 10%; /* Darker Cool Gray */
-    --muted: 240 5% 90%; /* Medium Cool Gray */
-    --muted-foreground: 240 5% 45%; /* Medium-Dark Cool Gray */
-    --accent: 45 90% 55%; /* Refined Gold/Amber */
-    --accent-foreground: 240 10% 3.9%; /* Dark Gray for text on Accent */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5% 85%; /* Softer Border */
-    --input: 240 5% 85%; /* Softer Input Border */
-    --ring: 350 75% 55%; /* Match Primary for focus rings */
+    --background: 40 60% 97%; /* Light Cream */
+    --foreground: 90 35% 25%; /* Dark Olive Green - for text */
+    --card: 0 0% 100%; /* White - for card backgrounds */
+    --card-foreground: 90 35% 25%; /* Dark Olive Green - for text on cards */
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 90 35% 25%; /* Dark Olive Green */
+    --primary: 90 40% 30%; /* Main Dark Green - for headings, logo, links */
+    --primary-foreground: 40 50% 95%; /* Light Cream/Off-white for text on primary green elements */
+    --secondary: 40 30% 94%; /* Lighter cream, for secondary elements/backgrounds */
+    --secondary-foreground: 90 30% 25%; /* Darker Green for text on secondary (Improved Contrast) */
+    --muted: 40 20% 92%; /* Very light cream/gray for muted backgrounds/elements */
+    --muted-foreground: 90 25% 40%; /* Darker Desaturated green for muted text (Improved Contrast) */
+    --accent: 25 70% 50%; /* Terracotta/Burnt Orange - for prominent buttons/accents */
+    --accent-foreground: 0 0% 100%; /* White - for text on accent elements */
+    --destructive: 0 70% 50%; /* Standard Red for errors */
+    --destructive-foreground: 0 0% 100%; /* White */
+    --border: 40 20% 88%; /* Subtle border, cream/grayish */
+    --input: 40 20% 88%; /* Same as border for input fields */
+    --ring: 90 40% 30%; /* Match Primary Green for focus rings */
     
-    --chart-1: 350 70% 65%; /* Lighter shade of primary */
-    --chart-2: 200 70% 50%; /* A nice blue */
-    --chart-3: 45 80% 60%; /* Variation of accent */
-    --chart-4: 260 60% 65%; /* A purple/violet */
-    --chart-5: 170 50% 50%; /* A muted teal/green */
+    --chart-1: 90 40% 50%; /* Lighter version of primary green */
+    --chart-2: 25 70% 60%; /* Lighter terracotta */
+    --chart-3: 180 30% 60%; /* Muted Blue/Teal */
+    --chart-4: 90 25% 65%; /* Desaturated primary green */
+    --chart-5: 30 40% 60%; /* Light Brown */
     --radius: 0.5rem;
     
     /* Sidebar specific colors */
-    --sidebar-background: 240 8% 97%; /* Slightly off-white cool gray */
-    --sidebar-foreground: 240 10% 3.9%; /* Dark Cool Gray */
-    --sidebar-primary: 350 75% 55%; /* Modern Red */
-    --sidebar-primary-foreground: 0 0% 100%; /* White */
-    --sidebar-accent: 45 90% 55%; /* Refined Gold/Amber */
-    --sidebar-accent-foreground: 240 10% 3.9%; /* Dark Gray */
-    --sidebar-border: 240 5% 88%; /* Softer Sidebar Border */
-    --sidebar-ring: 350 75% 55%; /* Match Primary */
+    --sidebar-background: 40 55% 96%; /* Slightly off-white cream, similar to main bg */
+    --sidebar-foreground: 90 35% 25%; /* Dark green text */
+    --sidebar-primary: 90 40% 30%; /* Main dark green */
+    --sidebar-primary-foreground: 40 50% 95%; /* Light cream */
+    --sidebar-accent: 25 70% 50%; /* Terracotta */
+    --sidebar-accent-foreground: 0 0% 100%; /* White */
+    --sidebar-border: 40 20% 90%; /* Softer Sidebar Border */
+    --sidebar-ring: 90 40% 30%; /* Match Primary */
   }
 
   .dark {
-    --background: 240 10% 2.5%; /* Deeper, Cooler Dark */
-    --foreground: 240 5% 98%; /* Light Gray for Text */
-    --card: 240 10% 4.5%; /* Slightly Lighter Card Background */
-    --card-foreground: 240 5% 98%;
-    --popover: 240 10% 4.5%;
-    --popover-foreground: 240 5% 98%;
-    --primary: 350 75% 60%; /* Primary slightly brighter in dark mode */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 240 5% 12%; /* Darker Secondary */
-    --secondary-foreground: 240 5% 95%;
-    --muted: 240 5% 10%; /* Darker Muted */
-    --muted-foreground: 240 5% 60%; /* Lighter Muted Foreground */
-    --accent: 45 90% 60%; /* Accent slightly brighter in dark mode */
-    --accent-foreground: 240 10% 3.9%; /* Dark Gray for text on Accent */
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5% 15%; /* Darker Border */
-    --input: 240 5% 15%; /* Darker Input Border */
-    --ring: 350 75% 60%; /* Match Primary */
+    --background: 90 15% 10%; /* Very Dark Green/Gray */
+    --foreground: 40 40% 90%; /* Light Creamy Text */
+    --card: 90 15% 13%; /* Slightly Lighter Dark Green/Gray for Cards */
+    --card-foreground: 40 40% 90%;
+    --popover: 90 15% 13%;
+    --popover-foreground: 40 40% 90%;
+    --primary: 90 40% 55%; /* Brighter Green for dark mode primary */
+    --primary-foreground: 90 20% 15%; /* Dark text on brighter green */
+    --secondary: 90 15% 20%; /* Darker secondary */
+    --secondary-foreground: 40 40% 90%; /* Lighter Creamy Text for dark secondary (Improved Contrast) */
+    --muted: 90 15% 18%; /* Darker muted */
+    --muted-foreground: 40 30% 80%; /* Lighter Creamy/Brown for dark muted (Improved Contrast) */
+    --accent: 25 70% 60%; /* Brighter Terracotta for dark mode */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 90 15% 25%; /* Darker Border */
+    --input: 90 15% 25%;
+    --ring: 90 40% 55%; /* Match dark mode primary */
 
     /* Dark Sidebar specific colors */
-    --sidebar-background: 240 10% 3.5%; /* Slightly off from main dark bg */
-    --sidebar-foreground: 240 5% 98%;
-    --sidebar-primary: 350 75% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 45 90% 60%;
-    --sidebar-accent-foreground: 240 10% 3.9%;
-    --sidebar-border: 240 5% 12%;
-    --sidebar-ring: 350 75% 60%;
+    --sidebar-background: 90 15% 12%; /* Slightly off from main dark bg */
+    --sidebar-foreground: 40 40% 90%;
+    --sidebar-primary: 90 40% 55%;
+    --sidebar-primary-foreground: 90 20% 15%;
+    --sidebar-accent: 25 70% 60%;
+    --sidebar-accent-foreground: 0 0% 10%; /* Dark text for dark mode sidebar accent button (Improved Contrast) */
+    --sidebar-border: 90 15% 22%;
+    --sidebar-ring: 90 40% 55%;
   }
 }
 

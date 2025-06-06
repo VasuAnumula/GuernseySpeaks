@@ -1,6 +1,7 @@
 'use server';
 
 import { NextResponse } from 'next/server';
+import { parseStringPromise } from 'xml2js';
 
 interface CustomNewsArticle {
   sourceName: string;
@@ -21,46 +22,23 @@ const FEEDS = [
   },
 ];
 
-function extractFirst(item: string, regexes: RegExp[]): string | undefined {
-  for (const regex of regexes) {
-    const match = item.match(regex);
-    if (match && match[1]) {
-      return match[1].trim();
-    }
-  }
-  return undefined;
-}
+async function parseRss(xml: string, sourceName: string, limit: number = 5): Promise<CustomNewsArticle[]> {
+  const parsed = await parseStringPromise(xml, { explicitArray: false, trim: true });
+  const channel = parsed?.rss?.channel;
+  const items = channel?.item ? (Array.isArray(channel.item) ? channel.item : [channel.item]) : [];
 
-function parseRss(xml: string, sourceName: string, limit: number = 5): CustomNewsArticle[] {
-  const items = xml.match(/<item>([\s\S]*?)<\/item>/gi) || [];
-  const articles: CustomNewsArticle[] = [];
-  for (const itemRaw of items.slice(0, limit)) {
-    const title = extractFirst(itemRaw, [
-      /<title><!\[CDATA\[(.*?)\]\]><\/title>/i,
-      /<title>(.*?)<\/title>/i,
-    ]);
-    const url = extractFirst(itemRaw, [
-      /<link>(.*?)<\/link>/i,
-    ]);
-    const publishedDate = extractFirst(itemRaw, [
-      /<pubDate>(.*?)<\/pubDate>/i,
-    ]);
-    const description = extractFirst(itemRaw, [
-      /<description><!\[CDATA\[(.*?)\]\]><\/description>/i,
-      /<description>(.*?)<\/description>/i,
-    ]);
-
-    if (title && url) {
-      articles.push({
+  return items.slice(0, limit).reduce<CustomNewsArticle[]>((acc, item) => {
+    if (item.title && item.link) {
+      acc.push({
         sourceName,
-        title,
-        url,
-        publishedDate,
-        description,
+        title: item.title,
+        url: item.link,
+        publishedDate: item.pubDate,
+        description: item.description,
       });
     }
-  }
-  return articles;
+    return acc;
+  }, []);
 }
 
 export async function GET() {
@@ -74,7 +52,8 @@ export async function GET() {
         continue;
       }
       const xml = await res.text();
-      articles.push(...parseRss(xml, feed.sourceName));
+      const parsed = await parseRss(xml, feed.sourceName);
+      articles.push(...parsed);
     } catch (err) {
       console.error(`Error fetching ${feed.sourceName}:`, err);
     }

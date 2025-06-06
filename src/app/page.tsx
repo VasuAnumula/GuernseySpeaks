@@ -9,7 +9,7 @@ import type { Post } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PenSquare, Loader2, AlertTriangle } from 'lucide-react';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getPosts, type GetPostsFilters } from '@/services/postService';
 import { useAuth } from '@/hooks/use-auth';
 import type { OrderByDirection } from 'firebase/firestore';

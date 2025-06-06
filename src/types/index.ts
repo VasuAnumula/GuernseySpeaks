@@ -28,6 +28,8 @@ export interface Post {
   flairs: string[];
   likes: number;
   likedBy: string[]; // Array of UIDs who liked the post
+  dislikes: number;
+  dislikedBy: string[]; // Array of UIDs who disliked the post
   commentsCount: number;
   slug: string;
 }
@@ -41,7 +43,9 @@ export interface Comment {
   createdAt: Timestamp | Date; // Firestore Timestamp or JS Date
   updatedAt?: Timestamp | Date;
   likes: number;
-  // likedBy: string[]; // Future: for comment liking
+  likedBy: string[];
+  dislikes: number;
+  dislikedBy: string[];
 }
 
 // For rendering threaded comments

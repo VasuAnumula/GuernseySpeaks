@@ -32,22 +32,22 @@ function extractFirst(item: string, regexes: RegExp[]): string | undefined {
 }
 
 function parseRss(xml: string, sourceName: string, limit: number = 5): CustomNewsArticle[] {
-  const items = xml.match(/<item>([\s\S]*?)<\/item>/gi) || [];
+  const items = xml.match(/<item[^>]*>([\s\S]*?)<\/item>/gi) || [];
   const articles: CustomNewsArticle[] = [];
   for (const itemRaw of items.slice(0, limit)) {
     const title = extractFirst(itemRaw, [
-      /<title><!\[CDATA\[(.*?)\]\]><\/title>/i,
-      /<title>(.*?)<\/title>/i,
+      /<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i,
+      /<title>([\s\S]*?)<\/title>/i,
     ]);
     const url = extractFirst(itemRaw, [
-      /<link>(.*?)<\/link>/i,
+      /<link>([\s\S]*?)<\/link>/i,
     ]);
     const publishedDate = extractFirst(itemRaw, [
-      /<pubDate>(.*?)<\/pubDate>/i,
+      /<pubDate>([\s\S]*?)<\/pubDate>/i,
     ]);
     const description = extractFirst(itemRaw, [
-      /<description><!\[CDATA\[(.*?)\]\]><\/description>/i,
-      /<description>(.*?)<\/description>/i,
+      /<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i,
+      /<description>([\s\S]*?)<\/description>/i,
     ]);
 
     if (title && url) {

@@ -38,7 +38,7 @@ export function NewsHeadlinesWidget() {
 
   useEffect(() => {
     if (!NEWS_API_KEY || NEWS_API_KEY === "YOUR_NEWS_API_KEY_PLACEHOLDER" || NEWS_API_KEY.length < 30) { // Basic check for a real key
-      setError("News API key not configured or invalid. Please check NEXT_PUBLIC_NEWS_API_KEY.");
+      setError("News API key not configured or invalid. Please check NEXT_PUBLIC_NEWS_API_KEY in your environment variables.");
       setLoading(false);
       return;
     }
@@ -46,7 +46,11 @@ export function NewsHeadlinesWidget() {
     async function fetchNews() {
       setLoading(true);
       setError(null);
+      // Fetches news related to "Guernsey" and sorts by publication date, limited to 5 articles.
+      // Sources parameter can be added if specific sources are preferred e.g. sources=bbc-news,the-guardian-uk
+      // Using 'everything' endpoint; 'top-headlines' with country='gb' and category might also be an option.
       const newsApiUrl = `${NEWS_API_ENDPOINT_BASE}?q=Guernsey&sortBy=publishedAt&pageSize=5&apiKey=${NEWS_API_KEY}`;
+      
       try {
         const response = await fetch(newsApiUrl);
         const data: NewsApiResponse = await response.json();
@@ -54,15 +58,29 @@ export function NewsHeadlinesWidget() {
         if (data.status === "ok") {
           setHeadlines(data.articles);
         } else {
+          // Handle API errors from NewsAPI
           console.error("NewsAPI Error Response:", data);
           let errorMessage = data.message || "Failed to fetch news headlines.";
           if (data.code) {
             errorMessage += ` (Code: ${data.code})`;
+            // Specific handling for common NewsAPI error codes
+            if (data.code === "apiKeyDisabled") {
+              errorMessage = "Your NewsAPI key is disabled. Please check your NewsAPI account.";
+            } else if (data.code === "apiKeyExhausted") {
+              errorMessage = "Your NewsAPI key has no more requests available.";
+            } else if (data.code === "apiKeyInvalid") {
+              errorMessage = "Your NewsAPI key is invalid. Please ensure it's correct.";
+            } else if (data.code === "rateLimited") {
+              errorMessage = "You have been rate-limited by NewsAPI. Please try again later.";
+            } else if (data.code === "sourceDoesNotExist") {
+              errorMessage = "A specified news source does not exist in NewsAPI.";
+            }
           }
           setError(errorMessage);
           setHeadlines([]);
         }
       } catch (e: any) {
+        // Handle network errors or other unexpected issues
         console.error("Error fetching news:", e);
         setError("An error occurred while fetching news. Check browser console for details.");
         setHeadlines([]);
@@ -105,10 +123,12 @@ export function NewsHeadlinesWidget() {
             <AlertTriangle className="h-8 w-8 mb-2" />
             <p className="font-semibold">Error loading news</p>
             <p className="text-xs">{error}</p>
-             {error.toLowerCase().includes("apikey") && error.toLowerCase().includes("disabled") && 
-              <p className="text-xs mt-1">Note: Developer NewsAPI keys are often disabled on deployed sites and only work on localhost.</p>}
-             {error.toLowerCase().includes("ratelimit") && 
-              <p className="text-xs mt-1">You may have hit the API rate limit.</p>}
+             {error.toLowerCase().includes("key is disabled") && 
+              <p className="text-xs mt-1">Note: NewsAPI developer keys are often disabled for use on deployed websites (they may only work on localhost). You might need a paid plan for deployed applications.</p>}
+            {error.toLowerCase().includes("invalid") && error.toLowerCase().includes("key") &&
+             <p className="text-xs mt-1">Please double-check that your `NEXT_PUBLIC_NEWS_API_KEY` is correctly set in your environment variables and matches the key from your NewsAPI dashboard.</p>}
+             {error.toLowerCase().includes("rate-limited") && 
+              <p className="text-xs mt-1">You may have hit the API request limit for your key. Check your NewsAPI dashboard for usage details.</p>}
           </div>
         )}
         {!loading && !error && headlines.length === 0 && (

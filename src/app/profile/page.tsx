@@ -4,66 +4,144 @@
 import { MainLayout } from '@/components/layout/main-layout';
 import { WeatherWidget } from '@/components/weather-widget';
 import { AdPlaceholder } from '@/components/ad-placeholder';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { Mail, User as UserIcon, ShieldCheck, Edit3, Loader2 } from 'lucide-react'; // Renamed User to UserIcon
+import { useEffect, useState, useRef } from 'react';
+import { Mail, User as UserIcon, ShieldCheck, Loader2, UploadCloud, Save } from 'lucide-react';
 import { format } from 'date-fns';
-
+import { updateUserDisplayNameAndPropagate, uploadProfilePicture, updateUserProfile } from '@/services/userService';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, updateUserInContext } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
+
+  const [formattedJoinedDate, setFormattedJoinedDate] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [editableDisplayName, setEditableDisplayName] = useState('');
+  const [isSavingDisplayName, setIsSavingDisplayName] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth?redirect=/profile');
     }
+    if (user) {
+      setEditableDisplayName(user.displayName || user.name || '');
+      if (user.createdAt) {
+        try {
+          const date = user.createdAt instanceof Date ? user.createdAt : (user.createdAt as any).toDate();
+          setFormattedJoinedDate(format(date, "MMMM d, yyyy"));
+        } catch (e) {
+          console.error("Error formatting joined date:", e);
+          setFormattedJoinedDate("Invalid Date");
+        }
+      } else {
+        setFormattedJoinedDate("Not available");
+      }
+    }
   }, [user, authLoading, router]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      // Basic client-side validation (optional but good practice)
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({ title: "File Too Large", description: "Please select an image smaller than 5MB.", variant: "destructive" });
+        setSelectedFile(null);
+        if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+        return;
+      }
+      if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+        toast({ title: "Invalid File Type", description: "Please select a JPG, PNG, or GIF image.", variant: "destructive" });
+        setSelectedFile(null);
+        if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+        return;
+      }
+      setSelectedFile(file);
+    } else {
+      setSelectedFile(null);
+    }
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!selectedFile || !user) {
+      toast({ title: "No File Selected", description: "Please select an image file to upload.", variant: "destructive" });
+      return;
+    }
+    setIsUploadingAvatar(true);
+    try {
+      const downloadURL = await uploadProfilePicture(user.uid, selectedFile);
+      await updateUserProfile(user.uid, { avatarUrl: downloadURL });
+      updateUserInContext({ avatarUrl: downloadURL }); // Update context immediately
+
+      toast({ title: "Avatar Updated", description: "Your new profile picture has been uploaded." });
+      setSelectedFile(null); // Clear selection
+      if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+    } catch (error: any) {
+      console.error("Failed to upload avatar:", error);
+      toast({ title: "Upload Failed", description: error.message || "Could not upload avatar. Please try again.", variant: "destructive" });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleDisplayNameChange = async () => {
+    if (!user || !editableDisplayName.trim()) {
+      toast({ title: "Invalid Input", description: "Display name cannot be empty.", variant: "destructive" });
+      return;
+    }
+    if (editableDisplayName.trim() === (user.displayName || user.name)) {
+      toast({ title: "No Changes", description: "Display name is the same.", variant: "default" });
+      return;
+    }
+
+    setIsSavingDisplayName(true);
+    try {
+      await updateUserDisplayNameAndPropagate(user.uid, editableDisplayName.trim());
+      updateUserInContext({ displayName: editableDisplayName.trim() });
+      toast({ title: "Display Name Updated", description: "Your display name has been updated successfully. Changes will reflect across your content." });
+    } catch (error: any) {
+      console.error("Failed to update display name:", error);
+      toast({ title: "Update Failed", description: error.message || "Could not update display name.", variant: "destructive" });
+    } finally {
+      setIsSavingDisplayName(false);
+    }
+  };
 
   if (authLoading || !user) {
     return (
-      <MainLayout
-        weatherWidget={<WeatherWidget />}
-        adsWidget={<AdPlaceholder />}
-      >
+      <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
         <div className="flex justify-center items-center h-64">
-           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="ml-2 text-muted-foreground">Loading profile...</p>
         </div>
       </MainLayout>
     );
   }
+
+  const currentDisplayName = user.displayName || user.name || 'User Profile';
+  const userAvatarFallback = currentDisplayName.substring(0, 1).toUpperCase() || <UserIcon />;
   
-  const userName = user.name || 'User Profile';
-  const userAvatarFallback = user.name ? user.name.substring(0, 1).toUpperCase() : <UserIcon />;
-  let joinedDate = "Not available";
-  if (user.createdAt) {
-    try {
-      const date = user.createdAt instanceof Date ? user.createdAt : (user.createdAt as any).toDate();
-      joinedDate = format(date, "MMMM d, yyyy");
-    } catch (e) { console.error("Error formatting joined date:", e); }
-  }
-
-
   return (
-    <MainLayout
-      weatherWidget={<WeatherWidget />}
-      adsWidget={<AdPlaceholder />}
-    >
+    <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
       <Card className="max-w-2xl mx-auto shadow-lg">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center relative">
           <Avatar className="w-32 h-32 mx-auto mb-4 border-4 border-primary shadow-md">
-            <AvatarImage src={user.avatarUrl || undefined} alt={userName} data-ai-hint="user large_avatar" />
+            <AvatarImage src={user.avatarUrl || undefined} alt={currentDisplayName} data-ai-hint="user large_avatar" />
             <AvatarFallback className="text-5xl">{userAvatarFallback}</AvatarFallback>
           </Avatar>
-          <CardTitle className="text-3xl">{userName}</CardTitle>
+          <CardTitle className="text-3xl">{currentDisplayName}</CardTitle>
           {user.email && (
             <CardDescription className="flex items-center justify-center gap-1">
-               <Mail className="h-4 w-4 text-muted-foreground" /> {user.email}
+              <Mail className="h-4 w-4 text-muted-foreground" /> {user.email}
             </CardDescription>
           )}
           {user.role && (
@@ -74,25 +152,68 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold mb-2">About</h3>
-            <p className="text-muted-foreground">
-              This is your public profile. Profile editing is coming soon!
+            <h3 className="text-lg font-semibold mb-1">Full Name (Not editable)</h3>
+            <p className="text-muted-foreground">{user.name || 'Not set'}</p>
+          </div>
+           
+          <div className="space-y-2">
+            <Label htmlFor="displayName" className="text-lg font-semibold">Display Name (Public)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="displayName"
+                value={editableDisplayName}
+                onChange={(e) => setEditableDisplayName(e.target.value)}
+                className="text-base"
+                disabled={isSavingDisplayName}
+                maxLength={50}
+              />
+              <Button 
+                onClick={handleDisplayNameChange} 
+                disabled={isSavingDisplayName || editableDisplayName.trim() === (user.displayName || user.name || '') || !editableDisplayName.trim()}
+              >
+                {isSavingDisplayName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Name
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Change Profile Picture</h3>
+            <div className="flex flex-col sm:flex-row items-center gap-2 mt-1">
+              <Label htmlFor="avatar-upload" className="sr-only">Choose profile picture</Label>
+              <Input 
+                id="avatar-upload"
+                ref={fileInputRef}
+                type="file" 
+                accept="image/png, image/jpeg, image/gif"
+                onChange={handleFileChange}
+                className="flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                disabled={isUploadingAvatar}
+              />
+              <Button onClick={handleAvatarUpload} disabled={isUploadingAvatar || !selectedFile} className="w-full sm:w-auto">
+                {isUploadingAvatar ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                Upload Avatar
+              </Button>
+            </div>
+            {selectedFile && <p className="text-xs text-muted-foreground mt-1">Selected: {selectedFile.name}</p>}
+             <p className="text-xs text-muted-foreground mt-2">
+              Max file size: 5MB. Allowed types: JPG, PNG, GIF.
             </p>
           </div>
           <div>
             <h3 className="text-lg font-semibold mb-2">Activity</h3>
             <ul className="list-disc list-inside text-muted-foreground space-y-1">
-              {/* TODO: Fetch actual user activity stats */}
               <li>Posts created: (Coming soon)</li>
               <li>Comments made: (Coming soon)</li>
-              <li>Joined: {joinedDate}</li>
+              <li>Joined: {formattedJoinedDate || 'Loading...'}</li>
             </ul>
           </div>
-          <Button className="w-full" disabled> {/* TODO: Implement Edit Profile */}
-            <Edit3 className="mr-2 h-4 w-4" /> Edit Profile (Coming Soon)
-          </Button>
         </CardContent>
+        <CardFooter className="flex justify-end">
+        </CardFooter>
       </Card>
     </MainLayout>
   );
 }
+
+    

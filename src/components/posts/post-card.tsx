@@ -5,7 +5,7 @@ import type { Post } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ThumbsUp, MessageCircle, Bookmark, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Bookmark, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -24,31 +24,42 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+  AlertDialogTrigger, // Ensured this is imported
+} from "@/components/ui/alert-dialog";
 import { useAuth } from '@/hooks/use-auth';
 import { formatDistanceToNow } from 'date-fns';
 import { useState, useEffect } from 'react';
-import { deletePost, togglePostLike } from '@/services/postService';
+import { deletePost, togglePostLike, togglePostDislike } from '@/services/postService';
 import { useToast } from '@/hooks/use-toast';
 
 interface PostCardProps {
   post: Post;
   onPostDeleted?: (postId: string) => void;
   className?: string;
+  staggerIndex?: number;
 }
 
-export function PostCard({ post: initialPost, onPostDeleted, className }: PostCardProps) {
+export function PostCard({ post: initialPost, onPostDeleted, className, staggerIndex = 0 }: PostCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [post, setPost] = useState<Post>(initialPost);
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [isDisliked, setIsDisliked] = useState(false);
+  const [isDisliking, setIsDisliking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    setPost(initialPost); // Update post if initialPost prop changes
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, staggerIndex * 100);
+    return () => clearTimeout(timer);
+  }, [staggerIndex]);
+
+  useEffect(() => {
+    setPost(initialPost);
   }, [initialPost]);
 
   useEffect(() => {
@@ -57,7 +68,12 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
     } else {
       setIsLiked(false);
     }
-  }, [user, post.likedBy]);
+    if (user && post.dislikedBy) {
+      setIsDisliked(post.dislikedBy.includes(user.uid));
+    } else {
+      setIsDisliked(false);
+    }
+  }, [user, post.likedBy, post.dislikedBy]);
 
   let formattedDate = "Unknown date";
   if (post.createdAt) {
@@ -70,9 +86,9 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
   }
 
   const postSlug = post.slug || post.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-  const authorName = post.author?.name || 'Anonymous';
+  const authorDisplayName = post.author?.displayName || 'Anonymous';
   const authorAvatar = post.author?.avatarUrl;
-  const authorAvatarFallback = authorName.substring(0,1).toUpperCase();
+  const authorAvatarFallback = authorDisplayName.substring(0,1).toUpperCase();
 
   const canModify = user && (user.uid === post.author?.uid || user.role === 'superuser' || user.role === 'moderator');
 
@@ -87,28 +103,68 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
     const originalLikedState = isLiked;
     const originalLikesCount = post.likes;
 
-    // Optimistic update
     setIsLiked(!originalLikedState);
     setPost(prevPost => ({
       ...prevPost,
       likes: originalLikedState ? prevPost.likes -1 : prevPost.likes + 1,
-      likedBy: originalLikedState 
-        ? prevPost.likedBy.filter(uid => uid !== user.uid) 
+      likedBy: originalLikedState
+        ? prevPost.likedBy.filter(uid => uid !== user.uid)
         : [...prevPost.likedBy, user.uid]
     }));
 
     try {
       const updatedPostData = await togglePostLike(post.id, user.uid);
-      setPost(prevPost => ({ ...prevPost, ...updatedPostData })); // Sync with server response
+      setPost(prevPost => ({ ...prevPost, ...updatedPostData }));
       setIsLiked(updatedPostData.likedBy.includes(user.uid));
     } catch (error) {
       console.error("Failed to toggle like:", error);
       toast({ title: "Error", description: "Could not update like. Please try again.", variant: "destructive" });
-      // Revert optimistic update
       setIsLiked(originalLikedState);
       setPost(prevPost => ({ ...prevPost, likes: originalLikesCount, likedBy: originalLikedState ? [...prevPost.likedBy, user.uid] : prevPost.likedBy.filter(uid => uid !== user.uid) }));
     } finally {
       setIsLiking(false);
+    }
+  };
+
+  const handleDislikeToggle = async () => {
+    if (!user) {
+      toast({ title: "Login Required", description: "You need to be logged in to dislike posts.", variant: "destructive" });
+      return;
+    }
+    if (isDisliking) return;
+    setIsDisliking(true);
+
+    const originalDislikedState = isDisliked;
+    const originalDislikesCount = post.dislikes;
+
+    setIsDisliked(!originalDislikedState);
+    setPost(prevPost => ({
+      ...prevPost,
+      dislikes: originalDislikedState ? prevPost.dislikes - 1 : prevPost.dislikes + 1,
+      dislikedBy: originalDislikedState
+        ? prevPost.dislikedBy.filter(uid => uid !== user.uid)
+        : [...prevPost.dislikedBy, user.uid],
+      // if switching from like to dislike
+      likes: prevPost.likedBy.includes(user.uid) && !originalDislikedState ? prevPost.likes - 1 : prevPost.likes,
+      likedBy: prevPost.likedBy.includes(user.uid) && !originalDislikedState ? prevPost.likedBy.filter(uid => uid !== user.uid) : prevPost.likedBy
+    }));
+
+    try {
+      const updatedPostData = await togglePostDislike(post.id, user.uid);
+      setPost(prevPost => ({ ...prevPost, ...updatedPostData }));
+      setIsDisliked(updatedPostData.dislikedBy.includes(user.uid));
+      setIsLiked(updatedPostData.likedBy.includes(user.uid));
+    } catch (error) {
+      console.error("Failed to toggle dislike:", error);
+      toast({ title: "Error", description: "Could not update dislike. Please try again.", variant: "destructive" });
+      setIsDisliked(originalDislikedState);
+      setPost(prevPost => ({
+        ...prevPost,
+        dislikes: originalDislikesCount,
+        dislikedBy: originalDislikedState ? [...prevPost.dislikedBy, user.uid] : prevPost.dislikedBy.filter(uid => uid !== user.uid)
+      }));
+    } finally {
+      setIsDisliking(false);
     }
   };
 
@@ -121,8 +177,6 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
       if (onPostDeleted) {
         onPostDeleted(post.id);
       }
-      // If on individual post page and post is deleted, user will be redirected or see a message.
-      // If on a list, onPostDeleted handles removal.
     } catch (error) {
       console.error("Failed to delete post:", error);
       toast({ title: "Error", description: "Could not delete post. Please try again.", variant: "destructive" });
@@ -132,11 +186,19 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
   };
 
   return (
-    <Card className={`mb-6 shadow-lg hover:shadow-xl transition-shadow duration-300 ${className}`}>
+    <Card
+      className={`
+        mb-6 shadow-lg
+        transition-all duration-500 ease-out
+        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}
+        hover:shadow-xl hover:-translate-y-1.5 hover:scale-[1.01]
+        ${className}
+      `}
+    >
       <CardHeader>
         <div className="flex items-start justify-between">
           <Link href={`/post/${post.id}/${postSlug}`} className="group">
-            <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors">
+            <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors duration-200">
               {post.title}
             </CardTitle>
           </Link>
@@ -156,8 +218,8 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
                 <DropdownMenuSeparator />
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <DropdownMenuItem 
-                      onSelect={(e) => e.preventDefault()} // Prevents DropdownMenu from closing
+                    <DropdownMenuItem
+                      onSelect={(e) => e.preventDefault()}
                       className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"
                     >
                       <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -185,19 +247,19 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
         </div>
         <CardDescription className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
           {post.author?.uid ? (
-             <Link href={`/profile/${post.author.uid}`} className="flex items-center gap-2 hover:underline">
+             <Link href={`/profile/${post.author.uid}`} className="flex items-center gap-2 hover:underline hover:text-primary/90 transition-colors duration-200">
               <Avatar className="h-6 w-6">
-                <AvatarImage src={authorAvatar || undefined} alt={authorName} data-ai-hint="author avatar"/>
+                <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} data-ai-hint="author avatar"/>
                 <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
               </Avatar>
-              <span>{authorName}</span>
+              <span>{authorDisplayName}</span>
             </Link>
           ) : (
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
                  <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
               </Avatar>
-              <span>{authorName}</span>
+              <span>{authorDisplayName}</span>
             </div>
           )}
           <span>•</span>
@@ -206,7 +268,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
         {post.flairs && post.flairs.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {post.flairs.map((flair) => (
-              <Badge key={flair} variant="secondary" className="bg-accent/20 text-accent-foreground hover:bg-accent/30 cursor-pointer">
+              <Badge key={flair} variant="secondary" className="bg-accent/20 text-accent-foreground hover:bg-accent/30 cursor-pointer transition-colors duration-200">
                 {flair}
               </Badge>
             ))}
@@ -215,15 +277,19 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
       </CardHeader>
       <CardContent>
         <p className="text-foreground/90 line-clamp-3 whitespace-pre-wrap">{post.content}</p>
-        <Link href={`/post/${post.id}/${postSlug}`} className="text-sm text-primary hover:underline mt-2 inline-block">
+        <Link href={`/post/${post.id}/${postSlug}`} className="text-sm text-primary hover:underline hover:text-primary/80 transition-colors duration-200 mt-2 inline-block">
             Read more
         </Link>
       </CardContent>
       <CardFooter className="flex justify-between items-center pt-4 border-t">
         <div className="flex gap-1 sm:gap-4 text-muted-foreground">
           <Button variant="ghost" size="sm" className={`group ${isLiked ? 'text-primary hover:text-primary/90' : 'hover:text-primary'}`} onClick={handleLikeToggle} disabled={isLiking || !user}>
-            {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />} 
+            {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />}
             {post.likes}
+          </Button>
+          <Button variant="ghost" size="sm" className={`group ${isDisliked ? 'text-primary hover:text-primary/90' : 'hover:text-primary'}`} onClick={handleDislikeToggle} disabled={isDisliking || !user}>
+            {isDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''}`} />}
+            {post.dislikes}
           </Button>
           <Link href={`/post/${post.id}/${postSlug}#comments`} passHref>
             <Button variant="ghost" size="sm" className="group hover:text-primary">
@@ -238,3 +304,4 @@ export function PostCard({ post: initialPost, onPostDeleted, className }: PostCa
     </Card>
   );
 }
+

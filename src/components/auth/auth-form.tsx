@@ -10,23 +10,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Chrome, Facebook } from 'lucide-react'; // Added Facebook icon
+import { Loader2, Chrome, Facebook } from 'lucide-react';
 
 export function AuthForm() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
+  const [registerDisplayName, setRegisterDisplayName] = useState('');
   const [registerName, setRegisterName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authAction, setAuthAction] = useState<string | null>(null); // To track which social login is submitting
+  const [authAction, setAuthAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { login, register, signInWithGoogle, signInWithFacebook } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectPath = searchParams.get('redirect') || '/';
+  const redirectPath = searchParams.get('redirect') || '/profile'; // Redirect to profile after registration
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +37,7 @@ export function AuthForm() {
     try {
       await login(loginEmail, loginPassword);
       toast({ title: "Login Successful", description: "Welcome back!" });
-      router.push(redirectPath);
+      router.push(searchParams.get('redirect') || '/'); // Use original redirect for login
     } catch (err: any) {
       setError(err.message || "Failed to login. Please check your credentials.");
       toast({ title: "Login Failed", description: err.message || "Please check your credentials.", variant: "destructive" });
@@ -52,9 +53,9 @@ export function AuthForm() {
     setAuthAction('email');
     setError(null);
     try {
-      await register(registerEmail, registerPassword, registerName);
-      toast({ title: "Registration Successful", description: "Welcome to GuernseySpeaks!" });
-      router.push(redirectPath);
+      await register(registerEmail, registerPassword, registerDisplayName, registerName || null);
+      toast({ title: "Registration Successful", description: "Welcome to GuernseySpeaks! Please set up your profile." });
+      router.push(redirectPath); // Redirect to profile page
     } catch (err: any) {
       setError(err.message || "Failed to register. Please try again.");
       toast({ title: "Registration Failed", description: err.message || "Please try again.", variant: "destructive" });
@@ -145,13 +146,23 @@ export function AuthForm() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-2xl">Register</CardTitle>
-              <CardDescription>Create an account to join the community.</CardDescription>
+              <CardDescription>Create an account to join the community. Your full name will be your initial display name.</CardDescription>
             </CardHeader>
             <form onSubmit={handleRegister}>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
+                  <Label htmlFor="register-display-name">Display Name</Label>
+                  <Input
+                    id="register-display-name"
+                    placeholder="cooluser123"
+                    required
+                    value={registerDisplayName}
+                    onChange={(e) => setRegisterDisplayName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="register-name">Full Name</Label>
-                  <Input id="register-name" placeholder="John Doe" required value={registerName} onChange={(e) => setRegisterName(e.target.value)} />
+                  <Input id="register-name" placeholder="John Doe" value={registerName} onChange={(e) => setRegisterName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="register-email">Email</Label>

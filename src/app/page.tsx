@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PenSquare, Loader2, AlertTriangle } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { getPosts, type GetPostsFilters } from '@/services/postService';
 import { useAuth } from '@/hooks/use-auth';
 import type { OrderByDirection } from 'firebase/firestore';
@@ -24,9 +25,11 @@ export default function HomePage() {
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+
 
   // Filter states
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [selectedFlair, setSelectedFlair] = useState(''); // Empty string means 'All Flairs'
   const [sortBy, setSortBy] = useState('createdAt_desc'); // Default sort: newest
 
@@ -61,6 +64,10 @@ export default function HomePage() {
   useEffect(() => {
     fetchAndFilterPosts();
   }, [fetchAndFilterPosts]);
+
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q') || '');
+  }, [searchParams]);
   
   // Client-side search logic, applied after posts are fetched and sorted by Firestore
   useEffect(() => {

@@ -31,6 +31,7 @@ export interface Post {
   dislikes: number;
   dislikedBy: string[]; // Array of UIDs who disliked the post
   commentsCount: number;
+  imageUrl?: string | null;
   slug: string;
 }
 
@@ -46,6 +47,7 @@ export interface Comment {
   likedBy: string[];
   dislikes: number;
   dislikedBy: string[];
+  imageUrl?: string | null;
 }
 
 // For rendering threaded comments

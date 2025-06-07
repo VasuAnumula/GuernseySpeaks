@@ -12,7 +12,9 @@ import { useRouter } from 'next/navigation';
 import { X, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
-import { createPost, updatePost, generateSlug } from '@/services/postService';
+import { createPost, updatePost, generateSlug, uploadPostImage } from '@/services/postService';
+import { capitalizeSentences } from '@/lib/utils';
+import Image from 'next/image';
 import type { Post, AuthorInfo } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -35,6 +37,8 @@ export function PostForm({ postToEdit }: PostFormProps) {
   const [flairs, setFlairs] = useState<string[]>([]);
   const [selectedFlairToAdd, setSelectedFlairToAdd] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const isEditMode = !!postToEdit;
 
@@ -43,6 +47,9 @@ export function PostForm({ postToEdit }: PostFormProps) {
       setTitle(postToEdit.title);
       setContent(postToEdit.content);
       setFlairs(postToEdit.flairs || []);
+      if (postToEdit.imageUrl) {
+        setImagePreview(postToEdit.imageUrl);
+      }
     }
   }, [isEditMode, postToEdit]);
 
@@ -67,6 +74,12 @@ export function PostForm({ postToEdit }: PostFormProps) {
     setFlairs(flairs.filter(flair => flair !== flairToRemove));
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setImageFile(file);
+    setImagePreview(file ? URL.createObjectURL(file) : null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -79,14 +92,25 @@ export function PostForm({ postToEdit }: PostFormProps) {
     }
     setIsSubmitting(true);
 
-    const trimmedTitle = title.trim();
+    const trimmedTitle = capitalizeSentences(title.trim());
+    const processedContent = capitalizeSentences(content.trim());
+    let uploadedUrl: string | undefined;
+    if (imageFile) {
+      try {
+        uploadedUrl = await uploadPostImage(imageFile);
+      } catch (err) {
+        console.error('Image upload failed:', err);
+        toast({ title: 'Image Upload Failed', variant: 'destructive' });
+      }
+    }
 
     try {
       if (isEditMode && postToEdit) {
-        const postUpdateData: Partial<Pick<Post, 'title' | 'content' | 'flairs'>> = {
+        const postUpdateData: Partial<Pick<Post, 'title' | 'content' | 'flairs' | 'imageUrl'>> = {
           title: trimmedTitle,
-          content: content.trim(),
+          content: processedContent,
           flairs,
+          imageUrl: uploadedUrl ?? postToEdit.imageUrl,
         };
         await updatePost(postToEdit.id, postUpdateData);
         const updatedSlug = await generateSlug(trimmedTitle);
@@ -100,9 +124,10 @@ export function PostForm({ postToEdit }: PostFormProps) {
         };
         const newPostPayload = {
           title: trimmedTitle,
-          content: content.trim(),
+          content: processedContent,
           author: authorInfo,
           flairs,
+          imageUrl: uploadedUrl || null,
         };
         const postId = await createPost(newPostPayload);
         const newSlug = await generateSlug(trimmedTitle);
@@ -155,6 +180,13 @@ export function PostForm({ postToEdit }: PostFormProps) {
               className="text-base"
             />
              <p className="text-xs text-muted-foreground">Markdown is not currently supported, but will be in a future update!</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="image-upload" className="text-lg">Image (optional)</Label>
+            <Input id="image-upload" type="file" accept="image/*" onChange={handleImageChange} />
+            {imagePreview && (
+              <Image src={imagePreview} alt="preview" width={500} height={300} className="mt-2 rounded-md" />
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="flairs-select" className="text-lg">Flairs/Tags (up to {MAX_FLAIRS})</Label>

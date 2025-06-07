@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ThumbsUp, ThumbsDown, MessageCircle, Bookmark, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -277,6 +278,9 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
           </CardHeader>
           <CardContent>
             <p className="text-foreground/90 line-clamp-3 whitespace-pre-wrap">{post.content}</p>
+            {post.imageUrl && (
+              <Image src={post.imageUrl} alt="post image" width={600} height={350} className="mt-2 rounded-md" />
+            )}
           </CardContent>
           <CardFooter className="flex justify-between items-center pt-4 border-t">
             <div className="flex gap-1 sm:gap-4 text-muted-foreground">

@@ -11,7 +11,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { ThumbsUp, ThumbsDown, MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle, MessageSquareReply } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle, MessageSquareReply, Image as ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
@@ -383,15 +383,20 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
 
         {showReplyForm && user && (
           <form onSubmit={handleReplySubmit} className="w-full mt-2 space-y-2">
-            <Textarea
-              placeholder={`Replying to ${authorDisplayName}...`}
-              value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
-              rows={1}
-              className="text-sm"
-              disabled={isSubmittingReply}
-            />
-            <Input type="file" accept="image/*" onChange={handleReplyImageChange} className="text-sm" />
+            <div className="relative">
+              <Textarea
+                placeholder={`Replying to ${authorDisplayName}...`}
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                rows={1}
+                className="pr-10 text-sm min-h-[40px]"
+                disabled={isSubmittingReply}
+              />
+              <label htmlFor={`reply-image-${comment.id}`} className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary">
+                <ImageIcon className="h-4 w-4" />
+              </label>
+              <input id={`reply-image-${comment.id}`} type="file" accept="image/*" onChange={handleReplyImageChange} className="sr-only" />
+            </div>
             {replyPreview && (
               <Image src={replyPreview} alt="preview" width={400} height={250} className="rounded" />
             )}
@@ -891,15 +896,20 @@ export default function PostPage({ params }: { params: PostPageParams }) {
               <Card className="border-none shadow-none">
                 <CardContent className="p-4">
                   <Label htmlFor="new-comment" className="sr-only">Add a comment</Label>
-                  <Textarea
-                    id="new-comment"
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Share your thoughts..."
-                    rows={1}
-                    className="mb-3 text-sm sm:text-base"
-                  />
-                  <Input type="file" accept="image/*" onChange={handleNewCommentImageChange} className="mb-3" />
+                  <div className="mb-3 relative">
+                    <Textarea
+                      id="new-comment"
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Share your thoughts..."
+                      rows={1}
+                      className="pr-10 text-sm sm:text-base min-h-[40px]"
+                    />
+                    <label htmlFor="new-comment-image" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary">
+                      <ImageIcon className="h-5 w-5" />
+                    </label>
+                    <input id="new-comment-image" type="file" accept="image/*" onChange={handleNewCommentImageChange} className="sr-only" />
+                  </div>
                   {newCommentPreview && (
                     <Image src={newCommentPreview} alt="preview" width={500} height={300} className="mb-3 rounded" />
                   )}

@@ -1,7 +1,7 @@
 
 'use server';
 
-import { db } from '@/lib/firebase/config';
+import { db, storage } from '@/lib/firebase/config';
 import type { Post, Comment, AuthorInfo } from '@/types';
 import { processDoc } from '@/lib/firestoreUtils';
 import {
@@ -25,13 +25,19 @@ import {
   QueryConstraint,
   OrderByDirection
 } from 'firebase/firestore';
+import {
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+} from 'firebase/storage';
 
 
 interface CreatePostInputData {
   title: string;
   content: string;
-  author: AuthorInfo; 
+  author: AuthorInfo;
   flairs: string[];
+  imageUrl?: string | null;
 }
 
 export interface GetPostsFilters {
@@ -68,7 +74,7 @@ export async function createPost(postData: CreatePostInputData): Promise<string>
   }
 };
 
-export async function updatePost(postId: string, postData: Partial<Pick<Post, 'title' | 'content' | 'flairs'>>): Promise<void> {
+export async function updatePost(postId: string, postData: Partial<Pick<Post, 'title' | 'content' | 'flairs' | 'imageUrl'>>): Promise<void> {
   try {
     const postDocRef = doc(db, 'posts', postId);
     const firestoreUpdateData: { [key: string]: any } = {
@@ -250,7 +256,7 @@ export async function togglePostDislike(postId: string, userId: string): Promise
 
 export async function createComment(
   postId: string,
-  commentData: Pick<Comment, 'author' | 'content'>,
+  commentData: Pick<Comment, 'author' | 'content' | 'imageUrl'>,
   parentId: string | null = null
 ): Promise<string> {
   try {
@@ -264,6 +270,7 @@ export async function createComment(
       postId: postId,
       author,
       content: commentData.content,
+      imageUrl: commentData.imageUrl || null,
       parentId: parentId,
       likes: 0,
       likedBy: [],
@@ -336,6 +343,20 @@ export async function deleteComment(postId: string, commentId: string): Promise<
     console.error('Error deleting comment:', error);
     throw new Error('Failed to delete comment.');
   }
+}
+
+export async function uploadPostImage(file: File): Promise<string> {
+  const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '')
+  const fileRef = storageRef(storage, `post_images/${Date.now()}_${sanitized}`)
+  await uploadBytes(fileRef, file)
+  return getDownloadURL(fileRef)
+}
+
+export async function uploadCommentImage(postId: string, file: File): Promise<string> {
+  const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '')
+  const fileRef = storageRef(storage, `comment_images/${postId}/${Date.now()}_${sanitized}`)
+  await uploadBytes(fileRef, file)
+  return getDownloadURL(fileRef)
 }
 
 export async function toggleCommentLike(postId: string, commentId: string, userId: string): Promise<Comment> {

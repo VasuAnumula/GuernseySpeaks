@@ -10,9 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { ThumbsUp, ThumbsDown, MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle, MessageSquareReply } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -35,7 +37,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getPostById, getCommentsForPost, createComment, togglePostLike, togglePostDislike, deletePost, updateComment, deleteComment, toggleCommentLike, toggleCommentDislike } from '@/services/postService';
+import { getPostById, getCommentsForPost, createComment, togglePostLike, togglePostDislike, deletePost, updateComment, deleteComment, toggleCommentLike, toggleCommentDislike, uploadCommentImage } from '@/services/postService';
+import { capitalizeSentences } from '@/lib/utils';
 import { db } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { processDoc } from '@/lib/firestoreUtils';
@@ -74,6 +77,8 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+  const [replyImage, setReplyImage] = useState<File | null>(null);
+  const [replyPreview, setReplyPreview] = useState<string | null>(null);
 
   useEffect(() => {
     setComment(commentNode);
@@ -118,8 +123,9 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
     }
     setIsSavingEdit(true);
     try {
-      await updateComment(postId, comment.id, editedContent.trim());
-      const updatedCommentData = { ...comment, content: editedContent.trim(), updatedAt: new Date() };
+      const processedEdit = capitalizeSentences(editedContent.trim());
+      await updateComment(postId, comment.id, processedEdit);
+      const updatedCommentData = { ...comment, content: processedEdit, updatedAt: new Date() };
       setComment(updatedCommentData);
       onCommentEdited(updatedCommentData); // Propagate update to parent state
       setIsEditing(false);
@@ -147,6 +153,12 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
     }
   };
 
+  const handleReplyImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setReplyImage(file);
+    setReplyPreview(file ? URL.createObjectURL(file) : null);
+  };
+
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyContent.trim() || !user) {
@@ -160,8 +172,20 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
         displayName: user.displayName || user.name || 'User', // Ensure displayName has a fallback
         avatarUrl: user.avatarUrl,
       };
-      await createComment(postId, { author: authorInfo, content: replyContent.trim() }, comment.id);
+      let uploadedUrl: string | undefined;
+      if (replyImage) {
+        try {
+          uploadedUrl = await uploadCommentImage(postId, replyImage);
+        } catch (err) {
+          console.error('reply image upload failed:', err);
+          toast({ title: 'Image Upload Failed', variant: 'destructive' });
+        }
+      }
+      const processedReply = capitalizeSentences(replyContent.trim());
+      await createComment(postId, { author: authorInfo, content: processedReply, imageUrl: uploadedUrl || null }, comment.id);
       setReplyContent('');
+      setReplyImage(null);
+      setReplyPreview(null);
       setShowReplyForm(false);
       onReplySubmitted(); // This will trigger a re-fetch of all comments in the parent
       toast({ title: "Reply posted!" });
@@ -317,7 +341,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
             <Textarea
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
-              rows={2}
+              rows={1}
               className="text-sm"
               disabled={isSavingEdit}
             />
@@ -331,7 +355,12 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
             </div>
           </div>
         ) : (
-          <p className="text-foreground/90 whitespace-pre-wrap text-sm">{comment.content}</p>
+          <div className="space-y-2">
+            <p className="text-foreground/90 whitespace-pre-wrap text-sm">{comment.content}</p>
+            {comment.imageUrl && (
+              <Image src={comment.imageUrl} alt="comment image" width={500} height={300} className="rounded" />
+            )}
+          </div>
         )}
       </div>
       
@@ -358,10 +387,14 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
               placeholder={`Replying to ${authorDisplayName}...`}
               value={replyContent}
               onChange={(e) => setReplyContent(e.target.value)}
-              rows={2}
+              rows={1}
               className="text-sm"
               disabled={isSubmittingReply}
             />
+            <Input type="file" accept="image/*" onChange={handleReplyImageChange} className="text-sm" />
+            {replyPreview && (
+              <Image src={replyPreview} alt="preview" width={400} height={250} className="rounded" />
+            )}
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => { setShowReplyForm(false); setReplyContent(''); }} disabled={isSubmittingReply}>
                 Cancel
@@ -427,6 +460,8 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   const [commentTree, setCommentTree] = useState<CommentNode[]>([]); // Nested structure for rendering
 
   const [newComment, setNewComment] = useState('');
+  const [newCommentImage, setNewCommentImage] = useState<File | null>(null);
+  const [newCommentPreview, setNewCommentPreview] = useState<string | null>(null);
   const [isLoadingPost, setIsLoadingPost] = useState(true);
   const [isLoadingComments, setIsLoadingComments] = useState(true);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -611,6 +646,12 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     }
   };
 
+  const handleNewCommentImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setNewCommentImage(file);
+    setNewCommentPreview(file ? URL.createObjectURL(file) : null);
+  };
+
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -626,9 +667,21 @@ export default function PostPage({ params }: { params: PostPageParams }) {
           displayName: user.displayName || user.name || 'User', // Ensure fallback for displayName
           avatarUrl: user.avatarUrl,
         };
-      await createComment(post.id, { author: authorInfo, content: newComment.trim() }, null); // parentId is null for top-level comments
-      
+      let uploadedUrl: string | undefined;
+      if (newCommentImage) {
+        try {
+          uploadedUrl = await uploadCommentImage(post.id, newCommentImage);
+        } catch (err) {
+          console.error('comment image upload failed:', err);
+          toast({ title: 'Image Upload Failed', variant: 'destructive' });
+        }
+      }
+      const processed = capitalizeSentences(newComment.trim());
+      await createComment(post.id, { author: authorInfo, content: processed, imageUrl: uploadedUrl || null }, null); // parentId is null for top-level comments
+
       setNewComment(''); // Clear input
+      setNewCommentImage(null);
+      setNewCommentPreview(null);
       toast({ title: "Comment posted!" });
       fetchPostAndComments(); // Re-fetch to update comment list and count
     } catch (err) {
@@ -789,6 +842,11 @@ export default function PostPage({ params }: { params: PostPageParams }) {
           </CardHeader>
           <CardContent className="px-4 sm:px-5 md:px-6 pt-0 pb-4 md:pb-6 prose prose-sm sm:prose-base md:prose-lg max-w-none dark:prose-invert whitespace-pre-wrap">
             {post.content}
+            {post.imageUrl && (
+              <div className="mt-4">
+                <Image src={post.imageUrl} alt="post image" width={800} height={450} className="rounded-md" />
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 md:p-6 border-t">
             <div className="flex gap-1 sm:gap-2 text-muted-foreground">
@@ -838,9 +896,13 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Share your thoughts..."
-                    rows={2}
+                    rows={1}
                     className="mb-3 text-sm sm:text-base"
                   />
+                  <Input type="file" accept="image/*" onChange={handleNewCommentImageChange} className="mb-3" />
+                  {newCommentPreview && (
+                    <Image src={newCommentPreview} alt="preview" width={500} height={300} className="mb-3 rounded" />
+                  )}
                   <Button type="submit" disabled={!newComment.trim() || isSubmittingComment} className="w-full sm:w-auto">
                     {isSubmittingComment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                     Post Comment

@@ -4,7 +4,7 @@ import Link from "next/link";
 export function Footer() {
   return (
     <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-      <div className="container space-y-2">
+      <div className="container mx-auto space-y-2 px-4 sm:px-6">
         <p>&copy; {new Date().getFullYear()} GuernseySpeaks. All rights reserved.</p>
         <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2">
           <Link href="/" className="hover:text-primary transition-colors">Home</Link>

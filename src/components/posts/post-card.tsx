@@ -312,11 +312,6 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
                 )}
                 {post.dislikes}
               </Button>
-              <Link href={`/post/${post.id}/${postSlug}#comments`} passHref onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="sm" className="group hover:text-primary">
-                  <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.commentsCount}
-                </Button>
-              </Link>
             </div>
             <Button variant="ghost" size="sm" className="group hover:text-primary" disabled onClick={(e) => e.stopPropagation()}>
               <Bookmark className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> Save

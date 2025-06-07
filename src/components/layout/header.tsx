@@ -2,7 +2,11 @@
 "use client";
 
 import Link from 'next/link';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -18,25 +22,42 @@ import { Logo } from '@/components/shared/logo';
 
 export function Header() {
   const { user, logout, loading: authLoading } = useAuth();
+  const [headerSearch, setHeaderSearch] = useState('');
+  const router = useRouter();
 
   const canAccessAdmin = user && (user.role === 'superuser' || user.role === 'moderator');
   const userDisplayNameForMenu = user?.displayName || user?.name || user?.email || 'User';
   const userAvatarFallbackChar = userDisplayNameForMenu.substring(0, 1).toUpperCase();
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      router.push(`/?q=${encodeURIComponent(headerSearch)}`);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
+      <div className="container mx-auto flex h-16 items-center gap-2 px-4 sm:px-6">
         <Logo />
-        <nav className="flex items-center gap-2 md:gap-4">
+        <div className="relative hidden sm:block ml-4 flex-1 max-w-xs">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={headerSearch}
+            onChange={(e) => setHeaderSearch(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Search..."
+            className="pl-7"
+          />
+        </div>
+        <nav className="ml-auto flex items-center gap-2 md:gap-4">
           {user && (
-            <Button asChild size="sm" className="px-2 md:px-3">
+            <Button asChild size="sm" variant="ghost" className="px-2 md:px-3">
               <Link href="/submit">
                 <PenSquare className="mr-0 h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Create Post</span>
               </Link>
             </Button>
           )}
-        </nav>
-        <div>
+          <div>
           {authLoading ? (
             <div className="flex items-center justify-center h-10 w-10">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -76,7 +97,8 @@ export function Header() {
               </Link>
             </Button>
           )}
-        </div>
+          </div>
+        </nav>
       </div>
     </header>
   );

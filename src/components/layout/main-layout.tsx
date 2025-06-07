@@ -22,7 +22,7 @@ export function MainLayout({ weatherWidget, children, adsWidget }: MainLayoutPro
         </aside>
 
         {/* Main Content Section - Posts */}
-        <main className="flex-1">
+        <main className="flex-1 rounded-lg p-4">
           {children}
         </main>
 

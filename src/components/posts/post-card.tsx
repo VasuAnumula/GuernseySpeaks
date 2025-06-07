@@ -195,12 +195,43 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
         ${className}
       `}
     >
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <Link href={`/post/${post.id}/${postSlug}`} className="group">
-            <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors duration-200">
-              {post.title}
-            </CardTitle>
+      <div className="flex">
+        <div className="flex flex-col items-center p-2 pr-3 border-r border-border bg-muted/40">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`${isLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+            onClick={handleLikeToggle}
+            disabled={isLiking || !user}
+          >
+            {isLiking ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ThumbsUp className="h-4 w-4" />
+            )}
+          </Button>
+          <span className="text-sm font-medium">{post.likes - post.dislikes}</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`${isDisliked ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+            onClick={handleDislikeToggle}
+            disabled={isDisliking || !user}
+          >
+            {isDisliking ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ThumbsDown className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        <div className="flex-1">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <Link href={`/post/${post.id}/${postSlug}`} className="group">
+                <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors duration-200">
+                  {post.title}
+                </CardTitle>
           </Link>
           {canModify && (
              <DropdownMenu>
@@ -274,33 +305,27 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
             ))}
           </div>
         )}
-      </CardHeader>
-      <CardContent>
-        <p className="text-foreground/90 line-clamp-3 whitespace-pre-wrap">{post.content}</p>
-        <Link href={`/post/${post.id}/${postSlug}`} className="text-sm text-primary hover:underline hover:text-primary/80 transition-colors duration-200 mt-2 inline-block">
-            Read more
-        </Link>
-      </CardContent>
-      <CardFooter className="flex justify-between items-center pt-4 border-t">
-        <div className="flex gap-1 sm:gap-4 text-muted-foreground">
-          <Button variant="ghost" size="sm" className={`group ${isLiked ? 'text-primary hover:text-primary/90' : 'hover:text-primary'}`} onClick={handleLikeToggle} disabled={isLiking || !user}>
-            {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />}
-            {post.likes}
-          </Button>
-          <Button variant="ghost" size="sm" className={`group ${isDisliked ? 'text-primary hover:text-primary/90' : 'hover:text-primary'}`} onClick={handleDislikeToggle} disabled={isDisliking || !user}>
-            {isDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''}`} />}
-            {post.dislikes}
-          </Button>
-          <Link href={`/post/${post.id}/${postSlug}#comments`} passHref>
-            <Button variant="ghost" size="sm" className="group hover:text-primary">
-              <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.commentsCount}
+          </CardHeader>
+          <CardContent>
+            <p className="text-foreground/90 line-clamp-3 whitespace-pre-wrap">{post.content}</p>
+            <Link href={`/post/${post.id}/${postSlug}`} className="text-sm text-primary hover:underline hover:text-primary/80 transition-colors duration-200 mt-2 inline-block">
+                Read more
+            </Link>
+          </CardContent>
+          <CardFooter className="flex justify-between items-center pt-4 border-t">
+            <div className="flex gap-1 sm:gap-4 text-muted-foreground">
+              <Link href={`/post/${post.id}/${postSlug}#comments`} passHref>
+                <Button variant="ghost" size="sm" className="group hover:text-primary">
+                  <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.commentsCount}
+                </Button>
+              </Link>
+            </div>
+            <Button variant="ghost" size="sm" className="group hover:text-primary" disabled>
+              <Bookmark className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> Save
             </Button>
-          </Link>
+          </CardFooter>
         </div>
-        <Button variant="ghost" size="sm" className="group hover:text-primary" disabled> {/* TODO: Implement Save/Bookmark */}
-          <Bookmark className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> Save
-        </Button>
-      </CardFooter>
+      </div>
     </Card>
   );
 }

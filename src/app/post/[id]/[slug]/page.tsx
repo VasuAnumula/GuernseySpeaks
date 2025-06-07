@@ -253,10 +253,11 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
 
   return (
     <div
-      className={`py-3 ${!isLastChild || (commentNode.replies && commentNode.replies.length > 0) ? 'border-b mb-3' : 'mb-3'}`}
+      className={`relative ${commentNode.depth > 0 ? 'border-l border-border pl-4' : ''} ${!isLastChild || (commentNode.replies && commentNode.replies.length > 0) ? 'mb-3 pb-3' : 'mb-3'}`}
       style={{ marginLeft: `${commentNode.depth * 20}px` }} // Indentation for replies
     >
-      <div className="flex items-start justify-between mb-1 px-1">
+      <div className="bg-card border border-border rounded-md p-3">
+        <div className="flex items-start justify-between mb-1">
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
             <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} data-ai-hint="commenter avatar"/>
@@ -388,6 +389,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }

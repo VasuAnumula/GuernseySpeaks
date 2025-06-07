@@ -9,25 +9,26 @@ body {
 
 @layer base {
   :root {
-    --background: 40 60% 97%; /* Light Cream */
-    --foreground: 90 35% 25%; /* Dark Olive Green - for text */
-    --card: 0 0% 100%; /* White - for card backgrounds */
-    --card-foreground: 90 35% 25%; /* Dark Olive Green - for text on cards */
-    --popover: 0 0% 100%; /* White */
-    --popover-foreground: 90 35% 25%; /* Dark Olive Green */
-    --primary: 90 40% 30%; /* Main Dark Green - for headings, logo, links */
-    --primary-foreground: 40 50% 95%; /* Light Cream/Off-white for text on primary green elements */
-    --secondary: 40 30% 94%; /* Lighter cream, for secondary elements/backgrounds */
-    --secondary-foreground: 90 30% 25%; /* Darker Green for text on secondary (Improved Contrast) */
-    --muted: 40 20% 92%; /* Very light cream/gray for muted backgrounds/elements */
-    --muted-foreground: 90 25% 40%; /* Darker Desaturated green for muted text (Improved Contrast) */
-    --accent: 25 70% 50%; /* Terracotta/Burnt Orange - for prominent buttons/accents */
-    --accent-foreground: 0 0% 100%; /* White - for text on accent elements */
-    --destructive: 0 70% 50%; /* Standard Red for errors */
-    --destructive-foreground: 0 0% 100%; /* White */
-    --border: 40 20% 88%; /* Subtle border, cream/grayish */
-    --input: 40 20% 88%; /* Same as border for input fields */
-    --ring: 90 40% 30%; /* Match Primary Green for focus rings */
+    /* Light theme colors based on the Guernsey palette */
+    --background: 0 0% 100%; /* Pure White */
+    --foreground: 0 0% 15%; /* Deep Slate text */
+    --card: 40 30% 95%; /* Muted Cream card background */
+    --card-foreground: 0 0% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+    --primary: 0 85% 45%; /* Guernsey Cross Red */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 30% 95%; /* Neutral cream for secondary elements */
+    --secondary-foreground: 0 0% 15%;
+    --muted: 40 30% 95%;
+    --muted-foreground: 0 0% 35%;
+    --accent: 125 25% 35%; /* Guernsey Grass Green */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 85%; /* Cool Gray */
+    --input: 0 0% 85%;
+    --ring: 0 85% 45%; /* Focus ring matches primary */
     
     --chart-1: 90 40% 50%; /* Lighter version of primary green */
     --chart-2: 25 70% 60%; /* Lighter terracotta */
@@ -37,46 +38,46 @@ body {
     --radius: 0.5rem;
     
     /* Sidebar specific colors */
-    --sidebar-background: 40 55% 96%; /* Slightly off-white cream, similar to main bg */
-    --sidebar-foreground: 90 35% 25%; /* Dark green text */
-    --sidebar-primary: 90 40% 30%; /* Main dark green */
-    --sidebar-primary-foreground: 40 50% 95%; /* Light cream */
-    --sidebar-accent: 25 70% 50%; /* Terracotta */
-    --sidebar-accent-foreground: 0 0% 100%; /* White */
-    --sidebar-border: 40 20% 90%; /* Softer Sidebar Border */
-    --sidebar-ring: 90 40% 30%; /* Match Primary */
+    --sidebar-background: 40 30% 95%; /* Cream sidebar */
+    --sidebar-foreground: 0 0% 15%;
+    --sidebar-primary: 125 25% 35%; /* Brand header green */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 85% 45%; /* Red create button */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 85%;
+    --sidebar-ring: 125 25% 35%;
   }
 
   .dark {
-    --background: 90 15% 10%; /* Very Dark Green/Gray */
-    --foreground: 40 40% 90%; /* Light Creamy Text */
-    --card: 90 15% 13%; /* Slightly Lighter Dark Green/Gray for Cards */
-    --card-foreground: 40 40% 90%;
-    --popover: 90 15% 13%;
-    --popover-foreground: 40 40% 90%;
-    --primary: 90 40% 55%; /* Brighter Green for dark mode primary */
-    --primary-foreground: 90 20% 15%; /* Dark text on brighter green */
-    --secondary: 90 15% 20%; /* Darker secondary */
-    --secondary-foreground: 40 40% 90%; /* Lighter Creamy Text for dark secondary (Improved Contrast) */
-    --muted: 90 15% 18%; /* Darker muted */
-    --muted-foreground: 40 30% 80%; /* Lighter Creamy/Brown for dark muted (Improved Contrast) */
-    --accent: 25 70% 60%; /* Brighter Terracotta for dark mode */
-    --accent-foreground: 0 0% 100%; /* White text on accent */
-    --destructive: 0 60% 45%;
+    --background: 0 0% 10%;
+    --foreground: 0 0% 90%;
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 90%;
+    --popover: 0 0% 15%;
+    --popover-foreground: 0 0% 90%;
+    --primary: 0 85% 55%;
+    --primary-foreground: 0 0% 15%;
+    --secondary: 125 25% 25%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 125 25% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 60% 40%;
     --destructive-foreground: 0 0% 95%;
-    --border: 90 15% 25%; /* Darker Border */
-    --input: 90 15% 25%;
-    --ring: 90 40% 55%; /* Match dark mode primary */
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 0 85% 55%;
 
     /* Dark Sidebar specific colors */
-    --sidebar-background: 90 15% 12%; /* Slightly off from main dark bg */
-    --sidebar-foreground: 40 40% 90%;
-    --sidebar-primary: 90 40% 55%;
-    --sidebar-primary-foreground: 90 20% 15%;
-    --sidebar-accent: 25 70% 60%;
-    --sidebar-accent-foreground: 0 0% 10%; /* Dark text for dark mode sidebar accent button (Improved Contrast) */
-    --sidebar-border: 90 15% 22%;
-    --sidebar-ring: 90 40% 55%;
+    --sidebar-background: 0 0% 12%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 125 25% 40%;
+    --sidebar-primary-foreground: 0 0% 15%;
+    --sidebar-accent: 0 85% 55%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 22%;
+    --sidebar-ring: 125 25% 40%;
   }
 }
 

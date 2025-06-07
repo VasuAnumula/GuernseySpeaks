@@ -13,9 +13,13 @@
 
 ## Style Guidelines:
 
-- Primary color: Red (#D2232A) from the Guernsey flag to represent the island's identity.
-- Secondary color: White (#FFFFFF) from the Guernsey flag for a clean and neutral backdrop.
-- Accent color: Gold (#FFD700) inspired by the gold cross in the flag, used for interactive elements and highlights.
+- Primary color: Guernsey Cross Red (0 85% 45) for create buttons and highlights.
+- Background color: Pure White (0 0% 100) for the page backdrop.
+- Accent color: Guernsey Grass Green (125 25% 35) for secondary actions and tags.
+- Muted cream: Light Neutral (40 30% 95) for card backgrounds.
+- Text color: Deep Slate (0 0% 15) for headings and body copy.
+- Border color: Cool Gray (0 0% 85) for card borders and dividers.
+- Flair label: Optional Orange Gold (30 90% 50) for highlighted tags.
 - Clean and readable sans-serif font for body text, promoting readability.
 - Simple, consistent icons for categories, filters, and interactions (likes, comments).
 - Clear separation of content sections (weather, posts, ads) with a focus on readability and ease of navigation.

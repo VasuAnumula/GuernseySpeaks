@@ -137,11 +137,12 @@ export default function HomePage() {
         <div className="space-y-6">
           {displayedPosts.length > 0 ? (
             displayedPosts.map((post, index) => (
-              <PostCard 
-                key={post.id} 
-                post={post} 
+              <PostCard
+                key={post.id}
+                post={post}
                 onPostDeleted={handlePostDeleted}
-                staggerIndex={index} 
+                staggerIndex={index}
+                className="max-w-3xl mx-auto"
               />
             ))
           ) : (

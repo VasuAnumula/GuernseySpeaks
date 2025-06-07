@@ -467,6 +467,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   const [newComment, setNewComment] = useState('');
   const [newCommentImage, setNewCommentImage] = useState<File | null>(null);
   const [newCommentPreview, setNewCommentPreview] = useState<string | null>(null);
+  const [isCommentFocused, setIsCommentFocused] = useState(false);
   const [isLoadingPost, setIsLoadingPost] = useState(true);
   const [isLoadingComments, setIsLoadingComments] = useState(true);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -687,6 +688,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       setNewComment(''); // Clear input
       setNewCommentImage(null);
       setNewCommentPreview(null);
+      setIsCommentFocused(false);
       toast({ title: "Comment posted!" });
       fetchPostAndComments(); // Re-fetch to update comment list and count
     } catch (err) {
@@ -902,21 +904,30 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder="Share your thoughts..."
-                      rows={1}
-                      className="pr-10 text-sm sm:text-base min-h-[40px]"
+                      rows={isCommentFocused ? 4 : 1}
+                      onFocus={() => setIsCommentFocused(true)}
+                      onBlur={() => { if (!newComment.trim() && !newCommentPreview) setIsCommentFocused(false); }}
+                      className={`pr-20 text-sm sm:text-base transition-all ${isCommentFocused ? 'min-h-[120px]' : 'min-h-[40px]'}`}
                     />
-                    <label htmlFor="new-comment-image" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary">
+                    <label htmlFor="new-comment-image" className="absolute left-2 bottom-2 cursor-pointer text-muted-foreground hover:text-primary">
                       <ImageIcon className="h-5 w-5" />
                     </label>
                     <input id="new-comment-image" type="file" accept="image/*" onChange={handleNewCommentImageChange} className="sr-only" />
+                    {(isCommentFocused || newComment.trim()) && (
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={!newComment.trim() || isSubmittingComment}
+                        className="absolute right-2 bottom-2 h-7 px-3"
+                      >
+                        {isSubmittingComment ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+                        Post
+                      </Button>
+                    )}
                   </div>
                   {newCommentPreview && (
                     <Image src={newCommentPreview} alt="preview" width={500} height={300} className="mb-3 rounded" />
                   )}
-                  <Button type="submit" disabled={!newComment.trim() || isSubmittingComment} className="w-full sm:w-auto">
-                    {isSubmittingComment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                    Post Comment
-                  </Button>
                 </CardContent>
               </Card>
             </form>

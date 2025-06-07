@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, PlusSquare, LogIn, LogOut, UserCircle, Loader2, ShieldCheck } from 'lucide-react'; // Removed Settings
+import { PenSquare, LogIn, LogOut, UserCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/shared/logo';
 
@@ -28,15 +28,10 @@ export function Header() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
         <Logo />
         <nav className="flex items-center gap-2 md:gap-4">
-          <Button variant="ghost" asChild size="sm" className="px-2 md:px-3">
-            <Link href="/">
-              <Home className="mr-0 h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Home</span>
-            </Link>
-          </Button>
           {user && (
-            <Button variant="ghost" asChild size="sm" className="px-2 md:px-3">
+            <Button asChild size="sm" className="px-2 md:px-3">
               <Link href="/submit">
-                <PlusSquare className="mr-0 h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Submit</span>
+                <PenSquare className="mr-0 h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Create Post</span>
               </Link>
             </Button>
           )}

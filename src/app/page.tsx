@@ -91,16 +91,7 @@ export default function HomePage() {
       weatherWidget={<WeatherWidget />}
       adsWidget={<AdPlaceholder />}
     >
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Community Feed</h1>
-        {!authLoading && user && (
-          <Button asChild>
-            <Link href="/submit">
-              <PenSquare className="mr-2 h-5 w-5" /> Create Post
-            </Link>
-          </Button>
-        )}
-      </div>
+
       
       <PostListFilters
         searchTerm={searchTerm}

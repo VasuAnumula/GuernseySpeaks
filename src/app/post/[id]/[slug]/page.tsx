@@ -253,10 +253,11 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
 
   return (
     <div
-      className={`py-3 ${!isLastChild || (commentNode.replies && commentNode.replies.length > 0) ? 'border-b mb-3' : 'mb-3'}`}
+      className={`relative ${commentNode.depth > 0 ? 'border-l border-border pl-4' : ''} ${!isLastChild || (commentNode.replies && commentNode.replies.length > 0) ? 'mb-3 pb-3' : 'mb-3'}`}
       style={{ marginLeft: `${commentNode.depth * 20}px` }} // Indentation for replies
     >
-      <div className="flex items-start justify-between mb-1 px-1">
+      <div className="p-2">
+        <div className="flex items-start justify-between mb-1">
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
             <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} data-ai-hint="commenter avatar"/>
@@ -316,7 +317,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
             <Textarea
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
-              rows={3}
+              rows={2}
               className="text-sm"
               disabled={isSavingEdit}
             />
@@ -336,11 +337,11 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
       
       <div className="mt-2 px-1">
         <div className="flex items-center">
-            <Button variant="ghost" size="sm" className={`group -ml-2 ${isCommentLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} onClick={handleCommentLikeToggle} disabled={isCommentLiking}>
+            <Button variant="ghost" size="sm" className={`group -ml-2 ${isCommentLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary'} transition-transform duration-150 active:scale-95`} onClick={handleCommentLikeToggle} disabled={isCommentLiking}>
                 {isCommentLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className="mr-1.5 h-4 w-4" />}
                 {comment.likes}
             </Button>
-            <Button variant="ghost" size="sm" className={`group ${isCommentDisliked ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} onClick={handleCommentDislikeToggle} disabled={isCommentDisliking}>
+            <Button variant="ghost" size="sm" className={`group ${isCommentDisliked ? 'text-primary' : 'text-muted-foreground hover:text-primary'} transition-transform duration-150 active:scale-95`} onClick={handleCommentDislikeToggle} disabled={isCommentDisliking}>
                 {isCommentDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className="mr-1.5 h-4 w-4" />}
                 {comment.dislikes}
             </Button>
@@ -388,6 +389,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }
@@ -708,7 +710,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       adsWidget={<AdPlaceholder />}
     >
       <article className="w-full max-w-3xl mx-auto">
-        <Card className="mb-6 md:mb-8 shadow-lg">
+        <Card className="mb-6 md:mb-8 border-none shadow-none">
           <CardHeader className="p-4 sm:p-5 md:p-6">
             <div className="flex items-start justify-between">
               <CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary break-words">
@@ -793,7 +795,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`group ${isLiked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50'}`}
+                className={`group ${isLiked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50'} transition-transform duration-150 active:scale-95`}
                 onClick={handleLikeToggle}
                 disabled={isLiking || !user || authLoading}
               >
@@ -803,7 +805,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`group ${isDisliked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50'}`}
+                className={`group ${isDisliked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50'} transition-transform duration-150 active:scale-95`}
                 onClick={handleDislikeToggle}
                 disabled={isDisliking || !user || authLoading}
               >
@@ -828,7 +830,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
              </div>
           ) : user ? (
             <form onSubmit={handleCommentSubmit} className="mb-6 md:mb-8">
-              <Card className="shadow">
+              <Card className="border-none shadow-none">
                 <CardContent className="p-4">
                   <Label htmlFor="new-comment" className="sr-only">Add a comment</Label>
                   <Textarea
@@ -836,7 +838,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Share your thoughts..."
-                    rows={3}
+                    rows={2}
                     className="mb-3 text-sm sm:text-base"
                   />
                   <Button type="submit" disabled={!newComment.trim() || isSubmittingComment} className="w-full sm:w-auto">

@@ -186,26 +186,26 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   };
 
   return (
-    <Card
-      className={`
-        mb-6 shadow-lg
-        transition-all duration-500 ease-out
-        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}
-        hover:shadow-xl hover:-translate-y-1.5 hover:scale-[1.01]
-        ${className}
-      `}
-    >
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <Link href={`/post/${post.id}/${postSlug}`} className="group">
-            <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors duration-200">
-              {post.title}
-            </CardTitle>
-          </Link>
+    <Link href={`/post/${post.id}/${postSlug}`} className="block group">
+      <Card
+        className={`
+          mb-6
+          transition-opacity duration-500 ease-out
+          ${isVisible ? 'opacity-100' : 'opacity-0'}
+          border-none shadow-none
+          ${className}
+        `}
+      >
+        <div className="flex-1">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors duration-200">
+                {post.title}
+              </CardTitle>
           {canModify && (
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" disabled={isDeleting}>
+                <Button variant="ghost" size="icon" disabled={isDeleting} onClick={(e) => e.stopPropagation()}>
                   {isDeleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <MoreHorizontal className="h-5 w-5" />}
                 </Button>
               </DropdownMenuTrigger>
@@ -274,34 +274,53 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
             ))}
           </div>
         )}
-      </CardHeader>
-      <CardContent>
-        <p className="text-foreground/90 line-clamp-3 whitespace-pre-wrap">{post.content}</p>
-        <Link href={`/post/${post.id}/${postSlug}`} className="text-sm text-primary hover:underline hover:text-primary/80 transition-colors duration-200 mt-2 inline-block">
-            Read more
-        </Link>
-      </CardContent>
-      <CardFooter className="flex justify-between items-center pt-4 border-t">
-        <div className="flex gap-1 sm:gap-4 text-muted-foreground">
-          <Button variant="ghost" size="sm" className={`group ${isLiked ? 'text-primary hover:text-primary/90' : 'hover:text-primary'}`} onClick={handleLikeToggle} disabled={isLiking || !user}>
-            {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />}
-            {post.likes}
-          </Button>
-          <Button variant="ghost" size="sm" className={`group ${isDisliked ? 'text-primary hover:text-primary/90' : 'hover:text-primary'}`} onClick={handleDislikeToggle} disabled={isDisliking || !user}>
-            {isDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''}`} />}
-            {post.dislikes}
-          </Button>
-          <Link href={`/post/${post.id}/${postSlug}#comments`} passHref>
-            <Button variant="ghost" size="sm" className="group hover:text-primary">
-              <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.commentsCount}
+          </CardHeader>
+          <CardContent>
+            <p className="text-foreground/90 line-clamp-3 whitespace-pre-wrap">{post.content}</p>
+          </CardContent>
+          <CardFooter className="flex justify-between items-center pt-4 border-t">
+            <div className="flex gap-1 sm:gap-4 text-muted-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`group ${isLiked ? 'text-primary' : 'hover:text-primary'} transition-transform duration-150 active:scale-95`}
+                onClick={(e) => { e.stopPropagation(); handleLikeToggle(); }}
+                disabled={isLiking || !user}
+              >
+                {isLiking ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <ThumbsUp className="mr-1.5 h-4 w-4" />
+                )}
+                {post.likes}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`group ${isDisliked ? 'text-primary' : 'hover:text-primary'} transition-transform duration-150 active:scale-95`}
+                onClick={(e) => { e.stopPropagation(); handleDislikeToggle(); }}
+                disabled={isDisliking || !user}
+              >
+                {isDisliking ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <ThumbsDown className="mr-1.5 h-4 w-4" />
+                )}
+                {post.dislikes}
+              </Button>
+              <Link href={`/post/${post.id}/${postSlug}#comments`} passHref onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="sm" className="group hover:text-primary">
+                  <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.commentsCount}
+                </Button>
+              </Link>
+            </div>
+            <Button variant="ghost" size="sm" className="group hover:text-primary" disabled onClick={(e) => e.stopPropagation()}>
+              <Bookmark className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> Save
             </Button>
-          </Link>
+          </CardFooter>
         </div>
-        <Button variant="ghost" size="sm" className="group hover:text-primary" disabled> {/* TODO: Implement Save/Bookmark */}
-          <Bookmark className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> Save
-        </Button>
-      </CardFooter>
-    </Card>
+      </Card>
+    </Link>
   );
 }
 

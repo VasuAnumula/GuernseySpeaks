@@ -9,7 +9,7 @@ import type { Post } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PenSquare, Loader2, AlertTriangle } from 'lucide-react';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getPosts, type GetPostsFilters } from '@/services/postService';
 import { useAuth } from '@/hooks/use-auth';
@@ -19,7 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 // Define the canonical list of flairs
 const PREDEFINED_FLAIRS = ["Events", "News", "Discussion", "Casual", "Help", "Local Issue", "Question", "Recommendation", "Miscellaneous"];
 
-export default function HomePage() {
+function HomePageContent() {
   const [allFetchedPosts, setAllFetchedPosts] = useState<Post[]>([]);
   const [displayedPosts, setDisplayedPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
@@ -155,5 +155,13 @@ export default function HomePage() {
         </div>
       )}
     </MainLayout>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense>
+      <HomePageContent />
+    </Suspense>
   );
 }

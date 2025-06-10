@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { PREDEFINED_FLAIRS } from '@/constants/flairs';
 import { X, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
@@ -22,9 +23,7 @@ interface PostFormProps {
   postToEdit?: Post | null;
 }
 
-// Ensure this list is consistent and used as the single source of truth for predefined flairs.
-// This list is now also used in src/app/page.tsx for PostListFilters.
-const PREDEFINED_FLAIRS = ["Events", "News", "Discussion", "Casual", "Help", "Local Issue", "Question", "Recommendation", "Miscellaneous"];
+// PREDEFINED_FLAIRS imported from '@/constants/flairs'
 const MAX_FLAIRS = 5;
 
 export function PostForm({ postToEdit }: PostFormProps) {
@@ -39,6 +38,11 @@ export function PostForm({ postToEdit }: PostFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
 
   const isEditMode = !!postToEdit;
 
@@ -185,7 +189,16 @@ export function PostForm({ postToEdit }: PostFormProps) {
             <Label htmlFor="image-upload" className="text-lg">Image (optional)</Label>
             <Input id="image-upload" type="file" accept="image/*" onChange={handleImageChange} />
             {imagePreview && (
-              <Image src={imagePreview} alt="preview" width={500} height={300} className="mt-2 rounded-md" />
+              <div className="relative mt-2">
+                <Image src={imagePreview} alt="preview" width={500} height={300} className="rounded-md" />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2 rounded-full bg-background/80 p-1 hover:bg-background"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             )}
           </div>
           <div className="space-y-2">

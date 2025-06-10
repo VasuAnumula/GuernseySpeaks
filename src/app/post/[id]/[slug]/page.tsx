@@ -888,7 +888,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
         <Separator className="my-6 md:my-8" />
 
         <section id="comments" className="mb-8">
-          <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-6">Comments ({post.commentsCount})</h2>
+          <h2 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Comments ({post.commentsCount})</h2>
           {(authLoading) ? (
              <div className="flex justify-center items-center py-6">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -909,7 +909,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                       onBlur={() => { if (!newComment.trim() && !newCommentPreview) setIsCommentFocused(false); }}
                       className={`pr-20 text-sm sm:text-base transition-all ${isCommentFocused ? 'min-h-[120px]' : 'min-h-[40px]'}`}
                     />
-                    <label htmlFor="new-comment-image" className="absolute left-2 bottom-2 cursor-pointer text-muted-foreground hover:text-primary">
+                    <label htmlFor="new-comment-image" className="absolute right-10 bottom-2 cursor-pointer text-muted-foreground hover:text-primary">
                       <ImageIcon className="h-5 w-5" />
                     </label>
                     <input id="new-comment-image" type="file" accept="image/*" onChange={handleNewCommentImageChange} className="sr-only" />

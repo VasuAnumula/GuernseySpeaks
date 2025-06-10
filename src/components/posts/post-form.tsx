@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { PREDEFINED_FLAIRS } from '@/constants/flairs';
 import { X, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
@@ -22,9 +23,7 @@ interface PostFormProps {
   postToEdit?: Post | null;
 }
 
-// Ensure this list is consistent and used as the single source of truth for predefined flairs.
-// This list is now also used in src/app/page.tsx for PostListFilters.
-const PREDEFINED_FLAIRS = ["Events", "News", "Discussion", "Casual", "Help", "Local Issue", "Question", "Recommendation", "Miscellaneous"];
+// PREDEFINED_FLAIRS imported from '@/constants/flairs'
 const MAX_FLAIRS = 5;
 
 export function PostForm({ postToEdit }: PostFormProps) {

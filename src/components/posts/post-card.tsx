@@ -190,10 +190,10 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
     <Link href={`/post/${post.id}/${postSlug}`} className="block group">
       <Card
         className={`
-          mb-6
+          mb-4
           transition-opacity duration-500 ease-out
           ${isVisible ? 'opacity-100' : 'opacity-0'}
-          border-none shadow-none
+          shadow hover:shadow-md
           ${className}
         `}
       >

@@ -69,7 +69,7 @@ export function PostListFilters({
               id="search"
               type="text"
               placeholder="Keywords, title, author..."
-              className="pl-8" // Adjusted for potential icon, though Search icon is in Label
+              className="pl-8 h-12 rounded-lg bg-secondary"
               value={searchTerm}
               onChange={(e) => onSearchTermChange(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') onApplyFilters(); }}

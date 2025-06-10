@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { PREDEFINED_FLAIRS } from '@/constants/flairs';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, ImagePlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { createPost, updatePost, generateSlug, uploadPostImage } from '@/services/postService';
@@ -174,20 +174,27 @@ export function PostForm({ postToEdit }: PostFormProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="content" className="text-lg">Content</Label>
-            <Textarea
-              id="content"
-              placeholder="What's on your mind?"
-              required
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={10}
-              className="text-base"
-            />
-             <p className="text-xs text-muted-foreground">Markdown is not currently supported, but will be in a future update!</p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="image-upload" className="text-lg">Image (optional)</Label>
-            <Input id="image-upload" type="file" accept="image/*" onChange={handleImageChange} />
+            <div className="relative">
+              <Textarea
+                id="content"
+                placeholder="What's on your mind?"
+                required
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={10}
+                className="text-base pr-10"
+              />
+              <Input
+                id="image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+              <label htmlFor="image-upload" className="absolute bottom-2 right-2 cursor-pointer p-1 rounded hover:bg-accent">
+                <ImagePlus className="h-5 w-5 text-muted-foreground" />
+              </label>
+            </div>
             {imagePreview && (
               <div className="relative mt-2">
                 <Image src={imagePreview} alt="preview" width={500} height={300} className="rounded-md" />
@@ -200,6 +207,7 @@ export function PostForm({ postToEdit }: PostFormProps) {
                 </button>
               </div>
             )}
+            <p className="text-xs text-muted-foreground">Markdown is not currently supported, but will be in a future update!</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="flairs-select" className="text-lg">Flairs/Tags (up to {MAX_FLAIRS})</Label>

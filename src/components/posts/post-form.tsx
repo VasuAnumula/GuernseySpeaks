@@ -39,6 +39,11 @@ export function PostForm({ postToEdit }: PostFormProps) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
   const isEditMode = !!postToEdit;
 
   useEffect(() => {
@@ -184,7 +189,16 @@ export function PostForm({ postToEdit }: PostFormProps) {
             <Label htmlFor="image-upload" className="text-lg">Image (optional)</Label>
             <Input id="image-upload" type="file" accept="image/*" onChange={handleImageChange} />
             {imagePreview && (
-              <Image src={imagePreview} alt="preview" width={500} height={300} className="mt-2 rounded-md" />
+              <div className="relative mt-2">
+                <Image src={imagePreview} alt="preview" width={500} height={300} className="rounded-md" />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2 rounded-full bg-background/80 p-1 hover:bg-background"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             )}
           </div>
           <div className="space-y-2">

@@ -17,8 +17,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PenSquare, LogIn, LogOut, UserCircle, Loader2, ShieldCheck } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PREDEFINED_FLAIRS } from '@/constants/flairs';
 import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/shared/logo';
@@ -89,15 +87,54 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center gap-2 px-4 sm:px-6">
         <Logo />
-        <div className="relative hidden sm:block ml-4 flex-1 max-w-xs">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={headerSearch}
-            onChange={(e) => setHeaderSearch(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="Search..."
-            className="pl-7"
-          />
+        <div className="hidden sm:flex flex-1 justify-center items-center gap-2">
+          <div className="relative w-full max-w-xs">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={headerSearch}
+              onChange={(e) => setHeaderSearch(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search..."
+              className="pl-7 w-full"
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <ListFilter className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Flair</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => handleFlairChange('__ALL__')}>All Flairs</DropdownMenuItem>
+              {PREDEFINED_FLAIRS.map(flair => (
+                <DropdownMenuItem key={flair} onSelect={() => handleFlairChange(flair)}>
+                  {flair}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <ArrowDownUp className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Sort By</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => handleSortChange('createdAt_desc')}>
+                <CalendarDays className="mr-2 h-4 w-4" /> Newest
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleSortChange('createdAt_asc')}>
+                <CalendarDays className="mr-2 h-4 w-4" /> Oldest
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleSortChange('likes_desc')}>
+                <ThumbsUp className="mr-2 h-4 w-4" /> Popularity
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="hidden sm:flex items-center gap-2">
           <DropdownMenu>

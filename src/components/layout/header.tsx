@@ -89,17 +89,17 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center gap-2 px-4 sm:px-6">
         <Logo />
-        <div className="relative hidden sm:block ml-4 flex-1 max-w-xs">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={headerSearch}
-            onChange={(e) => setHeaderSearch(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="Search..."
-            className="pl-7"
-          />
-        </div>
-        <div className="hidden sm:flex items-center gap-2">
+        <div className="hidden sm:flex flex-1 justify-center items-center gap-2">
+          <div className="relative w-full max-w-xs">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={headerSearch}
+              onChange={(e) => setHeaderSearch(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search..."
+              className="pl-7 w-full"
+            />
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">

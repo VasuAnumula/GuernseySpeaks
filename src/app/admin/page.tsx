@@ -1,6 +1,8 @@
 
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { MainLayout } from '@/components/layout/main-layout';
 import { WeatherWidget } from '@/components/weather-widget';
 import { AdPlaceholder } from '@/components/ad-placeholder';

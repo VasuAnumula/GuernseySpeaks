@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Noto_Sans, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/auth-context';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const uiFont = Noto_Sans({
+  variable: '--font-ui',
   subsets: ['latin'],
 });
 
@@ -31,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${uiFont.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
           {children}
           <Toaster />

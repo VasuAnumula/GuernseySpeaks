@@ -4,8 +4,14 @@
 @tailwind utilities;
 
 body {
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui), -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "SF Pro Display", Arial, Helvetica, sans-serif;
   font-size: 0.875rem;
+}
+
+.vote-bar,
+.vote-number {
+  font-family: Arial, "Helvetica Neue", sans-serif;
 }
 
 @layer base {
@@ -17,19 +23,19 @@ body {
     --card-foreground: 0 0% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 15%;
-    --primary: 0 85% 45%; /* Guernsey Cross Red */
+    --primary: 125 25% 35%; /* Guernsey Grass Green */
     --primary-foreground: 0 0% 100%;
     --secondary: 40 30% 95%; /* Neutral cream for secondary elements */
     --secondary-foreground: 0 0% 15%;
     --muted: 40 30% 95%;
     --muted-foreground: 0 0% 35%;
-    --accent: 125 25% 35%; /* Guernsey Grass Green */
+    --accent: 0 85% 45%; /* Guernsey Cross Red */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 85%; /* Cool Gray */
     --input: 0 0% 85%;
-    --ring: 0 85% 45%; /* Focus ring matches primary */
+    --ring: 125 25% 35%; /* Focus ring matches primary */
     
     --chart-1: 90 40% 50%; /* Lighter version of primary green */
     --chart-2: 25 70% 60%; /* Lighter terracotta */
@@ -41,9 +47,9 @@ body {
     /* Sidebar specific colors */
     --sidebar-background: 40 30% 95%; /* Cream sidebar */
     --sidebar-foreground: 0 0% 15%;
-    --sidebar-primary: 125 25% 35%; /* Brand header green */
+    --sidebar-primary: 0 85% 45%; /* Brand header red */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 85% 45%; /* Red create button */
+    --sidebar-accent: 125 25% 35%; /* Green create button */
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 0 0% 85%;
     --sidebar-ring: 125 25% 35%;
@@ -56,26 +62,26 @@ body {
     --card-foreground: 0 0% 90%;
     --popover: 0 0% 15%;
     --popover-foreground: 0 0% 90%;
-    --primary: 0 85% 55%;
+    --primary: 125 25% 40%;
     --primary-foreground: 0 0% 15%;
     --secondary: 125 25% 25%;
     --secondary-foreground: 0 0% 90%;
     --muted: 0 0% 20%;
     --muted-foreground: 0 0% 70%;
-    --accent: 125 25% 40%;
+    --accent: 0 85% 55%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 60% 40%;
     --destructive-foreground: 0 0% 95%;
     --border: 0 0% 25%;
     --input: 0 0% 25%;
-    --ring: 0 85% 55%;
+    --ring: 125 25% 40%;
 
     /* Dark Sidebar specific colors */
     --sidebar-background: 0 0% 12%;
     --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 125 25% 40%;
+    --sidebar-primary: 0 85% 55%;
     --sidebar-primary-foreground: 0 0% 15%;
-    --sidebar-accent: 0 85% 55%;
+    --sidebar-accent: 125 25% 40%;
     --sidebar-accent-foreground: 0 0% 10%;
     --sidebar-border: 0 0% 22%;
     --sidebar-ring: 125 25% 40%;

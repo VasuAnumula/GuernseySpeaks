@@ -4,7 +4,7 @@ import { MainLayout } from '@/components/layout/main-layout';
 import { WeatherWidget } from '@/components/weather-widget';
 import { AdPlaceholder } from '@/components/ad-placeholder';
 import { PostCard } from '@/components/posts/post-card';
-import { PostListFilters } from '@/components/posts/post-list-filters';
+import { PREDEFINED_FLAIRS } from '@/constants/flairs';
 import type { Post } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -16,8 +16,6 @@ import { useAuth } from '@/hooks/use-auth';
 import type { OrderByDirection } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 
-// Define the canonical list of flairs
-const PREDEFINED_FLAIRS = ["Events", "News", "Discussion", "Casual", "Help", "Local Issue", "Question", "Recommendation", "Miscellaneous"];
 
 function HomePageContent() {
   const [allFetchedPosts, setAllFetchedPosts] = useState<Post[]>([]);
@@ -30,8 +28,8 @@ function HomePageContent() {
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
-  const [selectedFlair, setSelectedFlair] = useState(''); // Empty string means 'All Flairs'
-  const [sortBy, setSortBy] = useState('createdAt_desc'); // Default sort: newest
+  const [selectedFlair, setSelectedFlair] = useState(searchParams.get('flair') || '');
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'createdAt_desc');
 
   const fetchAndFilterPosts = useCallback(async () => {
     setLoadingPosts(true);
@@ -67,6 +65,8 @@ function HomePageContent() {
 
   useEffect(() => {
     setSearchTerm(searchParams.get('q') || '');
+    setSelectedFlair(searchParams.get('flair') || '');
+    setSortBy(searchParams.get('sort') || 'createdAt_desc');
   }, [searchParams]);
   
   // Client-side search logic, applied after posts are fetched and sorted by Firestore
@@ -89,27 +89,12 @@ function HomePageContent() {
     setAllFetchedPosts(prevPosts => prevPosts.filter(post => post.id !== deletedPostId));
   };
 
-  const handleApplyFilters = () => {
-    fetchAndFilterPosts();
-  };
   
   return (
     <MainLayout
       weatherWidget={<WeatherWidget />}
       adsWidget={<AdPlaceholder />}
     >
-
-      
-      <PostListFilters
-        searchTerm={searchTerm}
-        onSearchTermChange={setSearchTerm}
-        selectedFlair={selectedFlair}
-        onFlairChange={setSelectedFlair}
-        sortBy={sortBy}
-        onSortByChange={setSortBy}
-        onApplyFilters={handleApplyFilters}
-        availableFlairs={PREDEFINED_FLAIRS} // Pass predefined flairs
-      />
 
       {loadingPosts && (
         <div className="flex justify-center items-center py-10">

@@ -294,7 +294,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
                 {isLiking ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : (
-                  <ThumbsUp className={`mr-1.5 h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+                  <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />
                 )}
                 {post.likes}
               </Button>
@@ -308,7 +308,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
                 {isDisliking ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : (
-                  <ThumbsDown className={`mr-1.5 h-4 w-4 ${isDisliked ? 'fill-current' : ''}`} />
+                  <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''}`} />
                 )}
                 {post.dislikes}
               </Button>

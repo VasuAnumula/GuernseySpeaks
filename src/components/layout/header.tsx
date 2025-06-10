@@ -107,9 +107,9 @@ export function Header() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Flair</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => handleFlairChange('__ALL__')}>All Flairs</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleFlairChange('__ALL__')}>All Flairs</DropdownMenuItem>
               {PREDEFINED_FLAIRS.map(flair => (
-                <DropdownMenuItem key={flair} onSelect={() => handleFlairChange(flair)}>
+                <DropdownMenuItem key={flair} onClick={() => handleFlairChange(flair)}>
                   {flair}
                 </DropdownMenuItem>
               ))}
@@ -124,13 +124,13 @@ export function Header() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Sort By</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => handleSortChange('createdAt_desc')}>
+              <DropdownMenuItem onClick={() => handleSortChange('createdAt_desc')}>
                 <CalendarDays className="mr-2 h-4 w-4" /> Newest
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleSortChange('createdAt_asc')}>
+              <DropdownMenuItem onClick={() => handleSortChange('createdAt_asc')}>
                 <CalendarDays className="mr-2 h-4 w-4" /> Oldest
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleSortChange('likes_desc')}>
+              <DropdownMenuItem onClick={() => handleSortChange('likes_desc')}>
                 <ThumbsUp className="mr-2 h-4 w-4" /> Popularity
               </DropdownMenuItem>
             </DropdownMenuContent>

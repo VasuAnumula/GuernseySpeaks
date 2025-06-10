@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PenSquare, LogIn, LogOut, UserCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { PREDEFINED_FLAIRS } from '@/constants/flairs';
 import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/shared/logo';
@@ -137,6 +138,7 @@ export function Header() {
           </DropdownMenu>
         </div>
         <nav className="ml-auto flex items-center gap-2 md:gap-4">
+          <ThemeToggle />
           {user && (
             <Button asChild size="sm" variant="ghost" className="px-2 md:px-3">
               <Link href="/submit">

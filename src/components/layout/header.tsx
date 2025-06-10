@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PenSquare, LogIn, LogOut, UserCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { PREDEFINED_FLAIRS } from '@/constants/flairs';
 import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/shared/logo';
@@ -107,9 +108,9 @@ export function Header() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Flair</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => handleFlairChange('__ALL__')}>All Flairs</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleFlairChange('__ALL__')}>All Flairs</DropdownMenuItem>
               {PREDEFINED_FLAIRS.map(flair => (
-                <DropdownMenuItem key={flair} onSelect={() => handleFlairChange(flair)}>
+                <DropdownMenuItem key={flair} onClick={() => handleFlairChange(flair)}>
                   {flair}
                 </DropdownMenuItem>
               ))}
@@ -124,58 +125,20 @@ export function Header() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Sort By</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => handleSortChange('createdAt_desc')}>
+              <DropdownMenuItem onClick={() => handleSortChange('createdAt_desc')}>
                 <CalendarDays className="mr-2 h-4 w-4" /> Newest
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleSortChange('createdAt_asc')}>
+              <DropdownMenuItem onClick={() => handleSortChange('createdAt_asc')}>
                 <CalendarDays className="mr-2 h-4 w-4" /> Oldest
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleSortChange('likes_desc')}>
-                <ThumbsUp className="mr-2 h-4 w-4" /> Popularity
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <div className="hidden sm:flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <ListFilter className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Flair</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => handleFlairChange('__ALL__')}>All Flairs</DropdownMenuItem>
-              {PREDEFINED_FLAIRS.map(flair => (
-                <DropdownMenuItem key={flair} onSelect={() => handleFlairChange(flair)}>
-                  {flair}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <ArrowDownUp className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Sort By</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => handleSortChange('createdAt_desc')}>
-                <CalendarDays className="mr-2 h-4 w-4" /> Newest
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleSortChange('createdAt_asc')}>
-                <CalendarDays className="mr-2 h-4 w-4" /> Oldest
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleSortChange('likes_desc')}>
+              <DropdownMenuItem onClick={() => handleSortChange('likes_desc')}>
                 <ThumbsUp className="mr-2 h-4 w-4" /> Popularity
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
         <nav className="ml-auto flex items-center gap-2 md:gap-4">
+          <ThemeToggle />
           {user && (
             <Button asChild size="sm" variant="ghost" className="px-2 md:px-3">
               <Link href="/submit">

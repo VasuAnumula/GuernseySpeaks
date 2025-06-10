@@ -367,11 +367,11 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
       <div className="mt-2 px-1">
         <div className="flex items-center">
             <Button variant="ghost" size="sm" className={`group -ml-2 ${isCommentLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary'} transition-transform duration-150 active:scale-95`} onClick={handleCommentLikeToggle} disabled={isCommentLiking}>
-                {isCommentLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 ${isCommentLiked ? 'fill-current' : ''}`} />}
+                {isCommentLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isCommentLiked ? 'fill-current' : ''}`} />}
                 {comment.likes}
             </Button>
             <Button variant="ghost" size="sm" className={`group ${isCommentDisliked ? 'text-primary' : 'text-muted-foreground hover:text-primary'} transition-transform duration-150 active:scale-95`} onClick={handleCommentDislikeToggle} disabled={isCommentDisliking}>
-                {isCommentDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 ${isCommentDisliked ? 'fill-current' : ''}`} />}
+                {isCommentDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isCommentDisliked ? 'fill-current' : ''}`} />}
                 {comment.dislikes}
             </Button>
             {user && (

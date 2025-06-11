@@ -24,7 +24,8 @@ interface PostFormProps {
 }
 
 // PREDEFINED_FLAIRS imported from '@/constants/flairs'
-const MAX_FLAIRS = 5;
+// Only one flair per post
+const MAX_FLAIRS = 1;
 
 export function PostForm({ postToEdit }: PostFormProps) {
   const { user } = useAuth();
@@ -92,6 +93,10 @@ export function PostForm({ postToEdit }: PostFormProps) {
     }
     if (!title.trim() || !content.trim()) {
         toast({ title: "Missing Fields", description: "Title and content are required.", variant: "destructive" });
+        return;
+    }
+    if (flairs.length !== 1) {
+        toast({ title: "Flair Required", description: "Please select exactly one flair.", variant: "destructive" });
         return;
     }
     setIsSubmitting(true);
@@ -210,7 +215,7 @@ export function PostForm({ postToEdit }: PostFormProps) {
             <p className="text-xs text-muted-foreground">Markdown is not currently supported, but will be in a future update!</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="flairs-select" className="text-lg">Flairs/Tags (up to {MAX_FLAIRS})</Label>
+            <Label htmlFor="flairs-select" className="text-lg">Flair <span className="text-destructive">*</span></Label>
             <div className="flex items-center gap-2">
               <Select
                 value={selectedFlairToAdd}
@@ -240,7 +245,7 @@ export function PostForm({ postToEdit }: PostFormProps) {
             {flairs.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {flairs.map(flair => (
-                  <Badge key={flair} variant="secondary" className="text-sm py-1 px-2 bg-accent/20 text-accent-foreground">
+                  <Badge key={flair} className="text-sm py-1 px-2 bg-red-600 text-white">
                     {flair}
                     <button type="button" onClick={() => handleRemoveFlair(flair)} className="ml-1.5 appearance-none border-none bg-transparent cursor-pointer p-0.5 rounded-full hover:bg-destructive/50">
                       <X className="h-3 w-3" />
@@ -250,12 +255,12 @@ export function PostForm({ postToEdit }: PostFormProps) {
               </div>
             )}
             {flairs.length >= MAX_FLAIRS && (
-                <p className="text-xs text-muted-foreground">Maximum {MAX_FLAIRS} flairs reached.</p>
+                <p className="text-xs text-muted-foreground">Only one flair allowed.</p>
             )}
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full text-lg py-3" disabled={isSubmitting || !title.trim() || !content.trim()}>
+          <Button type="submit" className="w-full text-lg py-3" disabled={isSubmitting || !title.trim() || !content.trim() || flairs.length !== 1}>
             {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
             {isEditMode ? "Update Post" : "Submit Post"}
           </Button>

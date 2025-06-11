@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc, serverTimestamp, type Timestamp } from 'firebase/f
 
 const PRIVACY_POLICY_DOC_PATH = 'siteContent/privacyPolicy';
 const DATA_DELETION_POLICY_DOC_PATH = 'siteContent/dataDeletionPolicy';
+const TERMS_AND_CONDITIONS_DOC_PATH = 'siteContent/termsAndConditions';
 
 interface SiteContentData {
   content: string;
@@ -34,6 +35,7 @@ const DEFAULT_DATA_DELETION_POLICY = `<h1>Request Data Deletion</h1>
   and confirm via email when it’s complete.
 </p>
 <p>Please replace privacy@example.com with your actual contact email address.</p>`;
+const DEFAULT_TERMS_AND_CONDITIONS = 'Terms and Conditions content has not been set yet.';
 
 /**
  * Fetches the privacy policy content from Firestore.
@@ -112,5 +114,44 @@ export async function updateDataDeletionPolicy(newContent: string): Promise<void
   } catch (error) {
     console.error('Error updating data deletion policy:', error);
     throw new Error('Failed to update data deletion policy.');
+  }
+}
+
+/**
+ * Fetches the terms and conditions content from Firestore.
+ * @returns The terms and conditions content as a string, or a default message if not found.
+ */
+export async function getTermsAndConditions(): Promise<string> {
+  try {
+    const docRef = doc(db, TERMS_AND_CONDITIONS_DOC_PATH);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data() as SiteContentData;
+      return data.content || DEFAULT_TERMS_AND_CONDITIONS;
+    } else {
+      await setDoc(docRef, { content: DEFAULT_TERMS_AND_CONDITIONS, updatedAt: serverTimestamp() });
+      return DEFAULT_TERMS_AND_CONDITIONS;
+    }
+  } catch (error) {
+    console.error('Error fetching terms and conditions:', error);
+    return 'Could not load the terms and conditions due to an error. Please try again later.';
+  }
+}
+
+/**
+ * Updates the terms and conditions content in Firestore.
+ * @param newContent The new terms and conditions content.
+ */
+export async function updateTermsAndConditions(newContent: string): Promise<void> {
+  try {
+    const docRef = doc(db, TERMS_AND_CONDITIONS_DOC_PATH);
+    await setDoc(docRef, {
+      content: newContent,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.error('Error updating terms and conditions:', error);
+    throw new Error('Failed to update terms and conditions.');
   }
 }

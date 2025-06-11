@@ -269,7 +269,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
         {post.flairs && post.flairs.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {post.flairs.map((flair) => (
-              <Badge key={flair} variant="secondary" className="bg-accent/20 text-accent-foreground hover:bg-accent/30 cursor-pointer transition-colors duration-200">
+              <Badge key={flair} className="bg-red-600 text-white cursor-pointer transition-colors duration-200">
                 {flair}
               </Badge>
             ))}

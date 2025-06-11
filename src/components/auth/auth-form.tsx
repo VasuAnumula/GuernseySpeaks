@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Chrome, Facebook } from 'lucide-react';
+import Link from 'next/link';
 
 export function AuthForm() {
   const [loginEmail, setLoginEmail] = useState('');
@@ -19,6 +21,7 @@ export function AuthForm() {
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerDisplayName, setRegisterDisplayName] = useState('');
   const [registerName, setRegisterName] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authAction, setAuthAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +52,10 @@ export function AuthForm() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!acceptedTerms) {
+      setError('You must accept the terms and conditions to register.');
+      return;
+    }
     setIsSubmitting(true);
     setAuthAction('email');
     setError(null);
@@ -171,6 +178,13 @@ export function AuthForm() {
                 <div className="space-y-2">
                   <Label htmlFor="register-password">Password</Label>
                   <Input id="register-password" type="password" required value={registerPassword} onChange={(e) => setRegisterPassword(e.target.value)} />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="accept-terms" checked={acceptedTerms} onCheckedChange={(checked) => setAcceptedTerms(!!checked)} />
+                  <Label htmlFor="accept-terms" className="text-sm">
+                    I agree to the{' '}
+                    <Link href="/terms" className="underline">Terms &amp; Conditions</Link>
+                  </Label>
                 </div>
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </CardContent>

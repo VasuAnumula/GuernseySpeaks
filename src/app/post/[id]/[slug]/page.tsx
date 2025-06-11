@@ -840,7 +840,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
             {post.flairs && post.flairs.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {post.flairs.map((flair) => (
-                  <Badge key={flair} variant="secondary" className="bg-accent/20 text-accent-foreground hover:bg-accent/30">
+                  <Badge key={flair} className="bg-red-600 text-white">
                     {flair}
                   </Badge>
                 ))}

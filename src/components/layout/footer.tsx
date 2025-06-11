@@ -10,7 +10,7 @@ export function Footer() {
           <Link href="/" className="hover:text-primary transition-colors">Home</Link>
           <Link href="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
           <Link href="/data-deletion" className="hover:text-primary transition-colors">Data Deletion</Link>
-          {/* Add other footer links here, e.g., Terms of Service */}
+          <Link href="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link>
         </nav>
         <p className="mt-2">Connect with your island community.</p>
       </div>

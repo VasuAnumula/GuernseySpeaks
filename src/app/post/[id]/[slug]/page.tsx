@@ -909,10 +909,23 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                       onBlur={() => { if (!newComment.trim() && !newCommentPreview) setIsCommentFocused(false); }}
                     className={`pr-24 text-sm sm:text-base transition-all ${isCommentFocused ? 'min-h-[120px]' : 'min-h-[40px]'}`}
                     />
-                    <label htmlFor="new-comment-image" className="absolute right-20 bottom-2 cursor-pointer text-muted-foreground hover:text-primary">
-                      <ImageIcon className="h-5 w-5" />
-                    </label>
-                    <input id="new-comment-image" type="file" accept="image/*" onChange={handleNewCommentImageChange} className="sr-only" />
+                    {(isCommentFocused || newComment.trim() || newCommentPreview) && (
+                      <>
+                        <label
+                          htmlFor="new-comment-image"
+                          className="absolute right-20 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary"
+                        >
+                          <ImageIcon className="h-5 w-5" />
+                        </label>
+                        <input
+                          id="new-comment-image"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleNewCommentImageChange}
+                          className="sr-only"
+                        />
+                      </>
+                    )}
                     {(isCommentFocused || newComment.trim()) && (
                       <Button
                         type="submit"

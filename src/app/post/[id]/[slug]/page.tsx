@@ -769,8 +769,8 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       weatherWidget={<WeatherWidget />}
       adsWidget={<AdPlaceholder />}
     >
-      <article className="w-full max-w-3xl mx-auto">
-        <Card className="mb-6 md:mb-8 border-none shadow-none">
+        <article className="w-full max-w-3xl mx-auto">
+          <Card className="mb-6 md:mb-8 border-none shadow">
           <CardHeader className="p-4 sm:p-5 md:p-6">
             <div className="flex items-start justify-between">
               <CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary break-words">
@@ -907,9 +907,9 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                       rows={isCommentFocused ? 4 : 1}
                       onFocus={() => setIsCommentFocused(true)}
                       onBlur={() => { if (!newComment.trim() && !newCommentPreview) setIsCommentFocused(false); }}
-                      className={`pr-20 text-sm sm:text-base transition-all ${isCommentFocused ? 'min-h-[120px]' : 'min-h-[40px]'}`}
+                    className={`pr-24 text-sm sm:text-base transition-all ${isCommentFocused ? 'min-h-[120px]' : 'min-h-[40px]'}`}
                     />
-                    <label htmlFor="new-comment-image" className="absolute right-10 bottom-2 cursor-pointer text-muted-foreground hover:text-primary">
+                    <label htmlFor="new-comment-image" className="absolute right-20 bottom-2 cursor-pointer text-muted-foreground hover:text-primary">
                       <ImageIcon className="h-5 w-5" />
                     </label>
                     <input id="new-comment-image" type="file" accept="image/*" onChange={handleNewCommentImageChange} className="sr-only" />

@@ -287,28 +287,28 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
               <Button
                 variant="ghost"
                 size="sm"
-                className={`group ${isLiked ? 'text-primary' : 'hover:text-primary'} transition-transform duration-150 active:scale-95`}
+                className={`group ${isLiked ? 'text-primary' : 'hover:text-primary hover:bg-primary/10'} transition-transform duration-150 active:scale-95`}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLikeToggle(); }}
                 disabled={isLiking || !user}
               >
                 {isLiking ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : (
-                  <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''}`} />
+                  <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''} group-hover:text-primary`} />
                 )}
                 {post.likes}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                className={`group ${isDisliked ? 'text-primary' : 'hover:text-primary'} transition-transform duration-150 active:scale-95`}
+                className={`group ${isDisliked ? 'text-primary' : 'hover:text-primary hover:bg-primary/10'} transition-transform duration-150 active:scale-95`}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDislikeToggle(); }}
                 disabled={isDisliking || !user}
               >
                 {isDisliking ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : (
-                  <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''}`} />
+                  <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''} group-hover:text-primary`} />
                 )}
                 {post.dislikes}
               </Button>

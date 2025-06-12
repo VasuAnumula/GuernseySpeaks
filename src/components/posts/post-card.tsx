@@ -287,7 +287,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
               <Button
                 variant="ghost"
                 size="sm"
-                className={`group ${isLiked ? 'text-primary' : 'hover:text-primary hover:bg-primary/10'} transition-transform duration-150 active:scale-95`}
+                className={`group ${isLiked ? 'text-primary' : 'hover:text-primary hover:bg-transparent'} transition-transform duration-150 active:scale-95`}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLikeToggle(); }}
                 disabled={isLiking || !user}
               >
@@ -301,7 +301,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
               <Button
                 variant="ghost"
                 size="sm"
-                className={`group ${isDisliked ? 'text-primary' : 'hover:text-primary hover:bg-primary/10'} transition-transform duration-150 active:scale-95`}
+                className={`group ${isDisliked ? 'text-primary' : 'hover:text-primary hover:bg-transparent'} transition-transform duration-150 active:scale-95`}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDislikeToggle(); }}
                 disabled={isDisliking || !user}
               >

@@ -277,10 +277,10 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
 
   return (
     <div
-      className={`relative ${commentNode.depth > 0 ? 'border-l border-border pl-4' : ''} ${!isLastChild || (commentNode.replies && commentNode.replies.length > 0) ? 'mb-3 pb-3' : 'mb-3'}`}
+      className="relative border border-border rounded-md bg-background mb-3"
       style={{ marginLeft: `${commentNode.depth * 20}px` }} // Indentation for replies
     >
-      <div className="p-2">
+      <div className="p-3">
         <div className="flex items-start justify-between mb-1">
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
@@ -356,7 +356,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-foreground/90 whitespace-pre-wrap text-sm">{comment.content}</p>
+            <p className="text-foreground/90 whitespace-pre-wrap text-xs sm:text-sm">{comment.content}</p>
             {comment.imageUrl && (
               <Image src={comment.imageUrl} alt="comment image" width={500} height={300} className="rounded" />
             )}
@@ -366,11 +366,11 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
       
       <div className="mt-2 px-1">
         <div className="flex items-center">
-            <Button variant="ghost" size="sm" className={`group -ml-2 ${isCommentLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'} transition-transform duration-150 active:scale-95`} onClick={handleCommentLikeToggle} disabled={isCommentLiking}>
+            <Button variant="ghost" size="sm" className={`group -ml-2 ${isCommentLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-transparent'} transition-transform duration-150 active:scale-95`} onClick={handleCommentLikeToggle} disabled={isCommentLiking}>
                 {isCommentLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isCommentLiked ? 'fill-current' : ''} group-hover:text-primary`} />}
                 {comment.likes}
             </Button>
-            <Button variant="ghost" size="sm" className={`group ${isCommentDisliked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'} transition-transform duration-150 active:scale-95`} onClick={handleCommentDislikeToggle} disabled={isCommentDisliking}>
+            <Button variant="ghost" size="sm" className={`group ${isCommentDisliked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-transparent'} transition-transform duration-150 active:scale-95`} onClick={handleCommentDislikeToggle} disabled={isCommentDisliking}>
                 {isCommentDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isCommentDisliked ? 'fill-current' : ''} group-hover:text-primary`} />}
                 {comment.dislikes}
             </Button>
@@ -860,7 +860,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`group ${isLiked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50 hover:bg-primary/10'} transition-transform duration-150 active:scale-95`}
+                className={`group ${isLiked ? 'text-primary border-primary hover:bg-transparent' : 'hover:text-primary hover:border-primary/50 hover:bg-transparent'} transition-transform duration-150 active:scale-95`}
                 onClick={handleLikeToggle}
                 disabled={isLiking || !user || authLoading}
               >
@@ -870,7 +870,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`group ${isDisliked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50 hover:bg-primary/10'} transition-transform duration-150 active:scale-95`}
+                className={`group ${isDisliked ? 'text-primary border-primary hover:bg-transparent' : 'hover:text-primary hover:border-primary/50 hover:bg-transparent'} transition-transform duration-150 active:scale-95`}
                 onClick={handleDislikeToggle}
                 disabled={isDisliking || !user || authLoading}
               >
@@ -885,9 +885,9 @@ export default function PostPage({ params }: { params: PostPageParams }) {
           </CardFooter>
         </Card>
 
-        <Separator className="my-6 md:my-8" />
+        <Separator className="my-4 md:my-6" />
 
-        <section id="comments" className="mb-8">
+        <section id="comments" className="mb-6">
           <h2 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Comments ({post.commentsCount})</h2>
           {(authLoading) ? (
              <div className="flex justify-center items-center py-6">
@@ -909,16 +909,29 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                       onBlur={() => { if (!newComment.trim() && !newCommentPreview) setIsCommentFocused(false); }}
                     className={`pr-24 text-sm sm:text-base transition-all ${isCommentFocused ? 'min-h-[120px]' : 'min-h-[40px]'}`}
                     />
-                    <label htmlFor="new-comment-image" className="absolute right-20 bottom-2 cursor-pointer text-muted-foreground hover:text-primary">
-                      <ImageIcon className="h-5 w-5" />
-                    </label>
-                    <input id="new-comment-image" type="file" accept="image/*" onChange={handleNewCommentImageChange} className="sr-only" />
+                    {(isCommentFocused || newComment.trim() || newCommentPreview) && (
+                      <>
+                        <label
+                          htmlFor="new-comment-image"
+                          className="absolute right-20 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary"
+                        >
+                          <ImageIcon className="h-5 w-5" />
+                        </label>
+                        <input
+                          id="new-comment-image"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleNewCommentImageChange}
+                          className="sr-only"
+                        />
+                      </>
+                    )}
                     {(isCommentFocused || newComment.trim()) && (
                       <Button
                         type="submit"
                         size="sm"
                         disabled={!newComment.trim() || isSubmittingComment}
-                        className="absolute right-2 bottom-2 h-7 px-3"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 px-3"
                       >
                         {isSubmittingComment ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
                         Post

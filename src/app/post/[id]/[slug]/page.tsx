@@ -366,11 +366,11 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
       
       <div className="mt-2 px-1">
         <div className="flex items-center">
-            <Button variant="ghost" size="sm" className={`group -ml-2 ${isCommentLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'} transition-transform duration-150 active:scale-95`} onClick={handleCommentLikeToggle} disabled={isCommentLiking}>
+            <Button variant="ghost" size="sm" className={`group -ml-2 ${isCommentLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-transparent'} transition-transform duration-150 active:scale-95`} onClick={handleCommentLikeToggle} disabled={isCommentLiking}>
                 {isCommentLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isCommentLiked ? 'fill-current' : ''} group-hover:text-primary`} />}
                 {comment.likes}
             </Button>
-            <Button variant="ghost" size="sm" className={`group ${isCommentDisliked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'} transition-transform duration-150 active:scale-95`} onClick={handleCommentDislikeToggle} disabled={isCommentDisliking}>
+            <Button variant="ghost" size="sm" className={`group ${isCommentDisliked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-transparent'} transition-transform duration-150 active:scale-95`} onClick={handleCommentDislikeToggle} disabled={isCommentDisliking}>
                 {isCommentDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isCommentDisliked ? 'fill-current' : ''} group-hover:text-primary`} />}
                 {comment.dislikes}
             </Button>
@@ -860,7 +860,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`group ${isLiked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50 hover:bg-primary/10'} transition-transform duration-150 active:scale-95`}
+                className={`group ${isLiked ? 'text-primary border-primary hover:bg-transparent' : 'hover:text-primary hover:border-primary/50 hover:bg-transparent'} transition-transform duration-150 active:scale-95`}
                 onClick={handleLikeToggle}
                 disabled={isLiking || !user || authLoading}
               >
@@ -870,7 +870,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`group ${isDisliked ? 'text-primary border-primary hover:bg-primary/10' : 'hover:text-primary hover:border-primary/50 hover:bg-primary/10'} transition-transform duration-150 active:scale-95`}
+                className={`group ${isDisliked ? 'text-primary border-primary hover:bg-transparent' : 'hover:text-primary hover:border-primary/50 hover:bg-transparent'} transition-transform duration-150 active:scale-95`}
                 onClick={handleDislikeToggle}
                 disabled={isDisliking || !user || authLoading}
               >
@@ -913,7 +913,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                       <>
                         <label
                           htmlFor="new-comment-image"
-                          className="absolute right-20 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary"
+                          className="absolute right-20 bottom-2 cursor-pointer text-muted-foreground hover:text-primary"
                         >
                           <ImageIcon className="h-5 w-5" />
                         </label>

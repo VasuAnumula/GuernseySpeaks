@@ -277,10 +277,10 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
 
   return (
     <div
-      className={`relative ${commentNode.depth > 0 ? 'border-l border-border pl-4' : ''} ${!isLastChild || (commentNode.replies && commentNode.replies.length > 0) ? 'mb-3 pb-3' : 'mb-3'}`}
+      className="relative border border-border rounded-md bg-background mb-3"
       style={{ marginLeft: `${commentNode.depth * 20}px` }} // Indentation for replies
     >
-      <div className="p-2">
+      <div className="p-3">
         <div className="flex items-start justify-between mb-1">
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
@@ -356,7 +356,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-foreground/90 whitespace-pre-wrap text-sm">{comment.content}</p>
+            <p className="text-foreground/90 whitespace-pre-wrap text-xs sm:text-sm">{comment.content}</p>
             {comment.imageUrl && (
               <Image src={comment.imageUrl} alt="comment image" width={500} height={300} className="rounded" />
             )}
@@ -885,9 +885,9 @@ export default function PostPage({ params }: { params: PostPageParams }) {
           </CardFooter>
         </Card>
 
-        <Separator className="my-6 md:my-8" />
+        <Separator className="my-4 md:my-6" />
 
-        <section id="comments" className="mb-8">
+        <section id="comments" className="mb-6">
           <h2 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Comments ({post.commentsCount})</h2>
           {(authLoading) ? (
              <div className="flex justify-center items-center py-6">
@@ -913,7 +913,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                       <>
                         <label
                           htmlFor="new-comment-image"
-                          className="absolute right-20 bottom-2 cursor-pointer text-muted-foreground hover:text-primary"
+                          className="absolute right-20 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary"
                         >
                           <ImageIcon className="h-5 w-5" />
                         </label>
@@ -931,7 +931,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                         type="submit"
                         size="sm"
                         disabled={!newComment.trim() || isSubmittingComment}
-                        className="absolute right-2 bottom-2 h-7 px-3"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 px-3"
                       >
                         {isSubmittingComment ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
                         Post

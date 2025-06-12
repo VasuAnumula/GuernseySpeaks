@@ -155,8 +155,14 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
 
   const handleReplyImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    if (file && file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Image Too Large', description: 'Please select an image under 5MB.', variant: 'destructive' });
+      e.target.value = '';
+      return;
+    }
     setReplyImage(file);
     setReplyPreview(file ? URL.createObjectURL(file) : null);
+    e.target.value = '';
   };
 
   const handleReplySubmit = async (e: React.FormEvent) => {
@@ -654,8 +660,14 @@ export default function PostPage({ params }: { params: PostPageParams }) {
 
   const handleNewCommentImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    if (file && file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Image Too Large', description: 'Please select an image under 5MB.', variant: 'destructive' });
+      e.target.value = '';
+      return;
+    }
     setNewCommentImage(file);
     setNewCommentPreview(file ? URL.createObjectURL(file) : null);
+    e.target.value = '';
   };
 
 
@@ -907,13 +919,13 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                       rows={isCommentFocused ? 4 : 1}
                       onFocus={() => setIsCommentFocused(true)}
                       onBlur={() => { if (!newComment.trim() && !newCommentPreview) setIsCommentFocused(false); }}
-                    className={`pr-24 text-sm sm:text-base transition-all ${isCommentFocused ? 'min-h-[120px]' : 'min-h-[40px]'}`}
+                    className={`pr-20 text-sm sm:text-base transition-all ${isCommentFocused ? 'min-h-[120px]' : 'min-h-[40px]'}`}
                     />
                     {(isCommentFocused || newComment.trim() || newCommentPreview) && (
                       <>
                         <label
                           htmlFor="new-comment-image"
-                          className="absolute right-20 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary"
+                          className="absolute right-16 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary"
                         >
                           <ImageIcon className="h-5 w-5" />
                         </label>

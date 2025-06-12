@@ -81,8 +81,14 @@ export function PostForm({ postToEdit }: PostFormProps) {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    if (file && file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Image Too Large', description: 'Please select an image under 5MB.', variant: 'destructive' });
+      e.target.value = '';
+      return;
+    }
     setImageFile(file);
     setImagePreview(file ? URL.createObjectURL(file) : null);
+    e.target.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -30,12 +30,16 @@ export function MainLayout({ weatherWidget, children, adsWidget }: MainLayoutPro
           <div className="hidden md:block">
             {weatherWidget}
           </div>
-          {/* Weather wrapped in accordion on mobile */}
+          {/* Widgets wrapped in accordion on mobile */}
           <div className="md:hidden">
             <Accordion type="single" collapsible>
               <AccordionItem value="weather">
                 <AccordionTrigger>Weather</AccordionTrigger>
                 <AccordionContent>{weatherWidget}</AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="ads">
+                <AccordionTrigger>Advertisements</AccordionTrigger>
+                <AccordionContent>{adsWidget}</AccordionContent>
               </AccordionItem>
             </Accordion>
           </div>
@@ -51,10 +55,6 @@ export function MainLayout({ weatherWidget, children, adsWidget }: MainLayoutPro
         <aside className="mt-6 hidden w-full md:mt-0 md:block md:w-64 lg:w-72 xl:w-80 flex-shrink-0 rounded-lg p-4 md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto">
           {adsWidget}
         </aside>
-      </div>
-      {/* Mobile Bottom Ad Banner */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background p-4">
-        {adsWidget}
       </div>
       <Footer />
     </div>

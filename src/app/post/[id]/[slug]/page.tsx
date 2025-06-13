@@ -392,7 +392,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
                 className="pr-10 text-sm min-h-[40px]"
                 disabled={isSubmittingReply}
               />
-              <label htmlFor={`reply-image-${comment.id}`} className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary">
+              <label htmlFor={`reply-image-${comment.id}`} className="absolute bottom-2 right-2 cursor-pointer text-muted-foreground hover:text-primary">
                 <ImageIcon className="h-4 w-4" />
               </label>
               <input id={`reply-image-${comment.id}`} type="file" accept="image/*" onChange={handleReplyImageChange} className="sr-only" />
@@ -913,7 +913,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                       <>
                         <label
                           htmlFor="new-comment-image"
-                          className="absolute right-20 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-primary"
+                          className="absolute bottom-2 right-20 cursor-pointer text-muted-foreground hover:text-primary"
                         >
                           <ImageIcon className="h-5 w-5" />
                         </label>
@@ -931,7 +931,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                         type="submit"
                         size="sm"
                         disabled={!newComment.trim() || isSubmittingComment}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 px-3"
+                        className="absolute bottom-2 right-2 h-7 px-3"
                       >
                         {isSubmittingComment ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
                         Post

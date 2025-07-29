@@ -193,7 +193,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         console.debug(`[AuthContext] handleSocialSignIn (${providerName}): User document FOUND for UID: ${firebaseUser.uid}. Ensuring data consistency.`);
         const existingData = userDocSnap.data() as User;
-        const updateData: Partial<User> = { updatedAt: serverTimestamp() as Timestamp };
+        const updateData: Partial<User & { updatedAt: Timestamp }> = { updatedAt: serverTimestamp() as Timestamp };
         let changedInFirestore = false;
         let authProfileNeedsUpdate = false;
         const authUpdatePayload: { displayName?: string | null; photoURL?: string | null } = {};

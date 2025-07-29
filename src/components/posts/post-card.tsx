@@ -79,7 +79,11 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   let formattedDate = "Unknown date";
   if (post.createdAt) {
     try {
-      const date = post.createdAt instanceof Date ? post.createdAt : new Date(post.createdAt);
+      const date = post.createdAt instanceof Date 
+        ? post.createdAt 
+        : 'toDate' in post.createdAt 
+          ? post.createdAt.toDate() 
+          : new Date(post.createdAt);
       formattedDate = formatDistanceToNow(date, { addSuffix: true });
     } catch (e) {
       console.error("Error formatting date:", e, post.createdAt);

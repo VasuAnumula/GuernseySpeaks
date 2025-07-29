@@ -28,7 +28,7 @@ async function parseRss(xml: string, sourceName: string, limit: number = 5): Pro
   const channel = parsed?.rss?.channel;
   const items = channel?.item ? (Array.isArray(channel.item) ? channel.item : [channel.item]) : [];
 
-  return items.slice(0, limit).reduce<CustomNewsArticle[]>((acc, item) => {
+  return items.slice(0, limit).reduce((acc: CustomNewsArticle[], item: any) => {
     if (item.title && item.link) {
       acc.push({
         sourceName,

@@ -14,12 +14,12 @@ interface CustomNewsArticle {
 
 const FEEDS = [
   {
-    sourceName: 'Bailiwick Express',
-    url: 'https://www.bailiwickexpress.com/feeds/news/',
+    sourceName: 'Island FM - Guernsey News',
+    url: 'https://www.islandfm.com/news/guernsey/feed.xml',
   },
   {
-    sourceName: 'Guernsey Press',
-    url: 'https://guernseypress.com/feed/',
+    sourceName: 'Island FM - Jersey News',
+    url: 'https://www.islandfm.com/news/jersey/feed.xml',
   },
 ];
 
@@ -49,12 +49,17 @@ export async function GET() {
     try {
       const res = await fetch(feed.url, {
         cache: 'no-store',
-        headers: { 'User-Agent': 'GuernseySpeaks/1.0' },
+        headers: { 
+          'User-Agent': 'GuernseySpeaks/1.0',
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+        },
       });
+      
       if (!res.ok) {
-        console.error(`Failed to fetch ${feed.sourceName}: ${res.status}`);
+        console.error(`Failed to fetch ${feed.sourceName}: ${res.status} - ${res.statusText}`);
         continue;
       }
+      
       const xml = await res.text();
       const parsed = await parseRss(xml, feed.sourceName);
       articles.push(...parsed);

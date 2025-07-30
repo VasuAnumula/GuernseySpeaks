@@ -1,19 +1,40 @@
 
-import Link from "next/link";
+import { Footer as ModernFooter } from "@/components/ui/footer";
+import { MapPin, Mail, Shield, FileText, Home } from "lucide-react";
 
 export function Footer() {
+  const currentYear = new Date().getFullYear();
+
   return (
-    <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-      <div className="container mx-auto space-y-2 px-4 sm:px-6">
-        <p>&copy; {new Date().getFullYear()} GuernseySpeaks. All rights reserved.</p>
-        <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2">
-          <Link href="/" className="hover:text-primary transition-colors">Home</Link>
-          <Link href="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-          <Link href="/data-deletion" className="hover:text-primary transition-colors">Data Deletion</Link>
-          <Link href="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link>
-        </nav>
-        <p className="mt-2">Connect with your island community.</p>
-      </div>
-    </footer>
+    <ModernFooter
+      logo={<MapPin className="h-6 w-6 text-primary" />}
+      brandName="GuernseySpeaks"
+      socialLinks={[
+        {
+          icon: <Mail className="h-4 w-4" />,
+          href: "/contact",
+          label: "Contact Us"
+        }
+      ]}
+      mainLinks={[]}
+      legalLinks={[
+        {
+          href: "/privacy-policy",
+          label: "Privacy Policy"
+        },
+        {
+          href: "/terms",
+          label: "Terms & Conditions"
+        },
+        {
+          href: "/data-deletion",
+          label: "Data Deletion"
+        }
+      ]}
+      copyright={{
+        text: `© ${currentYear} GuernseySpeaks. All rights reserved.`,
+        license: "Made with ❤️ for the Guernsey community"
+      }}
+    />
   );
 }

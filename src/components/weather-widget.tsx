@@ -62,7 +62,6 @@ export function WeatherWidget() {
   return (
     <Card className="w-full shadow-lg">
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">Weather in Guernsey</CardTitle>
       </CardHeader>
       <CardContent>
         {loading && (

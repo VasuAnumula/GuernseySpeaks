@@ -4,12 +4,6 @@ import { Suspense } from 'react';
 import { Footer } from '@/components/layout/footer';
 import type { ReactNode } from 'react';
 import { NewsHeadlinesWidget } from '@/components/news-headlines-widget'; // Import the new component
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 
 interface MainLayoutProps {
   weatherWidget: ReactNode;
@@ -19,43 +13,37 @@ interface MainLayoutProps {
 
 export function MainLayout({ weatherWidget, children, adsWidget }: MainLayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <Suspense>
         <Header />
       </Suspense>
-      <div className="container mx-auto flex flex-1 flex-col px-4 sm:px-6 py-6 md:flex-row md:gap-6">
-        {/* Left Sidebar Section - Weather and News */}
-        <aside className="mb-6 w-full md:mb-0 md:w-64 lg:w-72 xl:w-80 flex-shrink-0 rounded-lg p-4 md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto space-y-6">
-          {/* Weather shown directly on desktop */}
-          <div className="hidden md:block">
+      
+      {/* Reddit-style layout with left and right sidebars */}
+      <div className="flex flex-1 w-full">
+        {/* Left Sidebar - Weather and News */}
+        <aside className="hidden md:block w-80 flex-shrink-0 sticky top-12 h-[calc(100vh-3rem)] overflow-y-auto border-r border-border/40 bg-card/20">
+          <div className="p-4 space-y-4">
             {weatherWidget}
+            <NewsHeadlinesWidget />
           </div>
-          {/* Widgets wrapped in accordion on mobile */}
-          <div className="md:hidden">
-            <Accordion type="single" collapsible>
-              <AccordionItem value="weather">
-                <AccordionTrigger>Weather</AccordionTrigger>
-                <AccordionContent>{weatherWidget}</AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="ads">
-                <AccordionTrigger>Advertisements</AccordionTrigger>
-                <AccordionContent>{adsWidget}</AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </div>
-          <NewsHeadlinesWidget /> {/* Add NewsHeadlinesWidget here */}
         </aside>
 
-        {/* Main Content Section - Posts */}
-        <main className="flex-1 rounded-lg p-4">
-          {children}
+        {/* Main Content Section - Reddit style with wider posts */}
+        <main className="flex-1 min-w-0 max-w-none">
+          <div className="px-2 py-4">
+            {children}
+          </div>
         </main>
 
-        {/* Advertisement Slots Section - Right Sidebar */}
-        <aside className="mt-6 hidden w-full md:mt-0 md:block md:w-64 lg:w-72 xl:w-80 flex-shrink-0 rounded-lg p-4 md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto">
-          {adsWidget}
+        {/* Right Sidebar - Advertisements */}
+        <aside className="hidden md:block w-72 flex-shrink-0 sticky top-12 h-[calc(100vh-3rem)] overflow-y-auto border-l border-border/40 bg-card/20">
+          <div className="p-3">
+            {adsWidget}
+          </div>
         </aside>
       </div>
+
+
       <Footer />
     </div>
   );

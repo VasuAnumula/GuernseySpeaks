@@ -127,7 +127,7 @@ function HomePageContent() {
                 post={post}
                 onPostDeleted={handlePostDeleted}
                 staggerIndex={index}
-                className="max-w-3xl mx-auto"
+                className="w-full"
               />
             ))
           ) : (

@@ -11,12 +11,13 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { ThumbsUp, ThumbsDown, MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle, MessageSquareReply, Image as ImageIcon } from 'lucide-react';
+import { MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle, MessageSquareReply, Image as ImageIcon, Minus, Plus, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { useState, useEffect, useCallback } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,10 +58,11 @@ interface CommentCardProps {
   onCommentDeleted: (commentId: string) => void;
   onCommentEdited: (editedComment: CommentType) => void;
   onReplySubmitted: () => void;
-  isLastChild: boolean; // To control bottom border for the last comment in a list
+  isLastChild: boolean;
+  ancestorCollapsed?: boolean;
 }
 
-function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, onReplySubmitted, isLastChild }: CommentCardProps) {
+function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, onReplySubmitted, isLastChild, ancestorCollapsed = false }: CommentCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [comment, setComment] = useState<CommentType>(commentNode);
@@ -79,6 +81,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [replyImage, setReplyImage] = useState<File | null>(null);
   const [replyPreview, setReplyPreview] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     setComment(commentNode);
@@ -275,146 +278,249 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
     }
   };
 
+  // Don't render if ancestor is collapsed
+  if (ancestorCollapsed) return null;
+
+  const hasReplies = commentNode.replies && commentNode.replies.length > 0;
+  const replyCount = hasReplies ? commentNode.replies.length : 0;
+
   return (
-    <div
-      className="relative border border-border rounded-md bg-background mb-3"
-      style={{ marginLeft: `${commentNode.depth * 20}px` }} // Indentation for replies
-    >
-      <div className="p-3">
-        <div className="flex items-start justify-between mb-1">
-        <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} data-ai-hint="commenter avatar"/>
-            <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-semibold">{authorDisplayName}</p>
-            <p className="text-xs text-muted-foreground">
-              {formattedDate}
-              {lastUpdatedDate && <i className="text-xs">{lastUpdatedDate}</i>}
-            </p>
-          </div>
-        </div>
-        {canModifyComment && !isEditing && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isDeleting}>
-                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin"/> : <MoreHorizontal className="h-4 w-4" />}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                <Edit className="mr-2 h-4 w-4" /> Edit
-              </DropdownMenuItem>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <DropdownMenuItem
-                    onSelect={(e) => e.preventDefault()} // Prevents menu from closing
-                    className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                  </DropdownMenuItem>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete this comment. Any replies to this comment will remain but may lose context.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-
-      <div className="mt-1 px-1">
-        {isEditing ? (
-          <div className="space-y-2">
-            <Textarea
-              value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
-              rows={1}
-              className="text-sm"
-              disabled={isSavingEdit}
+    <div className="relative">
+      {/* Thread lines */}
+      {commentNode.depth > 0 && (
+        <div className="absolute left-0 top-0 bottom-0">
+          {/* Draw thread lines for all parent levels */}
+          {Array.from({ length: commentNode.depth }, (_, i) => (
+            <div
+              key={i}
+              className="absolute w-px bg-border/40"
+              style={{
+                left: `${i * 16 + 8}px`,
+                top: 0,
+                bottom: i === commentNode.depth - 1 && isLastChild ? '24px' : 0
+              }}
             />
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setEditedContent(comment.content); }} disabled={isSavingEdit}>
-                <XCircle className="mr-1 h-4 w-4"/> Cancel
-              </Button>
-              <Button size="sm" onClick={handleEditSave} disabled={isSavingEdit || !editedContent.trim()}>
-                {isSavingEdit ? <Loader2 className="mr-1 h-4 w-4 animate-spin"/> : <Save className="mr-1 h-4 w-4"/>} Save
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-foreground/90 whitespace-pre-wrap text-xs sm:text-sm">{comment.content}</p>
-            {comment.imageUrl && (
-              <Image src={comment.imageUrl} alt="comment image" width={500} height={300} className="rounded" />
-            )}
-          </div>
-        )}
-      </div>
-      
-      <div className="mt-2 px-1">
-        <div className="flex items-center">
-            <Button variant="ghost" size="sm" className={`group -ml-2 ${isCommentLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-transparent'} transition-transform duration-150 active:scale-95`} onClick={handleCommentLikeToggle} disabled={isCommentLiking}>
-                {isCommentLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isCommentLiked ? 'fill-current' : ''} group-hover:text-primary`} />}
-                {comment.likes}
-            </Button>
-            <Button variant="ghost" size="sm" className={`group ${isCommentDisliked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-transparent'} transition-transform duration-150 active:scale-95`} onClick={handleCommentDislikeToggle} disabled={isCommentDisliking}>
-                {isCommentDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isCommentDisliked ? 'fill-current' : ''} group-hover:text-primary`} />}
-                {comment.dislikes}
-            </Button>
-            {user && (
-            <Button variant="ghost" size="sm" className="text-muted-foreground group" onClick={() => setShowReplyForm(!showReplyForm)}>
-                <MessageSquareReply className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> Reply
-            </Button>
-            )}
+          ))}
+          {/* Horizontal connector */}
+          <div
+            className="absolute h-px bg-border/40"
+            style={{
+              left: `${(commentNode.depth - 1) * 16 + 8}px`,
+              top: '24px',
+              width: '8px'
+            }}
+          />
         </div>
-
-        {showReplyForm && user && (
-          <form onSubmit={handleReplySubmit} className="w-full mt-2 space-y-2">
-            <div className="relative">
-              <Textarea
-                placeholder={`Replying to ${authorDisplayName}...`}
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                rows={1}
-                className="pr-10 text-sm min-h-[40px]"
-                disabled={isSubmittingReply}
-              />
-              <label htmlFor={`reply-image-${comment.id}`} className="absolute bottom-2 right-2 cursor-pointer text-muted-foreground hover:text-primary">
-                <ImageIcon className="h-4 w-4" />
-              </label>
-              <input id={`reply-image-${comment.id}`} type="file" accept="image/*" onChange={handleReplyImageChange} className="sr-only" />
-            </div>
-            {replyPreview && (
-              <Image src={replyPreview} alt="preview" width={400} height={250} className="rounded" />
+      )}
+      <div 
+        className="py-2 px-2 hover:bg-muted/20 group transition-colors"
+        style={{ marginLeft: `${commentNode.depth * 16}px` }}
+      >
+        {/* Main comment content */}
+        <div className="w-full">
+          {/* Comment header */}
+          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+            {/* Collapse button for threads with replies */}
+            {hasReplies && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+              >
+                {isCollapsed ? <Plus className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+              </Button>
             )}
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => { setShowReplyForm(false); setReplyContent(''); }} disabled={isSubmittingReply}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={isSubmittingReply || !replyContent.trim()}>
-                {isSubmittingReply ? <Loader2 className="mr-1 h-4 w-4 animate-spin"/> : <Send className="mr-1 h-4 w-4"/>} Submit Reply
-              </Button>
-            </div>
-          </form>
-        )}
+            
+            <Avatar className="h-4 w-4">
+              <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} />
+              <AvatarFallback className="text-xs">{authorAvatarFallback}</AvatarFallback>
+            </Avatar>
+            
+            <span className="font-medium text-foreground hover:underline cursor-pointer">
+              u/{authorDisplayName}
+            </span>
+            
+            <span>•</span>
+            
+            <span>
+              {formatDistanceToNow(comment.createdAt instanceof Date ? comment.createdAt : (comment.createdAt as any).toDate(), { addSuffix: true })}
+            </span>
+            
+            {lastUpdatedDate && <span className="italic">{lastUpdatedDate}</span>}
+            
+            {/* Collapse indicator */}
+            {isCollapsed && hasReplies && (
+              <span className="text-primary font-medium">({replyCount} repl{replyCount === 1 ? 'y' : 'ies'})</span>
+            )}
+            
+            {/* Actions menu */}
+            {canModifyComment && !isEditing && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-2 opacity-0 group-hover:opacity-100 transition-opacity" disabled={isDeleting}>
+                    {isDeleting ? <Loader2 className="h-3 w-3 animate-spin"/> : <MoreHorizontal className="h-3 w-3" />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                    <Edit className="mr-2 h-4 w-4" /> Edit
+                  </DropdownMenuItem>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <DropdownMenuItem
+                        onSelect={(e) => e.preventDefault()}
+                        className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete this comment.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+
+          {/* Comment content - only show if not collapsed */}
+          {!isCollapsed && (
+            <>
+              <div className="mb-2">
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editedContent}
+                      onChange={(e) => setEditedContent(e.target.value)}
+                      rows={3}
+                      className="text-sm"
+                      disabled={isSavingEdit}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setEditedContent(comment.content); }} disabled={isSavingEdit}>
+                        <XCircle className="mr-1 h-4 w-4"/> Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleEditSave} disabled={isSavingEdit || !editedContent.trim()}>
+                        {isSavingEdit ? <Loader2 className="mr-1 h-4 w-4 animate-spin"/> : <Save className="mr-1 h-4 w-4"/>} Save
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed pr-4">
+                      {comment.content}
+                    </div>
+                    {comment.imageUrl && (
+                      <Image src={comment.imageUrl} alt="comment image" width={400} height={250} className="rounded border" />
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* Actions bar - Reddit style */}
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className={`h-6 px-1 text-xs font-medium ${isCommentLiked ? 'text-orange-500 hover:text-orange-600' : 'text-muted-foreground hover:text-orange-500'} hover:bg-orange-50 dark:hover:bg-orange-950/20`} 
+                  onClick={handleCommentLikeToggle} 
+                  disabled={isCommentLiking || !user}
+                >
+                  {isCommentLiking ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <ThumbsUp className={`mr-1 h-3 w-3 ${isCommentLiked ? 'fill-current' : ''}`} />
+                  )}
+                  {comment.likes}
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className={`h-6 px-1 text-xs font-medium ${isCommentDisliked ? 'text-blue-600 hover:text-blue-700' : 'text-muted-foreground hover:text-blue-600'} hover:bg-blue-50 dark:hover:bg-blue-950/20`} 
+                  onClick={handleCommentDislikeToggle} 
+                  disabled={isCommentDisliking || !user}
+                >
+                  {isCommentDisliking ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <ThumbsDown className={`mr-1 h-3 w-3 ${isCommentDisliked ? 'fill-current' : ''}`} />
+                  )}
+                  {comment.dislikes}
+                </Button>
+                
+                {user && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-2 text-xs font-bold hover:bg-muted/50" 
+                    onClick={() => setShowReplyForm(!showReplyForm)}
+                  >
+                    <MessageSquareReply className="mr-1 h-3 w-3" /> 
+                    Reply
+                  </Button>
+                )}
+                
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-bold hover:bg-muted/50">
+                  Share
+                </Button>
+                
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-bold hover:bg-muted/50">
+                  Save
+                </Button>
+              </div>
+
+              
+              {/* Reply form */}
+              {showReplyForm && user && (
+                <form onSubmit={handleReplySubmit} className="mt-3 space-y-2">
+                  <div className="relative">
+                    <Textarea
+                      placeholder={`Replying to u/${authorDisplayName}...`}
+                      value={replyContent}
+                      onChange={(e) => setReplyContent(e.target.value)}
+                      rows={4}
+                      className="pr-10 text-sm resize-none"
+                      disabled={isSubmittingReply}
+                    />
+                    <label htmlFor={`reply-image-${comment.id}`} className="absolute bottom-2 right-2 cursor-pointer text-muted-foreground hover:text-primary">
+                      <ImageIcon className="h-4 w-4" />
+                    </label>
+                    <input id={`reply-image-${comment.id}`} type="file" accept="image/*" onChange={handleReplyImageChange} className="sr-only" />
+                  </div>
+                  {replyPreview && (
+                    <Image src={replyPreview} alt="preview" width={300} height={200} className="rounded border" />
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => { setShowReplyForm(false); setReplyContent(''); setReplyImage(null); setReplyPreview(null); }} disabled={isSubmittingReply}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" size="sm" disabled={isSubmittingReply || !replyContent.trim()}>
+                      {isSubmittingReply ? <Loader2 className="mr-1 h-4 w-4 animate-spin"/> : <Send className="mr-1 h-4 w-4"/>} Reply
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </>
+          )}
+        </div>
       </div>
       
-      {commentNode.replies && commentNode.replies.length > 0 && (
-        <div className="mt-3"> {/* Spacing before nested replies */}
-          {commentNode.replies.map((replyNode, index, arr) => (
+      {/* Nested replies */}
+      {hasReplies && !isCollapsed && (
+        <div className="relative">
+          {commentNode.replies!.map((replyNode, index, arr) => (
             <CommentCard
               key={replyNode.id}
               commentNode={replyNode}
@@ -423,11 +529,11 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
               onCommentEdited={onCommentEdited}
               onReplySubmitted={onReplySubmitted}
               isLastChild={index === arr.length - 1}
+              ancestorCollapsed={isCollapsed}
             />
           ))}
         </div>
       )}
-    </div>
     </div>
   );
 }
@@ -449,12 +555,17 @@ function buildCommentTree(comments: CommentType[], parentId: string | null = nul
 }
 
 
-export default function PostPage({ params }: { params: PostPageParams }) {
+interface PageProps {
+  params: Promise<PostPageParams>;
+}
+
+export default function PostPage({ params }: PageProps) {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
   const [post, setPost] = useState<Post | null>(null);
+  const [resolvedParams, setResolvedParams] = useState<PostPageParams | null>(null);
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   const [isDisliked, setIsDisliked] = useState(false);
@@ -472,10 +583,20 @@ export default function PostPage({ params }: { params: PostPageParams }) {
   const [isLoadingComments, setIsLoadingComments] = useState(true);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'best' | 'top' | 'new' | 'controversial'>('best');
+
+  // Resolve params Promise
+  useEffect(() => {
+    const resolveParams = async () => {
+      const resolved = await params;
+      setResolvedParams(resolved);
+    };
+    resolveParams();
+  }, [params]);
 
   // Fetches the post and all its comments, then rebuilds the comment tree
   const fetchPostAndComments = useCallback(async () => {
-    if (!params.id) {
+    if (!resolvedParams?.id) {
       setError("Post ID is missing.");
       setIsLoadingPost(false);
       setIsLoadingComments(false);
@@ -486,7 +607,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
     setIsLoadingComments(true);
     setError(null);
     try {
-      const fetchedPost = await getPostById(params.id);
+      const fetchedPost = await getPostById(resolvedParams.id);
       if (fetchedPost) {
         setPost(fetchedPost);
         if(user && fetchedPost.likedBy) {
@@ -496,7 +617,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
           setIsDisliked(fetchedPost.dislikedBy.includes(user.uid));
         }
         // Fetch comments after post is confirmed to exist
-        const fetchedCommentsRaw = await getCommentsForPost(params.id);
+        const fetchedCommentsRaw = await getCommentsForPost(resolvedParams.id);
          // Ensure parentId is explicitly null if undefined from Firestore (important for tree building)
         const processedComments = fetchedCommentsRaw.map(c => ({...c, parentId: c.parentId === undefined ? null : c.parentId }));
         setAllComments(processedComments);
@@ -514,24 +635,50 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       setIsLoadingPost(false);
       setIsLoadingComments(false);
     }
-  }, [params.id, user]); // user dependency for isLiked state
+  }, [resolvedParams?.id, user]); // user dependency for isLiked state
 
   useEffect(() => {
-    fetchPostAndComments();
-  }, [fetchPostAndComments]);
+    if (resolvedParams) {
+      fetchPostAndComments();
+    }
+  }, [fetchPostAndComments, resolvedParams]);
 
-  // Rebuild comment tree whenever allComments changes
+  // Rebuild comment tree whenever allComments changes or sort order changes
   useEffect(() => {
     // Ensure parentId is explicitly null if it's undefined from Firestore
     const processedComments = allComments.map(c => ({...c, parentId: c.parentId === undefined ? null : c.parentId }));
-    // Build tree and sort top-level comments newest first for display
-    const tree = buildCommentTree(processedComments, null, 0).sort((a,b) => {
-        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.toMillis() || 0;
-        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.toMillis() || 0;
-        return dateB - dateA; // Newest top-level comments first
+    
+    // Build tree and sort based on selected sort option
+    const tree = buildCommentTree(processedComments, null, 0).sort((a, b) => {
+      const scoreA = a.likes - a.dislikes;
+      const scoreB = b.likes - b.dislikes;
+      const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.toMillis() || 0;
+      const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.toMillis() || 0;
+      
+      switch (sortBy) {
+        case 'best':
+          // Reddit's "best" algorithm approximation: score with time decay
+          const hoursA = (Date.now() - dateA) / (1000 * 60 * 60);
+          const hoursB = (Date.now() - dateB) / (1000 * 60 * 60);
+          const bestScoreA = scoreA / Math.pow(hoursA + 2, 1.8);
+          const bestScoreB = scoreB / Math.pow(hoursB + 2, 1.8);
+          return bestScoreB - bestScoreA;
+        case 'top':
+          return scoreB - scoreA;
+        case 'new':
+          return dateB - dateA;
+        case 'controversial':
+          // Comments with roughly equal upvotes and downvotes
+          const controversialA = Math.min(a.likes, a.dislikes) * 2 - Math.abs(scoreA);
+          const controversialB = Math.min(b.likes, b.dislikes) * 2 - Math.abs(scoreB);
+          return controversialB - controversialA;
+        default:
+          return dateB - dateA;
+      }
     });
+    
     setCommentTree(tree);
-  }, [allComments]);
+  }, [allComments, sortBy]);
 
 
   const handleCommentDeleted = (deletedCommentId: string) => {
@@ -698,6 +845,18 @@ export default function PostPage({ params }: { params: PostPageParams }) {
       setIsSubmittingComment(false);
     }
   };
+
+  // Loading state while params are being resolved
+  if (!resolvedParams) {
+    return (
+       <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
+        <div className="flex justify-center items-center py-10 h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-2 text-muted-foreground">Loading...</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   // Loading state for the entire post page (primarily for the post itself)
   if (isLoadingPost) {
@@ -888,7 +1047,23 @@ export default function PostPage({ params }: { params: PostPageParams }) {
         <Separator className="my-4 md:my-6" />
 
         <section id="comments" className="mb-6">
-          <h2 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Comments ({post.commentsCount})</h2>
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h2 className="text-lg md:text-xl font-semibold">Comments ({post.commentsCount})</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Sort by:</span>
+              <Select value={sortBy} onValueChange={(value: typeof sortBy) => setSortBy(value)}>
+                <SelectTrigger className="w-32 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="best">Best</SelectItem>
+                  <SelectItem value="top">Top</SelectItem>
+                  <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="controversial">Controversial</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           {(authLoading) ? (
              <div className="flex justify-center items-center py-6">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -946,7 +1121,7 @@ export default function PostPage({ params }: { params: PostPageParams }) {
             </form>
           ) : (
             <p className="mb-6 text-center text-muted-foreground">
-              <Link href={`/auth?redirect=/post/${params.id}/${params.slug}#comments`} className="text-primary hover:underline">Log in</Link> to post a comment.
+              <Link href={`/auth?redirect=/post/${resolvedParams?.id}/${resolvedParams?.slug}#comments`} className="text-primary hover:underline">Log in</Link> to post a comment.
             </p>
           )}
 
@@ -956,21 +1131,30 @@ export default function PostPage({ params }: { params: PostPageParams }) {
                <p className="ml-2 text-muted-foreground">Loading comments...</p>
             </div>
           ) : (
-            <div className="space-y-0"> {/* Ensure no extra space between comment cards naturally */}
+            <div className="space-y-0">
               {commentTree.length > 0 ? (
                 commentTree.map((commentNode, index, arr) => (
-                  <CommentCard
-                    key={commentNode.id}
-                    commentNode={commentNode}
-                    postId={post.id}
-                    onCommentDeleted={handleCommentDeleted}
-                    onCommentEdited={handleCommentEdited}
-                    onReplySubmitted={handleReplySubmitted}
-                    isLastChild={index === arr.length - 1} // Correctly pass isLastChild
-                  />
+                  <div key={commentNode.id}>
+                    <CommentCard
+                      commentNode={commentNode}
+                      postId={post.id}
+                      onCommentDeleted={handleCommentDeleted}
+                      onCommentEdited={handleCommentEdited}
+                      onReplySubmitted={handleReplySubmitted}
+                      isLastChild={index === arr.length - 1}
+                    />
+                    {/* Add separator between top-level comments, except for the last one */}
+                    {index < arr.length - 1 && commentNode.depth === 0 && (
+                      <div className="border-t border-border/20 my-4" />
+                    )}
+                  </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-center py-4">No comments yet. Be the first to share your thoughts!</p>
+                <div className="text-center py-12 text-muted-foreground">
+                  <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">No comments yet</p>
+                  <p className="text-sm">Be the first to share your thoughts!</p>
+                </div>
               )}
             </div>
           )}

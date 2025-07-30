@@ -1,6 +1,4 @@
 
-'use server';
-
 import { db, storage } from '@/lib/firebase/config';
 import type { Post, Comment, AuthorInfo } from '@/types';
 import { processDoc } from '@/lib/firestoreUtils';
@@ -68,9 +66,14 @@ export async function createPost(postData: CreatePostInputData): Promise<string>
       updatedAt: serverTimestamp(),
     });
     return docRef.id;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating post:', error);
-    throw new Error('Failed to create post.');
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      details: error
+    });
+    throw new Error(`Failed to create post: ${error.message}`);
   }
 };
 
@@ -346,10 +349,95 @@ export async function deleteComment(postId: string, commentId: string): Promise<
 }
 
 export async function uploadPostImage(file: File): Promise<string> {
-  const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '')
-  const fileRef = storageRef(storage, `post_images/${Date.now()}_${sanitized}`)
-  await uploadBytes(fileRef, file)
-  return getDownloadURL(fileRef)
+  try {
+    console.log('uploadPostImage called with file:', { 
+      name: file.name, 
+      size: file.size, 
+      type: file.type 
+    });
+    
+    if (!file) {
+      throw new Error('No file provided');
+    }
+    
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      throw new Error('File size must be less than 5MB');
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      throw new Error('File must be an image');
+    }
+    
+    const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+    if (!sanitized) {
+      throw new Error('Invalid file name');
+    }
+    
+    // Check if storage is initialized
+    if (!storage) {
+      throw new Error('Firebase Storage not initialized');
+    }
+    
+    // Check if user is authenticated (Firebase Storage often requires auth)
+    console.log('Checking authentication status...');
+    const { auth } = await import('@/lib/firebase/config');
+    
+    // Wait for auth to be ready if needed
+    await new Promise<void>((resolve) => {
+      if (auth.currentUser !== null) {
+        resolve();
+      } else {
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+          unsubscribe();
+          resolve();
+        });
+        // Timeout after 5 seconds
+        setTimeout(() => {
+          unsubscribe();
+          resolve();
+        }, 5000);
+      }
+    });
+    
+    const currentUser = auth.currentUser;
+    console.log('Current user after auth check:', currentUser ? { 
+      uid: currentUser.uid, 
+      email: currentUser.email,
+      displayName: currentUser.displayName 
+    } : 'Not authenticated');
+    
+    if (!currentUser) {
+      throw new Error('User must be authenticated to upload images');
+    }
+    
+    const timestamp = Date.now();
+    const fileName = `${timestamp}_${sanitized}`;
+    const fileRef = storageRef(storage, `post_images/${fileName}`);
+    
+    console.log('Storage reference created:', fileRef.fullPath);
+    console.log('Starting upload to Firebase Storage:', fileName);
+    
+    // Add progress monitoring
+    const uploadTask = uploadBytes(fileRef, file);
+    console.log('Upload task created, waiting for completion...');
+    
+    const uploadResult = await uploadTask;
+    console.log('Upload completed successfully:', uploadResult.metadata.fullPath);
+    
+    console.log('Getting download URL...');
+    const downloadURL = await getDownloadURL(fileRef);
+    console.log('Download URL obtained:', downloadURL);
+    
+    return downloadURL;
+  } catch (error) {
+    console.error('uploadPostImage error details:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: (error as any)?.code,
+      name: (error as any)?.name
+    });
+    throw error;
+  }
 }
 
 export async function uploadCommentImage(postId: string, file: File): Promise<string> {

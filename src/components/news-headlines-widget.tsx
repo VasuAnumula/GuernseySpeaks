@@ -85,7 +85,6 @@ export function NewsHeadlinesWidget() {
               <li key={`${article.url}-${index}`} className="border-b border-border pb-2 last:border-b-0 last:pb-0">
                 <Link href={article.url} target="_blank" rel="noopener noreferrer" className="group hover:text-primary transition-colors">
                   <h4 className="font-medium text-sm group-hover:underline leading-tight">{article.title}</h4>
-                  {article.description && <p className="text-xs text-muted-foreground mt-0.5">{article.description}</p>}
                   <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                     <span className="flex items-center">
                       <LinkIcon className="h-3 w-3 mr-1 text-primary/70" />

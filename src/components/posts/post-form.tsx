@@ -81,6 +81,38 @@ export function PostForm({ postToEdit }: PostFormProps) {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    
+    if (file) {
+      console.log('Image selected:', { 
+        name: file.name, 
+        size: file.size, 
+        type: file.type,
+        lastModified: file.lastModified 
+      });
+      
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ 
+          title: 'File Too Large', 
+          description: 'Please select an image under 5MB',
+          variant: 'destructive' 
+        });
+        e.target.value = ''; // Clear the input
+        return;
+      }
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({ 
+          title: 'Invalid File Type', 
+          description: 'Please select an image file',
+          variant: 'destructive' 
+        });
+        e.target.value = ''; // Clear the input
+        return;
+      }
+    }
+    
     setImageFile(file);
     setImagePreview(file ? URL.createObjectURL(file) : null);
   };
@@ -106,10 +138,40 @@ export function PostForm({ postToEdit }: PostFormProps) {
     let uploadedUrl: string | undefined;
     if (imageFile) {
       try {
-        uploadedUrl = await uploadPostImage(imageFile);
+        console.log('=== STARTING IMAGE UPLOAD ===');
+        console.log('File details:', { 
+          fileName: imageFile.name, 
+          fileSize: imageFile.size, 
+          fileType: imageFile.type,
+          lastModified: new Date(imageFile.lastModified).toISOString()
+        });
+        
+        console.log('Current user auth status:', user ? { uid: user.uid, email: user.email } : 'Not authenticated');
+        
+        // Add timeout to prevent infinite hanging
+        const uploadPromise = uploadPostImage(imageFile);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Upload timeout after 30 seconds')), 30000)
+        );
+        
+        console.log('Starting upload with 30s timeout...');
+        uploadedUrl = await Promise.race([uploadPromise, timeoutPromise]) as string;
+        console.log('=== IMAGE UPLOAD SUCCESSFUL ===');
+        console.log('Upload URL:', uploadedUrl);
       } catch (err) {
-        console.error('Image upload failed:', err);
-        toast({ title: 'Image Upload Failed', variant: 'destructive' });
+        console.error('=== IMAGE UPLOAD FAILED ===');
+        console.error('Error details:', err);
+        console.error('Error type:', typeof err);
+        console.error('Error constructor:', err?.constructor?.name);
+        
+        toast({
+          title: 'Image Upload Failed',
+          description: err instanceof Error ? err.message : 'Unknown error occurred',
+          variant: 'destructive'
+        });
+        
+        setIsSubmitting(false);
+        return;
       }
     }
 
@@ -156,38 +218,38 @@ export function PostForm({ postToEdit }: PostFormProps) {
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto shadow-xl">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold">{isEditMode ? "Edit Post" : "Create a New Post"}</CardTitle>
-        <CardDescription>
+    <Card className="w-full max-w-3xl mx-auto border-0 shadow-lg shadow-primary/5 bg-gradient-to-br from-card to-card/95 rounded-xl overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/20">
+        <CardTitle className="text-2xl font-semibold text-foreground">{isEditMode ? "Edit Post" : "Create a New Post"}</CardTitle>
+        <CardDescription className="text-muted-foreground/80">
           {isEditMode ? "Modify your existing post." : "Share your thoughts, news, or questions with the Guernsey community."}
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="title" className="text-lg">Title</Label>
+        <CardContent className="space-y-8 p-6">
+          <div className="space-y-3">
+            <Label htmlFor="title" className="text-sm font-medium text-foreground">Title</Label>
             <Input
               id="title"
-              placeholder="Enter a descriptive title"
+              placeholder="Enter a descriptive title..."
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-base"
+              className="text-base h-11 bg-secondary/50 border-0 rounded-lg shadow-sm focus:shadow-md transition-all duration-200 placeholder:text-muted-foreground/60"
               maxLength={150}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="content" className="text-lg">Content</Label>
+          <div className="space-y-3">
+            <Label htmlFor="content" className="text-sm font-medium text-foreground">Content</Label>
             <div className="relative">
               <Textarea
                 id="content"
-                placeholder="What's on your mind?"
+                placeholder="What's on your mind? Share your thoughts with the community..."
                 required
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                rows={10}
-                className="text-base pr-10"
+                rows={12}
+                className="text-base pr-12 bg-secondary/50 border-0 rounded-lg shadow-sm focus:shadow-md transition-all duration-200 placeholder:text-muted-foreground/60 resize-none"
               />
               <Input
                 id="image-upload"
@@ -196,26 +258,31 @@ export function PostForm({ postToEdit }: PostFormProps) {
                 onChange={handleImageChange}
                 className="hidden"
               />
-              <label htmlFor="image-upload" className="absolute bottom-2 right-2 cursor-pointer p-1 rounded hover:bg-accent">
-                <ImagePlus className="h-5 w-5 text-muted-foreground" />
+              <label htmlFor="image-upload" className="absolute bottom-3 right-3 cursor-pointer p-2 rounded-lg hover:bg-primary/10 transition-colors group">
+                <ImagePlus className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
               </label>
             </div>
             {imagePreview && (
-              <div className="relative mt-2">
-                <Image src={imagePreview} alt="preview" width={500} height={300} className="rounded-md" />
+              <div className="relative mt-4 group">
+                <div className="overflow-hidden rounded-lg border border-border/20">
+                  <Image src={imagePreview} alt="preview" width={500} height={300} className="w-full object-cover" />
+                </div>
                 <button
                   type="button"
                   onClick={handleRemoveImage}
-                  className="absolute top-2 right-2 rounded-full bg-background/80 p-1 hover:bg-background"
+                  className="absolute top-3 right-3 rounded-full bg-destructive/90 text-destructive-foreground p-2 hover:bg-destructive transition-colors shadow-sm"
                 >
                   <X className="h-4 w-4" />
                 </button>
+                <div className="absolute bottom-3 left-3 text-xs bg-black/70 text-white px-2 py-1 rounded">
+                  {(imageFile?.size || 0) > 0 ? `${Math.round((imageFile?.size || 0) / 1024)}KB` : ''}
+                </div>
               </div>
             )}
-            <p className="text-xs text-muted-foreground">Markdown is not currently supported, but will be in a future update!</p>
+            <p className="text-xs text-muted-foreground/70 mt-2">💡 Tip: Markdown support is coming soon!</p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="flairs-select" className="text-lg">Flair <span className="text-destructive">*</span></Label>
+          <div className="space-y-3">
+            <Label htmlFor="flairs-select" className="text-sm font-medium text-foreground">Topic <span className="text-destructive">*</span></Label>
             <div className="flex items-center gap-2">
               <Select
                 value={selectedFlairToAdd}
@@ -226,15 +293,16 @@ export function PostForm({ postToEdit }: PostFormProps) {
                 }}
                 disabled={flairs.length >= MAX_FLAIRS}
               >
-                <SelectTrigger id="flairs-select" className="flex-grow text-base">
-                  <SelectValue placeholder="Select a flair to add" />
+                <SelectTrigger id="flairs-select" className="h-11 bg-secondary/50 border-0 rounded-lg shadow-sm focus:shadow-md transition-all duration-200">
+                  <SelectValue placeholder="Choose a topic for your post..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-lg border-0 shadow-lg">
                   {PREDEFINED_FLAIRS.filter(f => f && f.trim() !== "").map(flair => (
                     <SelectItem
                       key={flair}
-                      value={flair} // This value must not be an empty string
+                      value={flair}
                       disabled={flairs.includes(flair)}
+                      className="cursor-pointer"
                     >
                       {flair}
                     </SelectItem>
@@ -243,11 +311,11 @@ export function PostForm({ postToEdit }: PostFormProps) {
               </Select>
             </div>
             {flairs.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 {flairs.map(flair => (
-                  <Badge key={flair} className="text-sm py-1 px-2 bg-red-600 text-white">
+                  <Badge key={flair} variant="secondary" className="text-sm py-2 px-4 bg-primary/10 text-primary hover:bg-primary/20 transition-colors rounded-full border-0">
                     {flair}
-                    <button type="button" onClick={() => handleRemoveFlair(flair)} className="ml-1.5 appearance-none border-none bg-transparent cursor-pointer p-0.5 rounded-full hover:bg-destructive/50">
+                    <button type="button" onClick={() => handleRemoveFlair(flair)} className="ml-2 appearance-none border-none bg-transparent cursor-pointer p-0.5 rounded-full hover:bg-destructive/20 transition-colors">
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
@@ -255,14 +323,18 @@ export function PostForm({ postToEdit }: PostFormProps) {
               </div>
             )}
             {flairs.length >= MAX_FLAIRS && (
-                <p className="text-xs text-muted-foreground">Only one flair allowed.</p>
+                <p className="text-xs text-muted-foreground/70">Only one topic allowed per post.</p>
             )}
           </div>
         </CardContent>
-        <CardFooter>
-          <Button type="submit" className="w-full text-lg py-3" disabled={isSubmitting || !title.trim() || !content.trim() || flairs.length !== 1}>
+        <CardFooter className="bg-muted/20 border-t border-border/20 p-6">
+          <Button 
+            type="submit" 
+            className="w-full h-12 text-base font-medium bg-primary hover:bg-primary/90 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 active:scale-[0.98]" 
+            disabled={isSubmitting || !title.trim() || !content.trim() || flairs.length !== 1}
+          >
             {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-            {isEditMode ? "Update Post" : "Submit Post"}
+            {isEditMode ? "Update Post" : "Publish Post"}
           </Button>
         </CardFooter>
       </form>

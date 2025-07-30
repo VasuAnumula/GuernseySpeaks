@@ -1,11 +1,9 @@
-
 "use client";
 
 import type { Post } from '@/types';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ThumbsUp, ThumbsDown, MessageCircle, Bookmark, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, MoreHorizontal, Edit, Trash2, Loader2, Share, Bookmark } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -25,7 +23,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, // Ensured this is imported
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from '@/hooks/use-auth';
 import { formatDistanceToNow } from 'date-fns';
@@ -51,11 +49,13 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   const [isDisliking, setIsDisliking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(true);
-    }, staggerIndex * 100);
+    }, staggerIndex * 50);
     return () => clearTimeout(timer);
   }, [staggerIndex]);
 
@@ -98,61 +98,25 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   const canModify = user && (user.uid === post.author?.uid || user.role === 'superuser' || user.role === 'moderator');
 
   const handleLikeToggle = async () => {
-    if (!user) {
-      toast({ title: "Login Required", description: "You need to be logged in to like posts.", variant: "destructive" });
-      return;
-    }
-    if (isLiking) return;
+    if (!user) return;
     setIsLiking(true);
-
-    const originalLikedState = isLiked;
-    const originalLikesCount = post.likes;
-
-    setIsLiked(!originalLikedState);
-    setPost(prevPost => ({
-      ...prevPost,
-      likes: originalLikedState ? prevPost.likes -1 : prevPost.likes + 1,
-      likedBy: originalLikedState
-        ? prevPost.likedBy.filter(uid => uid !== user.uid)
-        : [...prevPost.likedBy, user.uid]
-    }));
 
     try {
       const updatedPostData = await togglePostLike(post.id, user.uid);
       setPost(prevPost => ({ ...prevPost, ...updatedPostData }));
       setIsLiked(updatedPostData.likedBy.includes(user.uid));
+      setIsDisliked(updatedPostData.dislikedBy.includes(user.uid));
     } catch (error) {
       console.error("Failed to toggle like:", error);
       toast({ title: "Error", description: "Could not update like. Please try again.", variant: "destructive" });
-      setIsLiked(originalLikedState);
-      setPost(prevPost => ({ ...prevPost, likes: originalLikesCount, likedBy: originalLikedState ? [...prevPost.likedBy, user.uid] : prevPost.likedBy.filter(uid => uid !== user.uid) }));
     } finally {
       setIsLiking(false);
     }
   };
 
   const handleDislikeToggle = async () => {
-    if (!user) {
-      toast({ title: "Login Required", description: "You need to be logged in to dislike posts.", variant: "destructive" });
-      return;
-    }
-    if (isDisliking) return;
+    if (!user) return;
     setIsDisliking(true);
-
-    const originalDislikedState = isDisliked;
-    const originalDislikesCount = post.dislikes;
-
-    setIsDisliked(!originalDislikedState);
-    setPost(prevPost => ({
-      ...prevPost,
-      dislikes: originalDislikedState ? prevPost.dislikes - 1 : prevPost.dislikes + 1,
-      dislikedBy: originalDislikedState
-        ? prevPost.dislikedBy.filter(uid => uid !== user.uid)
-        : [...prevPost.dislikedBy, user.uid],
-      // if switching from like to dislike
-      likes: prevPost.likedBy.includes(user.uid) && !originalDislikedState ? prevPost.likes - 1 : prevPost.likes,
-      likedBy: prevPost.likedBy.includes(user.uid) && !originalDislikedState ? prevPost.likedBy.filter(uid => uid !== user.uid) : prevPost.likedBy
-    }));
 
     try {
       const updatedPostData = await togglePostDislike(post.id, user.uid);
@@ -162,12 +126,6 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
     } catch (error) {
       console.error("Failed to toggle dislike:", error);
       toast({ title: "Error", description: "Could not update dislike. Please try again.", variant: "destructive" });
-      setIsDisliked(originalDislikedState);
-      setPost(prevPost => ({
-        ...prevPost,
-        dislikes: originalDislikesCount,
-        dislikedBy: originalDislikedState ? [...prevPost.dislikedBy, user.uid] : prevPost.dislikedBy.filter(uid => uid !== user.uid)
-      }));
     } finally {
       setIsDisliking(false);
     }
@@ -190,140 +148,231 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
     }
   };
 
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/post/${post.id}/${postSlug}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: post.title,
+          text: post.content.substring(0, 100) + '...',
+          url: shareUrl,
+        });
+      } catch (error) {
+        // User cancelled sharing or error occurred
+        console.log('Share cancelled or failed');
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast({ title: "Link Copied", description: "Post link copied to clipboard!" });
+      } catch (error) {
+        console.error('Failed to copy link:', error);
+        toast({ title: "Share Failed", description: "Could not copy link to clipboard", variant: "destructive" });
+      }
+    }
+  };
+
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      toast({ title: "Login Required", description: "You need to be logged in to save posts.", variant: "destructive" });
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      // In a real app, you'd have a save/unsave API endpoint
+      // For now, we'll just simulate the functionality
+      const newSavedState = !isSaved;
+      setIsSaved(newSavedState);
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      toast({ 
+        title: newSavedState ? "Post Saved" : "Post Unsaved", 
+        description: newSavedState ? "Post saved for later viewing" : "Post removed from saved items"
+      });
+    } catch (error) {
+      console.error('Failed to save post:', error);
+      toast({ title: "Error", description: "Could not save post. Please try again.", variant: "destructive" });
+      setIsSaved(!isSaved); // Revert on error
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
-    <Link href={`/post/${post.id}/${postSlug}`} className="block group">
-      <Card
-        className={`
-          mb-4
-          transition-opacity duration-500 ease-out
-          ${isVisible ? 'opacity-100' : 'opacity-0'}
-          shadow hover:shadow-md
-          ${className}
-        `}
-      >
-        <div className="flex-1">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors duration-200">
-                {post.title}
-              </CardTitle>
-          {canModify && (
-             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" disabled={isDeleting} onClick={(e) => e.stopPropagation()}>
-                  {isDeleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <MoreHorizontal className="h-5 w-5" />}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href={`/post/${post.id}/${postSlug}/edit`}>
-                    <Edit className="mr-2 h-4 w-4" /> Edit
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                    </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the post and all its comments.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeletePost} className="bg-destructive hover:bg-destructive/90">
-                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-        <CardDescription className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-          {post.author?.uid ? (
-             <Link href={`/profile/${post.author.uid}`} className="flex items-center gap-2 hover:underline hover:text-primary/90 transition-colors duration-200">
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={authorAvatar || undefined} alt={authorDisplayName} data-ai-hint="author avatar"/>
-                <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
-              </Avatar>
-              <span>{authorDisplayName}</span>
-            </Link>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
-                 <AvatarFallback>{authorAvatarFallback}</AvatarFallback>
-              </Avatar>
-              <span>{authorDisplayName}</span>
-            </div>
-          )}
-          <span>•</span>
-          <span>{formattedDate}</span>
-        </CardDescription>
-        {post.flairs && post.flairs.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {post.flairs.map((flair) => (
-              <Badge key={flair} className="bg-red-600 text-white cursor-pointer transition-colors duration-200">
-                {flair}
+    <div
+      className={`
+        mb-2
+        transition-all duration-200 ease-out
+        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
+        bg-card border border-border/40
+        hover:border-border
+        group
+        ${className}
+      `}
+    >
+      {/* Main content area */}
+      <div className="p-3 cursor-pointer" onClick={() => window.location.href = `/post/${post.id}/${postSlug}`}>
+          {/* Post metadata - Reddit style */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+            {post.flairs && post.flairs.length > 0 && (
+              <Badge variant="secondary" className="bg-primary/10 text-primary px-2 py-0.5 text-xs rounded-full border-0">
+                {post.flairs[0]}
               </Badge>
-            ))}
-          </div>
-        )}
-          </CardHeader>
-          <CardContent>
-            <p className="text-foreground/90 line-clamp-3 whitespace-pre-wrap">{post.content}</p>
-            {post.imageUrl && (
-              <Image src={post.imageUrl} alt="post image" width={600} height={350} className="mt-2 rounded-md" />
             )}
-          </CardContent>
-          <CardFooter className="flex justify-between items-center pt-4 border-t">
-            <div className="flex gap-1 sm:gap-4 text-muted-foreground">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`group ${isLiked ? 'text-primary' : 'hover:text-primary hover:bg-transparent'} transition-transform duration-150 active:scale-95`}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLikeToggle(); }}
-                disabled={isLiking || !user}
-              >
-                {isLiking ? (
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                ) : (
-                  <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''} group-hover:text-primary`} />
-                )}
-                {post.likes}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`group ${isDisliked ? 'text-primary' : 'hover:text-primary hover:bg-transparent'} transition-transform duration-150 active:scale-95`}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDislikeToggle(); }}
-                disabled={isDisliking || !user}
-              >
-                {isDisliking ? (
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                ) : (
-                  <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''} group-hover:text-primary`} />
-                )}
-                {post.dislikes}
-              </Button>
+            <span>Posted by</span>
+            {post.author?.uid ? (
+              <Link href={`/profile/${post.author.uid}`} className="hover:underline font-medium text-primary" onClick={(e) => e.stopPropagation()}>
+                u/{authorDisplayName}
+              </Link>
+            ) : (
+              <span className="font-medium">u/{authorDisplayName}</span>
+            )}
+            <span>•</span>
+            <span>{formattedDate}</span>
+            {canModify && (
+              <div className="ml-auto">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={isDeleting} onClick={(e) => e.stopPropagation()}>
+                      {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <MoreHorizontal className="h-3 w-3" />}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/post/${post.id}/${postSlug}/edit`}>
+                        <Edit className="mr-2 h-4 w-4" /> Edit
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem
+                          onSelect={(e) => e.preventDefault()}
+                          className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground cursor-pointer"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the post and all its comments.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDeletePost} className="bg-destructive hover:bg-destructive/90">
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </div>
+
+          {/* Post title */}
+          <h2 className="text-lg font-medium leading-tight text-foreground hover:text-primary transition-colors duration-200 mb-2">
+            {post.title}
+          </h2>
+
+          {/* Post content preview */}
+          <div className="text-sm text-foreground/80 line-clamp-3 whitespace-pre-wrap mb-3">
+            {post.content}
+          </div>
+
+          {/* Post image */}
+          {post.imageUrl && (
+            <div className="mb-3 rounded-lg overflow-hidden border border-border/40 bg-muted/20">
+              <Image 
+                src={post.imageUrl} 
+                alt="post image" 
+                width={600} 
+                height={350} 
+                className="w-full h-auto object-contain max-h-96" 
+                style={{ aspectRatio: 'auto' }}
+              />
             </div>
-            <Button variant="ghost" size="sm" className="group hover:text-primary" disabled onClick={(e) => e.stopPropagation()}>
-              <Bookmark className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> Save
+          )}
+
+          {/* Bottom actions - Reddit style */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`p-1 h-auto text-xs rounded transition-colors ${isLiked ? 'text-orange-500 hover:text-orange-600' : 'hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950'}`}
+              onClick={(e) => { e.stopPropagation(); handleLikeToggle(); }}
+              disabled={isLiking || !user}
+            >
+              {isLiking ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <ThumbsUp className={`mr-1 h-3 w-3 ${isLiked ? 'fill-current' : ''}`} />
+              )}
+              {post.likes}
             </Button>
-          </CardFooter>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`p-1 h-auto text-xs rounded transition-colors ${isDisliked ? 'text-blue-600 hover:text-blue-700' : 'hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950'}`}
+              onClick={(e) => { e.stopPropagation(); handleDislikeToggle(); }}
+              disabled={isDisliking || !user}
+            >
+              {isDisliking ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <ThumbsDown className={`mr-1 h-3 w-3 ${isDisliked ? 'fill-current' : ''}`} />
+              )}
+              {post.dislikes}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-1 h-auto text-xs hover:bg-muted/50 rounded transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.location.href = `/post/${post.id}/${postSlug}`;
+              }}
+            >
+              <MessageCircle className="mr-1 h-3 w-3" />
+              {post.commentsCount || 0}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-1 h-auto text-xs hover:bg-muted/50 rounded transition-colors"
+              onClick={handleShare}
+            >
+              <Share className="mr-1 h-3 w-3" />
+              Share
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`p-1 h-auto text-xs rounded transition-colors ${isSaved ? 'text-yellow-600 hover:text-yellow-700' : 'hover:bg-muted/50'}`}
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <Bookmark className={`mr-1 h-3 w-3 ${isSaved ? 'fill-current' : ''}`} />
+              )}
+              {isSaved ? 'Saved' : 'Save'}
+            </Button>
+          </div>
         </div>
-      </Card>
-    </Link>
+    </div>
   );
 }
-

@@ -85,32 +85,39 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center gap-2 px-4 sm:px-6">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-card shadow-sm">
+      <div className="flex h-12 items-center gap-3 px-4 max-w-none">
         <Logo />
-        <div className="hidden sm:flex flex-1 justify-center items-center gap-2">
-          <div className="relative w-full max-w-xs">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        
+        {/* Reddit-style search bar - more prominent */}
+        <div className="flex-1 max-w-2xl mx-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={headerSearch}
               onChange={(e) => setHeaderSearch(e.target.value)}
               onKeyDown={handleSearchKeyDown}
-              placeholder="Search..."
-              className="pl-7 w-full"
+              placeholder="Search GuernseySpeaks"
+              className="pl-10 pr-4 h-9 bg-background border border-border rounded-full text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
             />
           </div>
+        </div>
+        
+        {/* Compact filters */}
+        <div className="hidden md:flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <ListFilter className="h-5 w-5" />
+              <Button variant="ghost" size="sm" className="text-xs h-8">
+                <ListFilter className="h-3 w-3 mr-1" />
+                {selectedFlair || 'All'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Flair</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleFlairChange('__ALL__')}>All Flairs</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleFlairChange('__ALL__')} className="cursor-pointer text-xs">
+                All Topics
+              </DropdownMenuItem>
               {PREDEFINED_FLAIRS.map(flair => (
-                <DropdownMenuItem key={flair} onClick={() => handleFlairChange(flair)}>
+                <DropdownMenuItem key={flair} onClick={() => handleFlairChange(flair)} className="cursor-pointer text-xs">
                   {flair}
                 </DropdownMenuItem>
               ))}
@@ -118,75 +125,76 @@ export function Header() {
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <ArrowDownUp className="h-5 w-5" />
+              <Button variant="ghost" size="sm" className="text-xs h-8">
+                <ArrowDownUp className="h-3 w-3 mr-1" />
+                {sortBy === 'createdAt_desc' ? 'New' : 
+                 sortBy === 'createdAt_asc' ? 'Old' : 
+                 sortBy === 'likes_desc' ? 'Hot' : 'New'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Sort By</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleSortChange('createdAt_desc')}>
-                <CalendarDays className="mr-2 h-4 w-4" /> Newest
+              <DropdownMenuItem onClick={() => handleSortChange('likes_desc')} className="cursor-pointer text-xs">
+                <ThumbsUp className="mr-2 h-3 w-3" /> Hot
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSortChange('createdAt_asc')}>
-                <CalendarDays className="mr-2 h-4 w-4" /> Oldest
+              <DropdownMenuItem onClick={() => handleSortChange('createdAt_desc')} className="cursor-pointer text-xs">
+                <CalendarDays className="mr-2 h-3 w-3" /> New
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSortChange('likes_desc')}>
-                <ThumbsUp className="mr-2 h-4 w-4" /> Popularity
+              <DropdownMenuItem onClick={() => handleSortChange('createdAt_asc')} className="cursor-pointer text-xs">
+                <CalendarDays className="mr-2 h-3 w-3" /> Old
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <nav className="ml-auto flex items-center gap-2 md:gap-4">
+        
+        <nav className="flex items-center gap-2">
           <ThemeToggle />
           {user && (
-            <Button asChild size="sm" variant="ghost" className="px-2 md:px-3">
+            <Button asChild size="sm" className="h-8 px-3 text-xs font-medium">
               <Link href="/submit">
-                <PenSquare className="mr-0 h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Create Post</span>
+                <PenSquare className="mr-1 h-3 w-3" /> 
+                <span className="hidden sm:inline">Create</span>
               </Link>
             </Button>
           )}
-          <div>
           {authLoading ? (
-            <div className="flex items-center justify-center h-10 w-10">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <div className="flex items-center justify-center h-8 w-8">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
             </div>
           ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.avatarUrl || undefined} alt={userDisplayNameForMenu} data-ai-hint="profile avatar" />
-                    <AvatarFallback>{userAvatarFallbackChar || <UserCircle />}</AvatarFallback>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.avatarUrl || undefined} alt={userDisplayNameForMenu} />
+                    <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">{userAvatarFallbackChar || <UserCircle />}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{userDisplayNameForMenu}</DropdownMenuLabel>
-                {user.role && <DropdownMenuLabel className="text-xs text-muted-foreground -mt-2 capitalize">Role: {user.role}</DropdownMenuLabel>}
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel className="font-medium text-sm">{userDisplayNameForMenu}</DropdownMenuLabel>
+                {user.role && <DropdownMenuLabel className="text-xs text-muted-foreground -mt-1">Role: {user.role}</DropdownMenuLabel>}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile"><UserCircle className="mr-2 h-4 w-4" />Profile</Link>
+                <DropdownMenuItem asChild className="cursor-pointer text-sm">
+                  <Link href="/profile"><UserCircle className="mr-2 h-3 w-3" />Profile</Link>
                 </DropdownMenuItem>
                 {canAccessAdmin && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin"><ShieldCheck className="mr-2 h-4 w-4" />Admin Panel</Link>
+                  <DropdownMenuItem asChild className="cursor-pointer text-sm">
+                    <Link href="/admin"><ShieldCheck className="mr-2 h-3 w-3" />Admin</Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout}>
-                  <LogOut className="mr-2 h-4 w-4" /> Logout
+                <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive text-sm">
+                  <LogOut className="mr-2 h-3 w-3" /> Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild>
+            <Button asChild size="sm" className="h-8 px-3 text-xs">
               <Link href="/auth">
-                <LogIn className="mr-2 h-4 w-4" /> Login
+                <LogIn className="mr-1 h-3 w-3" /> Login
               </Link>
             </Button>
           )}
-          </div>
         </nav>
       </div>
     </header>

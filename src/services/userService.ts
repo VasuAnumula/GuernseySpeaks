@@ -30,7 +30,7 @@ const processUserDoc = (docSnap: any): User | null => {
         obj[key] = obj[key].toDate();
       } else if (typeof obj[key] === 'object' && obj[key] !== null) {
         if (Object.values(obj[key]).some(v => v instanceof Timestamp)) {
-           convertTimestamps(obj[key]);
+          convertTimestamps(obj[key]);
         }
       }
     }
@@ -87,30 +87,30 @@ export const uploadProfilePicture = async (uid: string, file: File): Promise<str
   } catch (error: any) {
     console.error('Error uploading profile picture to Firebase Storage:', error);
     if (error.code === 'storage/unauthorized') {
-        throw new Error('Permission denied. Check Firebase Storage security rules.');
+      throw new Error('Permission denied. Check Firebase Storage security rules.');
     }
     throw new Error('Failed to upload profile picture.');
   }
 };
 
-export const updateUserProfile = async (uid: string, data: Partial<Pick<User, 'name' | 'displayName' | 'avatarUrl'>>): Promise<void> => {
+export const updateUserProfile = async (uid: string, data: Partial<Pick<User, 'name' | 'displayName' | 'avatarUrl' | 'bio'>>): Promise<void> => {
   try {
     const userDocRef = doc(db, 'users', uid);
     const updateData: { [key: string]: any } = { ...data };
-    
+
     if (auth.currentUser && auth.currentUser.uid === uid) {
-        const authUpdate: { displayName?: string | null, photoURL?: string | null } = {};
-        if (data.displayName !== undefined) authUpdate.displayName = data.displayName || null;
-        if (data.avatarUrl !== undefined) authUpdate.photoURL = data.avatarUrl || null;
-        
-        if (Object.keys(authUpdate).length > 0) {
-            await updateAuthProfile(auth.currentUser, authUpdate);
-        }
+      const authUpdate: { displayName?: string | null, photoURL?: string | null } = {};
+      if (data.displayName !== undefined) authUpdate.displayName = data.displayName || null;
+      if (data.avatarUrl !== undefined) authUpdate.photoURL = data.avatarUrl || null;
+
+      if (Object.keys(authUpdate).length > 0) {
+        await updateAuthProfile(auth.currentUser, authUpdate);
+      }
     }
 
     await updateDoc(userDocRef, {
-        ...updateData,
-        updatedAt: serverTimestamp()
+      ...updateData,
+      updatedAt: serverTimestamp()
     });
   } catch (error) {
     console.error('Error updating user profile:', error);
@@ -189,4 +189,3 @@ export const setUserRole = async (targetUserId: string, newRole: User['role']): 
   }
 };
 
-    

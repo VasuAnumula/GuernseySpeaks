@@ -1,3 +1,4 @@
+'use client';
 
 import { Footer as ModernFooter } from "@/components/ui/footer";
 import { MapPin, Mail, Shield, FileText, Home } from "lucide-react";

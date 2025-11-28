@@ -9,13 +9,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
-import { Mail, User as UserIcon, ShieldCheck, Loader2, UploadCloud, Save } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Mail, User as UserIcon, ShieldCheck, Loader2, UploadCloud, Save, FileText, MessageSquare, Calendar, ThumbsUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { updateUserDisplayNameAndPropagate, uploadProfilePicture, updateUserProfile } from '@/services/userService';
+import { getPostsByAuthor, getCommentsByUser } from '@/services/postService';
 import { useToast } from '@/hooks/use-toast';
+import type { Post, Comment } from '@/types';
+import Link from 'next/link';
 
 export default function ProfilePage() {
   const { user, loading: authLoading, updateUserInContext } = useAuth();
@@ -25,9 +29,46 @@ export default function ProfilePage() {
   const [formattedJoinedDate, setFormattedJoinedDate] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
   const [editableDisplayName, setEditableDisplayName] = useState('');
   const [isSavingDisplayName, setIsSavingDisplayName] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
+
+  const [editableFullName, setEditableFullName] = useState('');
+  const [isSavingFullName, setIsSavingFullName] = useState(false);
+
+  const [editableBio, setEditableBio] = useState('');
+  const [isSavingBio, setIsSavingBio] = useState(false);
+
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [userComments, setUserComments] = useState<(Comment & { postId: string })[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingComments, setLoadingComments] = useState(true);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchUserActivity = useCallback(async () => {
+    if (!user) return;
+
+    setLoadingPosts(true);
+    try {
+      const posts = await getPostsByAuthor(user.uid);
+      setUserPosts(posts);
+    } catch (err) {
+      console.error("Error fetching user posts:", err);
+    } finally {
+      setLoadingPosts(false);
+    }
+
+    setLoadingComments(true);
+    try {
+      const comments = await getCommentsByUser(user.uid);
+      setUserComments(comments);
+    } catch (err) {
+      console.error("Error fetching user comments:", err);
+    } finally {
+      setLoadingComments(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -35,6 +76,9 @@ export default function ProfilePage() {
     }
     if (user) {
       setEditableDisplayName(user.displayName || user.name || '');
+      setEditableFullName(user.name || '');
+      setEditableBio(user.bio || '');
+
       if (user.createdAt) {
         try {
           const date = user.createdAt instanceof Date ? user.createdAt : (user.createdAt as any).toDate();
@@ -46,23 +90,24 @@ export default function ProfilePage() {
       } else {
         setFormattedJoinedDate("Not available");
       }
+
+      fetchUserActivity();
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, fetchUserActivity]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      // Basic client-side validation (optional but good practice)
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
         toast({ title: "File Too Large", description: "Please select an image smaller than 5MB.", variant: "destructive" });
         setSelectedFile(null);
-        if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
       if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
         toast({ title: "Invalid File Type", description: "Please select a JPG, PNG, or GIF image.", variant: "destructive" });
         setSelectedFile(null);
-        if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
       setSelectedFile(file);
@@ -80,11 +125,11 @@ export default function ProfilePage() {
     try {
       const downloadURL = await uploadProfilePicture(user.uid, selectedFile);
       await updateUserProfile(user.uid, { avatarUrl: downloadURL });
-      updateUserInContext({ avatarUrl: downloadURL }); // Update context immediately
+      updateUserInContext({ avatarUrl: downloadURL });
 
       toast({ title: "Avatar Updated", description: "Your new profile picture has been uploaded." });
-      setSelectedFile(null); // Clear selection
-      if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error: any) {
       console.error("Failed to upload avatar:", error);
       toast({ title: "Upload Failed", description: error.message || "Could not upload avatar. Please try again.", variant: "destructive" });
@@ -107,12 +152,52 @@ export default function ProfilePage() {
     try {
       await updateUserDisplayNameAndPropagate(user.uid, editableDisplayName.trim());
       updateUserInContext({ displayName: editableDisplayName.trim() });
-      toast({ title: "Display Name Updated", description: "Your display name has been updated successfully. Changes will reflect across your content." });
+      toast({ title: "Display Name Updated", description: "Your display name has been updated successfully." });
     } catch (error: any) {
       console.error("Failed to update display name:", error);
       toast({ title: "Update Failed", description: error.message || "Could not update display name.", variant: "destructive" });
     } finally {
       setIsSavingDisplayName(false);
+    }
+  };
+
+  const handleFullNameChange = async () => {
+    if (!user) return;
+    if (editableFullName.trim() === (user.name || '')) {
+      toast({ title: "No Changes", description: "Full name is the same.", variant: "default" });
+      return;
+    }
+
+    setIsSavingFullName(true);
+    try {
+      await updateUserProfile(user.uid, { name: editableFullName.trim() });
+      updateUserInContext({ name: editableFullName.trim() });
+      toast({ title: "Full Name Updated", description: "Your full name has been updated." });
+    } catch (error: any) {
+      console.error("Failed to update full name:", error);
+      toast({ title: "Update Failed", description: error.message || "Could not update full name.", variant: "destructive" });
+    } finally {
+      setIsSavingFullName(false);
+    }
+  };
+
+  const handleBioChange = async () => {
+    if (!user) return;
+    if (editableBio.trim() === (user.bio || '')) {
+      toast({ title: "No Changes", description: "Bio is the same.", variant: "default" });
+      return;
+    }
+
+    setIsSavingBio(true);
+    try {
+      await updateUserProfile(user.uid, { bio: editableBio.trim() });
+      updateUserInContext({ bio: editableBio.trim() });
+      toast({ title: "Bio Updated", description: "Your bio has been updated." });
+    } catch (error: any) {
+      console.error("Failed to update bio:", error);
+      toast({ title: "Update Failed", description: error.message || "Could not update bio.", variant: "destructive" });
+    } finally {
+      setIsSavingBio(false);
     }
   };
 
@@ -129,91 +214,236 @@ export default function ProfilePage() {
 
   const currentDisplayName = user.displayName || user.name || 'User Profile';
   const userAvatarFallback = currentDisplayName.substring(0, 1).toUpperCase() || <UserIcon />;
-  
+
   return (
     <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
-      <Card className="max-w-2xl mx-auto shadow-lg">
-        <CardHeader className="text-center relative">
-          <Avatar className="w-32 h-32 mx-auto mb-4 border-4 border-primary shadow-md">
-            <AvatarImage src={user.avatarUrl || undefined} alt={currentDisplayName} data-ai-hint="user large_avatar" />
-            <AvatarFallback className="text-5xl">{userAvatarFallback}</AvatarFallback>
-          </Avatar>
-          <CardTitle className="text-3xl">{currentDisplayName}</CardTitle>
-          {user.email && (
-            <CardDescription className="flex items-center justify-center gap-1">
-              <Mail className="h-4 w-4 text-muted-foreground" /> {user.email}
-            </CardDescription>
-          )}
-          {user.role && (
-            <div className="mt-2 flex items-center justify-center gap-1 text-sm text-accent-foreground font-medium">
-              <ShieldCheck className="h-5 w-5 text-accent" /> Role: <span className="capitalize">{user.role}</span>
-            </div>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold mb-1">Full Name (Not editable)</h3>
-            <p className="text-muted-foreground">{user.name || 'Not set'}</p>
-          </div>
-           
-          <div className="space-y-2">
-            <Label htmlFor="displayName" className="text-lg font-semibold">Display Name (Public)</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="displayName"
-                value={editableDisplayName}
-                onChange={(e) => setEditableDisplayName(e.target.value)}
-                className="text-base"
-                disabled={isSavingDisplayName}
-                maxLength={50}
-              />
-              <Button 
-                onClick={handleDisplayNameChange} 
-                disabled={isSavingDisplayName || editableDisplayName.trim() === (user.displayName || user.name || '') || !editableDisplayName.trim()}
-              >
-                {isSavingDisplayName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save Name
-              </Button>
-            </div>
-          </div>
+      <div className="space-y-6">
+        <Card className="max-w-2xl mx-auto shadow-lg">
+          <CardHeader className="text-center relative">
+            <Avatar className="w-32 h-32 mx-auto mb-4 border-4 border-primary shadow-md">
+              <AvatarImage src={user.avatarUrl || undefined} alt={currentDisplayName} data-ai-hint="user large_avatar" />
+              <AvatarFallback className="text-5xl">{userAvatarFallback}</AvatarFallback>
+            </Avatar>
+            <CardTitle className="text-3xl">{currentDisplayName}</CardTitle>
+            {user.email && (
+              <CardDescription className="flex items-center justify-center gap-1">
+                <Mail className="h-4 w-4 text-muted-foreground" /> {user.email}
+              </CardDescription>
+            )}
+            {user.role && (
+              <div className="mt-2 flex items-center justify-center gap-1 text-sm text-accent-foreground font-medium">
+                <ShieldCheck className="h-5 w-5 text-accent" /> Role: <span className="capitalize">{user.role}</span>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-6">
 
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Change Profile Picture</h3>
-            <div className="flex flex-col sm:flex-row items-center gap-2 mt-1">
-              <Label htmlFor="avatar-upload" className="sr-only">Choose profile picture</Label>
-              <Input 
-                id="avatar-upload"
-                ref={fileInputRef}
-                type="file" 
-                accept="image/png, image/jpeg, image/gif"
-                onChange={handleFileChange}
-                className="flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                disabled={isUploadingAvatar}
-              />
-              <Button onClick={handleAvatarUpload} disabled={isUploadingAvatar || !selectedFile} className="w-full sm:w-auto">
-                {isUploadingAvatar ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                Upload Avatar
-              </Button>
+            {/* Display Name Section */}
+            <div className="space-y-2">
+              <Label htmlFor="displayName" className="text-lg font-semibold">Display Name (Public)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="displayName"
+                  value={editableDisplayName}
+                  onChange={(e) => setEditableDisplayName(e.target.value)}
+                  className="text-base"
+                  disabled={isSavingDisplayName}
+                  maxLength={50}
+                />
+                <Button
+                  onClick={handleDisplayNameChange}
+                  disabled={isSavingDisplayName || editableDisplayName.trim() === (user.displayName || user.name || '') || !editableDisplayName.trim()}
+                >
+                  {isSavingDisplayName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save
+                </Button>
+              </div>
             </div>
-            {selectedFile && <p className="text-xs text-muted-foreground mt-1">Selected: {selectedFile.name}</p>}
-             <p className="text-xs text-muted-foreground mt-2">
-              Max file size: 5MB. Allowed types: JPG, PNG, GIF.
-            </p>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Activity</h3>
-            <ul className="list-disc list-inside text-muted-foreground space-y-1">
-              <li>Posts created: (Coming soon)</li>
-              <li>Comments made: (Coming soon)</li>
-              <li>Joined: {formattedJoinedDate || 'Loading...'}</li>
-            </ul>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-end">
-        </CardFooter>
-      </Card>
+
+            {/* Full Name Section */}
+            <div className="space-y-2">
+              <Label htmlFor="fullName" className="text-lg font-semibold">Full Name (Private)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="fullName"
+                  value={editableFullName}
+                  onChange={(e) => setEditableFullName(e.target.value)}
+                  className="text-base"
+                  disabled={isSavingFullName}
+                  maxLength={100}
+                />
+                <Button
+                  onClick={handleFullNameChange}
+                  disabled={isSavingFullName || editableFullName.trim() === (user.name || '')}
+                >
+                  {isSavingFullName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            {/* Bio Section */}
+            <div className="space-y-2">
+              <Label htmlFor="bio" className="text-lg font-semibold">Bio</Label>
+              <div className="space-y-2">
+                <Textarea
+                  id="bio"
+                  value={editableBio}
+                  onChange={(e) => setEditableBio(e.target.value)}
+                  className="text-base resize-none"
+                  disabled={isSavingBio}
+                  maxLength={500}
+                  rows={4}
+                  placeholder="Tell us a little about yourself..."
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleBioChange}
+                    disabled={isSavingBio || editableBio.trim() === (user.bio || '')}
+                  >
+                    {isSavingBio ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Save Bio
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Avatar Upload Section */}
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Change Profile Picture</h3>
+              <div className="flex flex-col gap-4">
+                {/* Hidden Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/png, image/jpeg, image/gif"
+                  onChange={handleFileChange}
+                />
+
+                <div className="flex items-center gap-4">
+                  {/* Select Button */}
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingAvatar}
+                  >
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Select Image
+                  </Button>
+
+                  {/* Upload Button */}
+                  {selectedFile && (
+                    <Button
+                      onClick={handleAvatarUpload}
+                      disabled={isUploadingAvatar}
+                    >
+                      {isUploadingAvatar ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="mr-2 h-4 w-4" />
+                      )}
+                      Upload
+                    </Button>
+                  )}
+                </div>
+
+                {/* File Info / Preview */}
+                {selectedFile && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded-md w-fit">
+                    <FileText className="h-4 w-4" />
+                    <span>{selectedFile.name}</span>
+                    <span className="text-xs">({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Max file size: 5MB. Allowed types: JPG, PNG, GIF.
+                </p>
+              </div>
+            </div>
+
+            {/* Activity Summary */}
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Account Info</h3>
+              <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                <li>Joined: {formattedJoinedDate || 'Loading...'}</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Activity Sections */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
+          {/* Posts Created */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <CardTitle>Posts Created ({userPosts.length})</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingPosts ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : userPosts.length > 0 ? (
+                <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                  {userPosts.slice(0, 10).map((post) => (
+                    <div key={post.id} className="border-b pb-3 last:border-0">
+                      <Link href={`/post/${post.id}/${post.slug}`} className="font-medium hover:underline block truncate">
+                        {post.title}
+                      </Link>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {post.likes}</span>
+                        <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> {post.commentsCount}</span>
+                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {post.createdAt && format(post.createdAt instanceof Date ? post.createdAt : new Date(), 'MMM d, yyyy')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No posts created yet.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Comments Made */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                <CardTitle>Comments Made ({userComments.length})</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingComments ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : userComments.length > 0 ? (
+                <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                  {userComments.slice(0, 10).map((comment) => (
+                    <div key={comment.id} className="border-b pb-3 last:border-0">
+                      <p className="text-sm line-clamp-2 mb-1">"{comment.content}"</p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <Link href={`/post/${comment.postId}`} className="hover:underline text-primary">
+                          View Post
+                        </Link>
+                        <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {comment.likes}</span>
+                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {comment.createdAt && format(comment.createdAt instanceof Date ? comment.createdAt : new Date(), 'MMM d, yyyy')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No comments made yet.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </MainLayout>
   );
 }
-
-    

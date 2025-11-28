@@ -7,6 +7,7 @@ export interface User {
   displayName?: string | null; // Public display name, can be different from name
   email?: string | null;
   avatarUrl?: string | null;
+  bio?: string | null; // User biography
   role?: 'user' | 'moderator' | 'superuser';
   createdAt?: Timestamp | Date;
 }
@@ -16,6 +17,7 @@ export interface AuthorInfo {
   name?: string | null; // Real name or full name
   displayName?: string | null; // Public display name
   avatarUrl?: string | null;
+  bio?: string | null; // User biography
 }
 
 export interface Post {

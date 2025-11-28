@@ -21,7 +21,8 @@ import {
   limit,
   where,
   QueryConstraint,
-  OrderByDirection
+  OrderByDirection,
+  collectionGroup
 } from 'firebase/firestore';
 import {
   ref as storageRef,
@@ -48,9 +49,9 @@ export async function createPost(postData: CreatePostInputData): Promise<string>
   try {
     const slug = await generateSlug(postData.title);
     const author: AuthorInfo = {
-        uid: postData.author.uid,
-        displayName: postData.author.displayName,
-        avatarUrl: postData.author.avatarUrl
+      uid: postData.author.uid,
+      displayName: postData.author.displayName,
+      avatarUrl: postData.author.avatarUrl
     };
 
     const docRef = await addDoc(collection(db, 'posts'), {
@@ -130,18 +131,18 @@ export async function getPosts(filters?: GetPostsFilters): Promise<Post[]> {
     const sortByField = filters?.sortBy || 'createdAt';
     const sortDirection = filters?.sortOrder || 'desc';
     queryConstraints.push(orderBy(sortByField, sortDirection));
-    
+
     // If sorting by a field other than the one used in an inequality filter (none here),
     // and also not createdAt, Firestore might require it as the first orderBy.
     // If `flair` filter is active, and sorting is by `likes` or `commentsCount`,
     // Firestore might require an index on `flairs` and `likes`/`commentsCount`.
     // The error message for missing indexes is helpful.
     if (sortByField !== 'createdAt' && filters?.flair) {
-        // If also sorting by createdAt for tie-breaking after likes/commentsCount,
-        // ensure 'createdAt' is the last orderBy if the primary sort is different.
-        // However, Firestore usually allows multiple orderBy clauses if indexed correctly.
-        // For simplicity, we'll rely on the main sort for now.
-        // queryConstraints.push(orderBy('createdAt', 'desc')); // Example tie-breaker
+      // If also sorting by createdAt for tie-breaking after likes/commentsCount,
+      // ensure 'createdAt' is the last orderBy if the primary sort is different.
+      // However, Firestore usually allows multiple orderBy clauses if indexed correctly.
+      // For simplicity, we'll rely on the main sort for now.
+      // queryConstraints.push(orderBy('createdAt', 'desc')); // Example tie-breaker
     }
 
 
@@ -155,10 +156,10 @@ export async function getPosts(filters?: GetPostsFilters): Promise<Post[]> {
   } catch (error: any) {
     console.error('[postService] Error fetching posts:', error);
     if (error.code === 'failed-precondition' && error.message.toLowerCase().includes('index')) {
-        let detailedMessage = `Failed to fetch posts. A Firestore index is likely missing. Please check Firebase console logs for details and a link to create the index.`;
-        detailedMessage += ` Query involved: ${filters?.flair ? `flair='${filters.flair}'` : ''} sorted by ${filters?.sortBy || 'createdAt'} ${filters?.sortOrder || 'desc'}.`;
-        console.error(detailedMessage);
-        throw new Error(detailedMessage + ` Original error: ${error.message}`);
+      let detailedMessage = `Failed to fetch posts. A Firestore index is likely missing. Please check Firebase console logs for details and a link to create the index.`;
+      detailedMessage += ` Query involved: ${filters?.flair ? `flair='${filters.flair}'` : ''} sorted by ${filters?.sortBy || 'createdAt'} ${filters?.sortOrder || 'desc'}.`;
+      console.error(detailedMessage);
+      throw new Error(detailedMessage + ` Original error: ${error.message}`);
     }
     throw new Error(`Failed to fetch posts. Original error: ${error.message}`);
   }
@@ -265,9 +266,9 @@ export async function createComment(
   try {
     const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
     const author: AuthorInfo = {
-        uid: commentData.author.uid,
-        displayName: commentData.author.displayName,
-        avatarUrl: commentData.author.avatarUrl
+      uid: commentData.author.uid,
+      displayName: commentData.author.displayName,
+      avatarUrl: commentData.author.avatarUrl
     };
     const docRef = await addDoc(commentsCollectionRef, {
       postId: postId,
@@ -303,9 +304,9 @@ export async function getCommentsForPost(postId: string): Promise<Comment[]> {
     const q = query(commentsCollectionRef, orderBy('createdAt', 'asc'));
     const querySnapshot = await getDocs(q);
     const comments = querySnapshot.docs.map(docSnap => {
-        const processed = processDoc(docSnap) as Comment;
-        // Ensure parentId is explicitly null if it's undefined from Firestore
-        return { ...processed, parentId: processed.parentId === undefined ? null : processed.parentId };
+      const processed = processDoc(docSnap) as Comment;
+      // Ensure parentId is explicitly null if it's undefined from Firestore
+      return { ...processed, parentId: processed.parentId === undefined ? null : processed.parentId };
     });
     return comments.filter(comment => comment !== null);
   } catch (error) {
@@ -350,38 +351,38 @@ export async function deleteComment(postId: string, commentId: string): Promise<
 
 export async function uploadPostImage(file: File): Promise<string> {
   try {
-    console.log('uploadPostImage called with file:', { 
-      name: file.name, 
-      size: file.size, 
-      type: file.type 
+    console.log('uploadPostImage called with file:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
     });
-    
+
     if (!file) {
       throw new Error('No file provided');
     }
-    
+
     if (file.size > 5 * 1024 * 1024) { // 5MB limit
       throw new Error('File size must be less than 5MB');
     }
-    
+
     if (!file.type.startsWith('image/')) {
       throw new Error('File must be an image');
     }
-    
+
     const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
     if (!sanitized) {
       throw new Error('Invalid file name');
     }
-    
+
     // Check if storage is initialized
     if (!storage) {
       throw new Error('Firebase Storage not initialized');
     }
-    
+
     // Check if user is authenticated (Firebase Storage often requires auth)
     console.log('Checking authentication status...');
     const { auth } = await import('@/lib/firebase/config');
-    
+
     // Wait for auth to be ready if needed
     await new Promise<void>((resolve) => {
       if (auth.currentUser !== null) {
@@ -398,36 +399,36 @@ export async function uploadPostImage(file: File): Promise<string> {
         }, 5000);
       }
     });
-    
+
     const currentUser = auth.currentUser;
-    console.log('Current user after auth check:', currentUser ? { 
-      uid: currentUser.uid, 
+    console.log('Current user after auth check:', currentUser ? {
+      uid: currentUser.uid,
       email: currentUser.email,
-      displayName: currentUser.displayName 
+      displayName: currentUser.displayName
     } : 'Not authenticated');
-    
+
     if (!currentUser) {
       throw new Error('User must be authenticated to upload images');
     }
-    
+
     const timestamp = Date.now();
     const fileName = `${timestamp}_${sanitized}`;
     const fileRef = storageRef(storage, `post_images/${fileName}`);
-    
+
     console.log('Storage reference created:', fileRef.fullPath);
     console.log('Starting upload to Firebase Storage:', fileName);
-    
+
     // Add progress monitoring
     const uploadTask = uploadBytes(fileRef, file);
     console.log('Upload task created, waiting for completion...');
-    
+
     const uploadResult = await uploadTask;
     console.log('Upload completed successfully:', uploadResult.metadata.fullPath);
-    
+
     console.log('Getting download URL...');
     const downloadURL = await getDownloadURL(fileRef);
     console.log('Download URL obtained:', downloadURL);
-    
+
     return downloadURL;
   } catch (error) {
     console.error('uploadPostImage error details:', {
@@ -520,3 +521,72 @@ export async function generateSlug(title: string): Promise<string> {
     .replace(/\s+/g, '-')     // Replace spaces with hyphens
     .replace(/-+/g, '-');     // Replace multiple hyphens with a single one
 };
+
+/**
+ * Get all posts created by a specific user
+ */
+export async function getPostsByAuthor(authorUid: string): Promise<Post[]> {
+  try {
+    const postsCollection = collection(db, 'posts');
+    const q = query(
+      postsCollection,
+      where('author.uid', '==', authorUid),
+      orderBy('createdAt', 'desc'),
+      limit(50) // Limit to most recent 50 posts
+    );
+    const querySnapshot = await getDocs(q);
+    const posts = querySnapshot.docs.map(docSnap => processDoc(docSnap) as Post);
+    return posts.filter(post => post !== null);
+  } catch (error) {
+    console.error('Error fetching posts by author:', error);
+    throw new Error('Failed to fetch user posts.');
+  }
+}
+
+/**
+ * Get all comments made by a specific user across all posts
+ * Returns comments with post context
+ */
+/**
+ * Get all comments made by a specific user across all posts
+ * Returns comments with post context
+ */
+export async function getCommentsByUser(userUid: string): Promise<(Comment & { postId: string })[]> {
+  try {
+    // Use collectionGroup to query all comments across all posts efficiently
+    // This requires a composite index on 'comments' collection group: author.uid ASC, createdAt DESC
+    const commentsQuery = query(
+      collectionGroup(db, 'comments'),
+      where('author.uid', '==', userUid),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+
+    const querySnapshot = await getDocs(commentsQuery);
+
+    // Map comments and ensure they have postId (which is the parent doc ID for subcollection items)
+    const comments = querySnapshot.docs.map(docSnap => {
+      const processed = processDoc(docSnap) as Comment;
+      // For a subcollection 'posts/{postId}/comments/{commentId}', the parent doc is the post
+      const postDocRef = docSnap.ref.parent.parent;
+      const postId = postDocRef ? postDocRef.id : 'unknown';
+
+      return {
+        ...processed,
+        postId,
+        parentId: processed.parentId === undefined ? null : processed.parentId
+      };
+    });
+
+    return comments.filter(comment => comment !== null);
+  } catch (error: any) {
+    console.error('Error fetching comments by user:', error);
+    if (error.code === 'failed-precondition' && error.message.toLowerCase().includes('index')) {
+      const detailedMessage = `Failed to fetch user comments. A Firestore index is likely missing. Please check Firebase console logs for details and a link to create the index.`;
+      console.error(detailedMessage);
+      throw new Error(detailedMessage + ` Original error: ${error.message}`);
+    }
+    throw new Error('Failed to fetch user comments.');
+  }
+}
+

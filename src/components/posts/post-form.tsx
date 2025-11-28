@@ -1,49 +1,49 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { PREDEFINED_FLAIRS } from '@/constants/flairs';
-import { X, Loader2, ImagePlus } from 'lucide-react';
+import { X, Loader2, ImagePlus, Tag, ArrowLeft, Bold, Italic, Link as LinkIcon, List, ListOrdered, Quote, Code, Heading1, Heading2, ImageIcon, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { createPost, updatePost, generateSlug, uploadPostImage } from '@/services/postService';
 import { capitalizeSentences } from '@/lib/utils';
 import Image from 'next/image';
 import type { Post, AuthorInfo } from '@/types';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
 interface PostFormProps {
   postToEdit?: Post | null;
 }
 
-// PREDEFINED_FLAIRS imported from '@/constants/flairs'
-// Only one flair per post
 const MAX_FLAIRS = 1;
 
 export function PostForm({ postToEdit }: PostFormProps) {
   const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [flairs, setFlairs] = useState<string[]>([]);
-  const [selectedFlairToAdd, setSelectedFlairToAdd] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-  const handleRemoveImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
-  };
+  const [activeTab, setActiveTab] = useState("post");
 
   const isEditMode = !!postToEdit;
 
@@ -54,25 +54,22 @@ export function PostForm({ postToEdit }: PostFormProps) {
       setFlairs(postToEdit.flairs || []);
       if (postToEdit.imageUrl) {
         setImagePreview(postToEdit.imageUrl);
+        setActiveTab("image");
       }
     }
   }, [isEditMode, postToEdit]);
 
   const handleAddFlair = (flairToAdd: string) => {
-    if (!flairToAdd || !flairToAdd.trim()) return; // Ensure flair is not empty or just whitespace
-
+    if (!flairToAdd?.trim()) return;
     const trimmedFlair = flairToAdd.trim();
 
     if (flairs.length >= MAX_FLAIRS) {
-      toast({ title: "Flair Limit Reached", description: `You can add up to ${MAX_FLAIRS} flairs.`, variant: "destructive" });
+      toast({ title: "Limit Reached", description: `Only ${MAX_FLAIRS} topic allowed.`, variant: "destructive" });
       return;
     }
-    if (flairs.includes(trimmedFlair)) {
-      toast({ title: "Flair Already Added", description: `"${trimmedFlair}" is already in your list.`, variant: "default" });
-      return;
-    }
+    if (flairs.includes(trimmedFlair)) return;
+
     setFlairs([...flairs, trimmedFlair]);
-    setSelectedFlairToAdd('');
   };
 
   const handleRemoveFlair = (flairToRemove: string) => {
@@ -80,112 +77,74 @@ export function PostForm({ postToEdit }: PostFormProps) {
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    
-    if (file) {
-      console.log('Image selected:', { 
-        name: file.name, 
-        size: file.size, 
-        type: file.type,
-        lastModified: file.lastModified 
-      });
-      
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        toast({ 
-          title: 'File Too Large', 
-          description: 'Please select an image under 5MB',
-          variant: 'destructive' 
-        });
-        e.target.value = ''; // Clear the input
-        return;
-      }
-      
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        toast({ 
-          title: 'Invalid File Type', 
-          description: 'Please select an image file',
-          variant: 'destructive' 
-        });
-        e.target.value = ''; // Clear the input
-        return;
-      }
-    }
-    
-    setImageFile(file);
-    setImagePreview(file ? URL.createObjectURL(file) : null);
-  };
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) {
-      toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'File Too Large', description: 'Max 5MB allowed', variant: 'destructive' });
+      e.target.value = '';
       return;
     }
-    if (!title.trim() || !content.trim()) {
-        toast({ title: "Missing Fields", description: "Title and content are required.", variant: "destructive" });
-        return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid File', description: 'Images only', variant: 'destructive' });
+      e.target.value = '';
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleSubmit = async () => {
+    if (!user) {
+      toast({ title: "Login Required", description: "Please login to post.", variant: "destructive" });
+      return;
+    }
+    if (!title.trim()) {
+      toast({ title: "Missing Title", description: "Please enter a title for your post.", variant: "destructive" });
+      return;
+    }
+    if (activeTab === 'post' && !content.trim()) {
+      toast({ title: "Missing Content", description: "Please enter some text content.", variant: "destructive" });
+      return;
+    }
+    if (activeTab === 'image' && !imageFile && !imagePreview) {
+      toast({ title: "Missing Image", description: "Please upload an image.", variant: "destructive" });
+      return;
     }
     if (flairs.length !== 1) {
-        toast({ title: "Flair Required", description: "Please select exactly one flair.", variant: "destructive" });
-        return;
+      toast({ title: "Topic Required", description: "Please select a topic.", variant: "destructive" });
+      return;
     }
-    setIsSubmitting(true);
 
+    setIsSubmitting(true);
     const trimmedTitle = capitalizeSentences(title.trim());
     const processedContent = capitalizeSentences(content.trim());
-    let uploadedUrl: string | undefined;
-    if (imageFile) {
-      try {
-        console.log('=== STARTING IMAGE UPLOAD ===');
-        console.log('File details:', { 
-          fileName: imageFile.name, 
-          fileSize: imageFile.size, 
-          fileType: imageFile.type,
-          lastModified: new Date(imageFile.lastModified).toISOString()
-        });
-        
-        console.log('Current user auth status:', user ? { uid: user.uid, email: user.email } : 'Not authenticated');
-        
-        // Add timeout to prevent infinite hanging
-        const uploadPromise = uploadPostImage(imageFile);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Upload timeout after 30 seconds')), 30000)
-        );
-        
-        console.log('Starting upload with 30s timeout...');
-        uploadedUrl = await Promise.race([uploadPromise, timeoutPromise]) as string;
-        console.log('=== IMAGE UPLOAD SUCCESSFUL ===');
-        console.log('Upload URL:', uploadedUrl);
-      } catch (err) {
-        console.error('=== IMAGE UPLOAD FAILED ===');
-        console.error('Error details:', err);
-        console.error('Error type:', typeof err);
-        console.error('Error constructor:', err?.constructor?.name);
-        
-        toast({
-          title: 'Image Upload Failed',
-          description: err instanceof Error ? err.message : 'Unknown error occurred',
-          variant: 'destructive'
-        });
-        
-        setIsSubmitting(false);
-        return;
-      }
-    }
 
     try {
+      let uploadedUrl = postToEdit?.imageUrl;
+      if (imageFile) {
+        uploadedUrl = await uploadPostImage(imageFile);
+      }
+
+      const postData = {
+        title: trimmedTitle,
+        content: activeTab === 'image' ? (processedContent || 'Image Post') : processedContent,
+        flairs,
+        imageUrl: activeTab === 'image' ? uploadedUrl : null,
+      };
+
       if (isEditMode && postToEdit) {
-        const postUpdateData: Partial<Pick<Post, 'title' | 'content' | 'flairs' | 'imageUrl'>> = {
-          title: trimmedTitle,
-          content: processedContent,
-          flairs,
-          imageUrl: uploadedUrl ?? postToEdit.imageUrl,
-        };
-        await updatePost(postToEdit.id, postUpdateData);
+        await updatePost(postToEdit.id, postData);
         const updatedSlug = await generateSlug(trimmedTitle);
-        toast({ title: "Post Updated", description: "Your post has been successfully updated!" });
+        toast({ title: "Updated!", description: "Post updated successfully." });
         router.push(`/post/${postToEdit.id}/${updatedSlug}`);
       } else {
         const authorInfo: AuthorInfo = {
@@ -193,151 +152,191 @@ export function PostForm({ postToEdit }: PostFormProps) {
           displayName: user.displayName || user.name || 'Anonymous',
           avatarUrl: user.avatarUrl,
         };
-        const newPostPayload = {
-          title: trimmedTitle,
-          content: processedContent,
+        const postId = await createPost({
+          ...postData,
           author: authorInfo,
-          flairs,
-          imageUrl: uploadedUrl || null,
-        };
-        const postId = await createPost(newPostPayload);
+          imageUrl: postData.imageUrl || null,
+        });
         const newSlug = await generateSlug(trimmedTitle);
-        toast({ title: "Post Submitted", description: "Your post is now live!" });
+        toast({ title: "Published!", description: "Your post is live." });
         router.push(`/post/${postId}/${newSlug}`);
       }
-    } catch (error) {
-      console.error(`Failed to ${isEditMode ? 'update' : 'create'} post:`, error);
-      toast({
-        title: `${isEditMode ? 'Update' : 'Submission'} Failed`,
-        description: `Could not ${isEditMode ? 'update' : 'create'} your post. Please try again.`,
-        variant: "destructive"
-      });
+    } catch (error: any) {
+      console.error("Submission error:", error);
+      toast({ title: "Error", description: error.message || "Something went wrong.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Card className="w-full max-w-3xl mx-auto border-0 shadow-lg shadow-primary/5 bg-gradient-to-br from-card to-card/95 rounded-xl overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/20">
-        <CardTitle className="text-2xl font-semibold text-foreground">{isEditMode ? "Edit Post" : "Create a New Post"}</CardTitle>
-        <CardDescription className="text-muted-foreground/80">
-          {isEditMode ? "Modify your existing post." : "Share your thoughts, news, or questions with the Guernsey community."}
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-8 p-6">
-          <div className="space-y-3">
-            <Label htmlFor="title" className="text-sm font-medium text-foreground">Title</Label>
-            <Input
-              id="title"
-              placeholder="Enter a descriptive title..."
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="text-base h-11 bg-secondary/50 border-0 rounded-lg shadow-sm focus:shadow-md transition-all duration-200 placeholder:text-muted-foreground/60"
-              maxLength={150}
-            />
-          </div>
-          <div className="space-y-3">
-            <Label htmlFor="content" className="text-sm font-medium text-foreground">Content</Label>
-            <div className="relative">
-              <Textarea
-                id="content"
-                placeholder="What's on your mind? Share your thoughts with the community..."
-                required
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={12}
-                className="text-base pr-12 bg-secondary/50 border-0 rounded-lg shadow-sm focus:shadow-md transition-all duration-200 placeholder:text-muted-foreground/60 resize-none"
-              />
-              <Input
-                id="image-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-              />
-              <label htmlFor="image-upload" className="absolute bottom-3 right-3 cursor-pointer p-2 rounded-lg hover:bg-primary/10 transition-colors group">
-                <ImagePlus className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-              </label>
-            </div>
-            {imagePreview && (
-              <div className="relative mt-4 group">
-                <div className="overflow-hidden rounded-lg border border-border/20">
-                  <Image src={imagePreview} alt="preview" width={500} height={300} className="w-full object-cover" />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleRemoveImage}
-                  className="absolute top-3 right-3 rounded-full bg-destructive/90 text-destructive-foreground p-2 hover:bg-destructive transition-colors shadow-sm"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-                <div className="absolute bottom-3 left-3 text-xs bg-black/70 text-white px-2 py-1 rounded">
-                  {(imageFile?.size || 0) > 0 ? `${Math.round((imageFile?.size || 0) / 1024)}KB` : ''}
-                </div>
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground/70 mt-2">💡 Tip: Markdown support is coming soon!</p>
-          </div>
-          <div className="space-y-3">
-            <Label htmlFor="flairs-select" className="text-sm font-medium text-foreground">Topic <span className="text-destructive">*</span></Label>
-            <div className="flex items-center gap-2">
-              <Select
-                value={selectedFlairToAdd}
-                onValueChange={(value) => {
-                  if (value && value.trim()) { // Ensure value is not empty/whitespace before adding
-                    handleAddFlair(value);
-                  }
-                }}
-                disabled={flairs.length >= MAX_FLAIRS}
+    <div className="max-w-6xl mx-auto py-6 px-4">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-semibold border-b pb-2 flex-grow mr-4">Create a post</h1>
+        <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-muted-foreground">
+          Drafts <Badge variant="secondary" className="ml-2">0</Badge>
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content Area */}
+        <div className="lg:col-span-2 space-y-4">
+          <Tabs defaultValue="post" value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full justify-start h-12 bg-background border rounded-t-lg p-0">
+              <TabsTrigger
+                value="post"
+                className="flex-1 h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-background transition-all"
               >
-                <SelectTrigger id="flairs-select" className="h-11 bg-secondary/50 border-0 rounded-lg shadow-sm focus:shadow-md transition-all duration-200">
-                  <SelectValue placeholder="Choose a topic for your post..." />
-                </SelectTrigger>
-                <SelectContent className="rounded-lg border-0 shadow-lg">
-                  {PREDEFINED_FLAIRS.filter(f => f && f.trim() !== "").map(flair => (
-                    <SelectItem
-                      key={flair}
-                      value={flair}
-                      disabled={flairs.includes(flair)}
-                      className="cursor-pointer"
-                    >
-                      {flair}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {flairs.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
+                <FileText className="h-4 w-4 mr-2" /> Post
+              </TabsTrigger>
+              <TabsTrigger
+                value="image"
+                className="flex-1 h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-background transition-all"
+              >
+                <ImageIcon className="h-4 w-4 mr-2" /> Images & Video
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="bg-background border border-t-0 rounded-b-lg p-4 space-y-4">
+              <Input
+                placeholder="Title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="text-lg font-medium h-12"
+                maxLength={300}
+              />
+
+              <TabsContent value="post" className="mt-0">
+                <div className="border rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-ring">
+                  {/* Toolbar */}
+                  <div className="bg-muted/30 border-b p-2 flex items-center gap-1 overflow-x-auto">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Bold"><Bold className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Italic"><Italic className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Link"><LinkIcon className="h-4 w-4" /></Button>
+                    <Separator orientation="vertical" className="h-6 mx-1" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="List"><List className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Ordered List"><ListOrdered className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Quote"><Quote className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Code Block"><Code className="h-4 w-4" /></Button>
+                  </div>
+                  <Textarea
+                    placeholder="Text (optional)"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    className="min-h-[200px] border-none shadow-none focus-visible:ring-0 resize-y p-4"
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="image" className="mt-0">
+                <div className="border-2 border-dashed rounded-lg p-8 text-center hover:bg-muted/20 transition-colors relative min-h-[280px] flex flex-col items-center justify-center">
+                  {imagePreview ? (
+                    <div className="relative w-full h-full">
+                      <Image
+                        src={imagePreview}
+                        alt="Preview"
+                        width={600}
+                        height={400}
+                        className="max-h-[400px] w-auto mx-auto object-contain rounded-md"
+                      />
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-md"
+                        onClick={handleRemoveImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-4">
+                        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                          Upload
+                        </Button>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                        />
+                      </div>
+                      <p className="text-sm text-muted-foreground">Drag and drop images or <span className="text-primary cursor-pointer" onClick={() => fileInputRef.current?.click()}>upload</span></p>
+                    </>
+                  )}
+                </div>
+              </TabsContent>
+
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="rounded-full">
+                      <Tag className="h-4 w-4 mr-2" />
+                      {flairs.length > 0 ? 'Change Topic' : 'Add Topic'}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56 max-h-64 overflow-y-auto">
+                    {PREDEFINED_FLAIRS.map((flair) => (
+                      <DropdownMenuItem
+                        key={flair}
+                        onClick={() => handleAddFlair(flair)}
+                        disabled={flairs.includes(flair)}
+                      >
+                        {flair}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 {flairs.map(flair => (
-                  <Badge key={flair} variant="secondary" className="text-sm py-2 px-4 bg-primary/10 text-primary hover:bg-primary/20 transition-colors rounded-full border-0">
+                  <Badge key={flair} variant="secondary" className="h-7 px-3 rounded-full bg-primary/10 text-primary hover:bg-primary/20">
                     {flair}
-                    <button type="button" onClick={() => handleRemoveFlair(flair)} className="ml-2 appearance-none border-none bg-transparent cursor-pointer p-0.5 rounded-full hover:bg-destructive/20 transition-colors">
+                    <button onClick={() => handleRemoveFlair(flair)} className="ml-2 hover:text-destructive">
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
                 ))}
               </div>
-            )}
-            {flairs.length >= MAX_FLAIRS && (
-                <p className="text-xs text-muted-foreground/70">Only one topic allowed per post.</p>
-            )}
-          </div>
-        </CardContent>
-        <CardFooter className="bg-muted/20 border-t border-border/20 p-6">
-          <Button 
-            type="submit" 
-            className="w-full h-12 text-base font-medium bg-primary hover:bg-primary/90 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 active:scale-[0.98]" 
-            disabled={isSubmitting || !title.trim() || !content.trim() || flairs.length !== 1}
-          >
-            {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-            {isEditMode ? "Update Post" : "Publish Post"}
-          </Button>
-        </CardFooter>
-      </form>
-    </Card>
+
+              <div className="flex justify-end gap-2 pt-4 border-t mt-4">
+                <Button variant="ghost" onClick={() => router.back()}>Cancel</Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !title.trim() || (activeTab === 'post' && !content.trim() && !imageFile) || flairs.length === 0}
+                  className="px-8"
+                >
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Post
+                </Button>
+              </div>
+            </div>
+          </Tabs>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-2 pb-2">
+              <Image src="/icon.svg" alt="Logo" width={40} height={40} className="rounded-full" />
+              <CardTitle className="text-base">Posting to GuernseySpeaks</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2">
+              <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+                <li className="pl-1">Remember the human</li>
+                <li className="pl-1">Behave like you would in real life</li>
+                <li className="pl-1">Look for the original source of content</li>
+                <li className="pl-1">Search for duplicates before posting</li>
+                <li className="pl-1">Read the community's rules</li>
+              </ol>
+              <Separator className="my-4" />
+              <p className="text-xs text-muted-foreground">
+                Please be mindful of Guernsey's defamation laws. Keep discussions civil and constructive.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }

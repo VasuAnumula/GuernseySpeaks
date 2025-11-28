@@ -52,26 +52,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (userDocSnap.exists()) {
             console.debug("[AuthContext] onAuthStateChanged: User document FOUND for UID:", firebaseUser.uid);
             const userData = userDocSnap.data() as User;
-            if (auth.currentUser && 
-                (auth.currentUser.displayName !== (userData.displayName || userData.name) ||
-                 auth.currentUser.photoURL !== userData.avatarUrl)) {
-                try {
-                    await updateProfile(auth.currentUser, {
-                        displayName: userData.displayName || userData.name,
-                        photoURL: userData.avatarUrl
-                    });
-                    console.debug("[AuthContext] onAuthStateChanged: Firebase Auth profile updated from Firestore data for UID:", firebaseUser.uid);
-                } catch (profileUpdateError) {
-                    console.error("[AuthContext] onAuthStateChanged: Error updating Firebase Auth profile:", profileUpdateError);
-                }
+            if (auth.currentUser &&
+              (auth.currentUser.displayName !== (userData.displayName || userData.name) ||
+                auth.currentUser.photoURL !== userData.avatarUrl)) {
+              try {
+                await updateProfile(auth.currentUser, {
+                  displayName: userData.displayName || userData.name,
+                  photoURL: userData.avatarUrl
+                });
+                console.debug("[AuthContext] onAuthStateChanged: Firebase Auth profile updated from Firestore data for UID:", firebaseUser.uid);
+              } catch (profileUpdateError) {
+                console.error("[AuthContext] onAuthStateChanged: Error updating Firebase Auth profile:", profileUpdateError);
+              }
             }
             setUser({
               ...userData,
               uid: firebaseUser.uid,
-              email: firebaseUser.email, 
-              avatarUrl: firebaseUser.photoURL || userData.avatarUrl, 
-              name: userData.name || firebaseUser.displayName, 
-              displayName: userData.displayName || firebaseUser.displayName || userData.name, 
+              email: firebaseUser.email,
+              avatarUrl: firebaseUser.photoURL || userData.avatarUrl,
+              name: userData.name || firebaseUser.displayName,
+              displayName: userData.displayName || firebaseUser.displayName || userData.name,
             });
           } else {
             console.warn("[AuthContext] onAuthStateChanged: User document NOT FOUND for UID:", firebaseUser.uid, ". Attempting to create new profile from onAuthStateChanged.");
@@ -81,23 +81,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               email: firebaseUser.email,
               name: newName,
               displayName: newName,
-              avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${newName.substring(0,1)}`,
+              avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=${newName.substring(0, 1)}`,
               role: 'user',
               createdAt: serverTimestamp() as Timestamp,
             };
             await setDoc(userDocRef, newUserProfile);
             console.debug("[AuthContext] onAuthStateChanged: New user profile CREATED in Firestore for UID:", firebaseUser.uid);
-            setUser(newUserProfile); 
+            setUser(newUserProfile);
           }
         } catch (firestoreError: any) {
           console.error(`[AuthContext] Firestore error in onAuthStateChanged for UID ${firebaseUser.uid}:`, firestoreError.message, firestoreError);
-          setUser({ 
+          setUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             name: firebaseUser.displayName || 'Error User',
             displayName: firebaseUser.displayName || 'Error User',
             avatarUrl: firebaseUser.photoURL || `https://placehold.co/40x40.png?text=E`,
-            role: 'user', 
+            role: 'user',
           });
           console.warn("[AuthContext] User state set to minimal due to Firestore error. App functionality might be limited.");
         }
@@ -111,6 +111,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
+  // Helper function to translate Firebase errors to user-friendly messages
+  const getFriendlyErrorMessage = (error: any): string => {
+    const errorCode = error?.code || '';
+
+    switch (errorCode) {
+      case 'auth/invalid-email':
+        return 'Please enter a valid email address.';
+      case 'auth/user-disabled':
+        return 'This account has been disabled. Please contact support.';
+      case 'auth/user-not-found':
+        return 'No account found with this email. Please check your email or register.';
+      case 'auth/wrong-password':
+        return 'Incorrect password. Please try again or use "Forgot password".';
+      case 'auth/invalid-credential':
+        return 'Invalid email or password. Please check your credentials and try again.';
+      case 'auth/email-already-in-use':
+        return 'An account with this email already exists. Please login instead.';
+      case 'auth/weak-password':
+        return 'Password is too weak. Please use at least 6 characters with a mix of letters and numbers.';
+      case 'auth/operation-not-allowed':
+        return 'This sign-in method is not enabled. Please contact support.';
+      case 'auth/too-many-requests':
+        return 'Too many failed attempts. Please try again later or reset your password.';
+      case 'auth/network-request-failed':
+        return 'Network error. Please check your internet connection and try again.';
+      case 'auth/popup-closed-by-user':
+        return 'Sign-in cancelled. Please try again if you want to continue.';
+      case 'auth/popup-blocked':
+        return 'Pop-up was blocked by your browser. Please allow pop-ups for this site.';
+      case 'auth/account-exists-with-different-credential':
+        return 'An account already exists with this email using a different sign-in method. Try signing in with Google or email/password.';
+      case 'auth/unauthorized-domain':
+        return 'This domain is not authorized. Please contact support.';
+      default:
+        return error?.message || 'An unexpected error occurred. Please try again.';
+    }
+  };
+
+
   const login = async (email: string, password: string) => {
     setLoading(true);
     console.debug("[AuthContext] Attempting Email/Password Login...");
@@ -119,7 +158,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.debug("[AuthContext] Email/Password Login successful.");
     } catch (error) {
       console.error("[AuthContext] Email/Password Login error:", error);
-      throw error;
+      const friendlyError = new Error(getFriendlyErrorMessage(error));
+      throw friendlyError;
     } finally {
       setLoading(false);
     }
@@ -137,14 +177,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       console.debug("[AuthContext] Registration: Firebase user CREATED via email/password. UID:", firebaseUser.uid);
-      
+
       const actualDisplayName = displayName.trim() || (name ? name.trim() : firebaseUser.email?.split('@')[0]) || 'User';
       const actualName = name ? name.trim() : actualDisplayName;
-      const avatarFallbackChar = actualDisplayName.substring(0,1).toUpperCase() || 'U';
+      const avatarFallbackChar = actualDisplayName.substring(0, 1).toUpperCase() || 'U';
 
 
-      await updateProfile(firebaseUser, { 
-        displayName: actualDisplayName, 
+      await updateProfile(firebaseUser, {
+        displayName: actualDisplayName,
         photoURL: `https://placehold.co/40x40.png?text=${avatarFallbackChar}`
       });
       console.debug("[AuthContext] Registration: Firebase Auth profile (displayName, photoURL) updated for UID:", firebaseUser.uid);
@@ -152,7 +192,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const newUserProfile: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
-        name: actualName, 
+        name: actualName,
         displayName: actualDisplayName,
         avatarUrl: firebaseUser.photoURL, // Use the updated photoURL from Firebase Auth profile
         role: 'user',
@@ -162,7 +202,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.debug("[AuthContext] Registration: User profile CREATED in Firestore for UID:", firebaseUser.uid);
     } catch (error: any) {
       console.error("[AuthContext] Email/Password Registration error (Firebase Auth or Firestore):", error);
-      throw error;
+      const friendlyError = new Error(getFriendlyErrorMessage(error));
+      throw friendlyError;
     } finally {
       setLoading(false);
     }
@@ -171,13 +212,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const handleSocialSignIn = async (firebaseUser: FirebaseUser, providerName: string) => {
     console.debug(`[AuthContext] handleSocialSignIn called for ${providerName}. UID:`, firebaseUser.uid);
     const userDocRef = doc(db, 'users', firebaseUser.uid);
-    
+
     try {
       const userDocSnap = await getDoc(userDocRef);
       if (!userDocSnap.exists()) {
         console.warn(`[AuthContext] handleSocialSignIn (${providerName}): User document NOT FOUND for UID: ${firebaseUser.uid}. Creating new profile.`);
         const baseName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'AnonymousUser';
-        const avatarFallbackChar = baseName.substring(0,1).toUpperCase() || 'U';
+        const avatarFallbackChar = baseName.substring(0, 1).toUpperCase() || 'U';
         const newUserProfile: User = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -187,7 +228,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           role: 'user',
           createdAt: serverTimestamp() as Timestamp,
         };
-        await setDoc(userDocRef, newUserProfile); 
+        await setDoc(userDocRef, newUserProfile);
         console.debug(`[AuthContext] handleSocialSignIn (${providerName}): New user profile CREATED in Firestore for UID: ${firebaseUser.uid}`);
         setUser(newUserProfile); // Set user immediately
       } else {
@@ -201,55 +242,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Sync from Firebase Auth to Firestore if Firestore is missing info
         if (!existingData.name && firebaseUser.displayName) {
-            updateData.name = firebaseUser.displayName;
-            changedInFirestore = true;
+          updateData.name = firebaseUser.displayName;
+          changedInFirestore = true;
         }
         if (!existingData.displayName && firebaseUser.displayName) {
-            updateData.displayName = firebaseUser.displayName;
-            changedInFirestore = true;
+          updateData.displayName = firebaseUser.displayName;
+          changedInFirestore = true;
         }
         if (!existingData.avatarUrl && firebaseUser.photoURL) {
-            updateData.avatarUrl = firebaseUser.photoURL;
-            changedInFirestore = true;
+          updateData.avatarUrl = firebaseUser.photoURL;
+          changedInFirestore = true;
         }
-        
+
         // Sync from Firestore to Firebase Auth if Firebase Auth is missing or different
         if (existingData.displayName && auth.currentUser && auth.currentUser.displayName !== existingData.displayName) {
-            authUpdatePayload.displayName = existingData.displayName;
-            authProfileNeedsUpdate = true;
+          authUpdatePayload.displayName = existingData.displayName;
+          authProfileNeedsUpdate = true;
         }
         if (existingData.avatarUrl && auth.currentUser && auth.currentUser.photoURL !== existingData.avatarUrl) {
-            authUpdatePayload.photoURL = existingData.avatarUrl;
-            authProfileNeedsUpdate = true;
+          authUpdatePayload.photoURL = existingData.avatarUrl;
+          authProfileNeedsUpdate = true;
         }
 
         if (authProfileNeedsUpdate && auth.currentUser) {
-             try {
-                await updateProfile(auth.currentUser, authUpdatePayload);
-                console.debug(`[AuthContext] handleSocialSignIn (${providerName}): Firebase Auth profile updated from existing Firestore data for UID: ${firebaseUser.uid}`);
-             } catch (profileUpdateError) {
-                 console.error(`[AuthContext] handleSocialSignIn (${providerName}): Error updating Firebase Auth profile from Firestore:`, profileUpdateError);
-             }
+          try {
+            await updateProfile(auth.currentUser, authUpdatePayload);
+            console.debug(`[AuthContext] handleSocialSignIn (${providerName}): Firebase Auth profile updated from existing Firestore data for UID: ${firebaseUser.uid}`);
+          } catch (profileUpdateError) {
+            console.error(`[AuthContext] handleSocialSignIn (${providerName}): Error updating Firebase Auth profile from Firestore:`, profileUpdateError);
+          }
         }
 
         if (changedInFirestore) {
-            console.debug(`[AuthContext] handleSocialSignIn (${providerName}): Updating existing Firestore profile with new data. UID: ${firebaseUser.uid}`, updateData);
-            await updateDoc(userDocRef, updateData);
+          console.debug(`[AuthContext] handleSocialSignIn (${providerName}): Updating existing Firestore profile with new data. UID: ${firebaseUser.uid}`, updateData);
+          await updateDoc(userDocRef, updateData);
         } else {
-            console.debug(`[AuthContext] handleSocialSignIn (${providerName}): No new data to update in existing Firestore profile for UID: ${firebaseUser.uid}`);
+          console.debug(`[AuthContext] handleSocialSignIn (${providerName}): No new data to update in existing Firestore profile for UID: ${firebaseUser.uid}`);
         }
-         // Set user from potentially merged data (onAuthStateChanged will also run and might refine this)
+        // Set user from potentially merged data (onAuthStateChanged will also run and might refine this)
         setUser({
-            ...existingData, // Start with existing Firestore data
-            ...updateData,   // Overlay any changes made
-            uid: firebaseUser.uid, // Ensure core Firebase Auth fields are current
-            email: firebaseUser.email,
-            avatarUrl: auth.currentUser?.photoURL || existingData.avatarUrl, // Prefer live auth.currentUser if available
-            displayName: auth.currentUser?.displayName || existingData.displayName,
-            name: existingData.name || auth.currentUser?.displayName, // name might be more static
-          });
+          ...existingData, // Start with existing Firestore data
+          ...updateData,   // Overlay any changes made
+          uid: firebaseUser.uid, // Ensure core Firebase Auth fields are current
+          email: firebaseUser.email,
+          avatarUrl: auth.currentUser?.photoURL || existingData.avatarUrl, // Prefer live auth.currentUser if available
+          displayName: auth.currentUser?.displayName || existingData.displayName,
+          name: existingData.name || auth.currentUser?.displayName, // name might be more static
+        });
       }
-       console.debug(`[AuthContext] handleSocialSignIn (${providerName}): User profile processed successfully for UID: ${firebaseUser.uid}`);
+      console.debug(`[AuthContext] handleSocialSignIn (${providerName}): User profile processed successfully for UID: ${firebaseUser.uid}`);
     } catch (firestoreError: any) {
       console.error(`[AuthContext] Firestore error during ${providerName} sign-in profile handling for UID ${firebaseUser.uid}:`, firestoreError.message, firestoreError);
       throw new Error(`Error setting up user profile after ${providerName} sign-in: ${firestoreError.message}`);
@@ -267,15 +308,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.debug("[AuthContext] Google Sign-In and profile handling complete for UID:", result.user.uid);
     } catch (error: any) {
       console.error("[AuthContext] Error during Google Sign-in flow (Auth Popup or Profile Handling):", error.message, error);
-      if (error.code === 'auth/popup-closed-by-user') {
-        throw new Error("Google Sign-in cancelled by user.");
-      } else if (error.code === 'auth/network-request-failed') {
-        throw new Error("Network error during Google Sign-in. Please check your connection.");
-      } else if (error.code === 'auth/unauthorized-domain') {
+      if (error.code === 'auth/unauthorized-domain') {
         console.error("[AuthContext] CRITICAL: auth/unauthorized-domain. Ensure your domain is listed in Firebase Console -> Authentication -> Settings -> Authorized domains.");
-        throw new Error("This domain is not authorized for Google Sign-in. Please contact support. (auth/unauthorized-domain)");
       }
-      throw error;
+      const friendlyError = new Error(getFriendlyErrorMessage(error));
+      throw friendlyError;
     } finally {
       setLoading(false);
     }
@@ -292,17 +329,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.debug("[AuthContext] Facebook Sign-In and profile handling complete for UID:", result.user.uid);
     } catch (error: any) {
       console.error("[AuthContext] Error during Facebook Sign-in flow (Auth Popup or Profile Handling):", error.message, error);
-      if (error.code === 'auth/popup-closed-by-user') {
-        throw new Error("Facebook Sign-in cancelled by user.");
-      } else if (error.code === 'auth/account-exists-with-different-credential') {
-        throw new Error("An account already exists with the same email address but different sign-in credentials. Try signing in with Google or email.");
-      } else if (error.code === 'auth/network-request-failed') {
-        throw new Error("Network error during Facebook Sign-in. Please check your connection.");
-      } else if (error.code === 'auth/unauthorized-domain') {
+      if (error.code === 'auth/unauthorized-domain') {
         console.error("[AuthContext] CRITICAL: auth/unauthorized-domain. Ensure your domain is listed in Firebase Console -> Authentication -> Settings -> Authorized domains.");
-        throw new Error("This domain is not authorized for Facebook Sign-in. Please contact support. (auth/unauthorized-domain)");
       }
-      throw error;
+      const friendlyError = new Error(getFriendlyErrorMessage(error));
+      throw friendlyError;
     } finally {
       setLoading(false);
     }
@@ -313,7 +344,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     console.debug("[AuthContext] Attempting Logout...");
     try {
       await signOut(auth);
-      setUser(null); 
+      setUser(null);
       console.debug("[AuthContext] Logout successful. User set to null.");
       router.push('/');
     } catch (error) {

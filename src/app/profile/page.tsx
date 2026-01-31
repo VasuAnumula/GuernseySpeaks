@@ -13,13 +13,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Mail, User as UserIcon, ShieldCheck, Loader2, UploadCloud, Save, FileText, MessageSquare, Calendar, ThumbsUp } from 'lucide-react';
+import { Mail, User as UserIcon, ShieldCheck, Loader2, UploadCloud, Save, FileText, MessageSquare, Calendar, ThumbsUp, Bookmark } from 'lucide-react';
 import { format } from 'date-fns';
 import { updateUserDisplayNameAndPropagate, uploadProfilePicture, updateUserProfile } from '@/services/userService';
 import { getPostsByAuthor, getCommentsByUser } from '@/services/postService';
+import { getSavedPosts } from '@/services/bookmarkService';
 import { useToast } from '@/hooks/use-toast';
 import type { Post, Comment } from '@/types';
 import Link from 'next/link';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ProfilePage() {
   const { user, loading: authLoading, updateUserInContext } = useAuth();
@@ -41,8 +43,10 @@ export default function ProfilePage() {
 
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [userComments, setUserComments] = useState<(Comment & { postId: string })[]>([]);
+  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [loadingComments, setLoadingComments] = useState(true);
+  const [loadingSavedPosts, setLoadingSavedPosts] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,6 +71,16 @@ export default function ProfilePage() {
       console.error("Error fetching user comments:", err);
     } finally {
       setLoadingComments(false);
+    }
+
+    setLoadingSavedPosts(true);
+    try {
+      const saved = await getSavedPosts(user.uid);
+      setSavedPosts(saved);
+    } catch (err) {
+      console.error("Error fetching saved posts:", err);
+    } finally {
+      setLoadingSavedPosts(false);
     }
   }, [user]);
 
@@ -374,75 +388,110 @@ export default function ProfilePage() {
         </Card>
 
         {/* Activity Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
-          {/* Posts Created */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <CardTitle>Posts Created ({userPosts.length})</CardTitle>
-              </div>
+        <Card className="max-w-6xl mx-auto">
+          <Tabs defaultValue="posts" className="w-full">
+            <CardHeader className="pb-0">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="posts" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Posts</span>
+                  <span className="text-xs">({userPosts.length})</span>
+                </TabsTrigger>
+                <TabsTrigger value="comments" className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="hidden sm:inline">Comments</span>
+                  <span className="text-xs">({userComments.length})</span>
+                </TabsTrigger>
+                <TabsTrigger value="saved" className="flex items-center gap-2">
+                  <Bookmark className="h-4 w-4" />
+                  <span className="hidden sm:inline">Saved</span>
+                  <span className="text-xs">({savedPosts.length})</span>
+                </TabsTrigger>
+              </TabsList>
             </CardHeader>
-            <CardContent>
-              {loadingPosts ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : userPosts.length > 0 ? (
-                <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                  {userPosts.slice(0, 10).map((post) => (
-                    <div key={post.id} className="border-b pb-3 last:border-0">
-                      <Link href={`/post/${post.id}/${post.slug}`} className="font-medium hover:underline block truncate">
-                        {post.title}
-                      </Link>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                        <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {post.likes}</span>
-                        <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> {post.commentsCount}</span>
-                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {post.createdAt && format(post.createdAt instanceof Date ? post.createdAt : new Date(), 'MMM d, yyyy')}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">No posts created yet.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Comments Made */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-primary" />
-                <CardTitle>Comments Made ({userComments.length})</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingComments ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : userComments.length > 0 ? (
-                <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                  {userComments.slice(0, 10).map((comment) => (
-                    <div key={comment.id} className="border-b pb-3 last:border-0">
-                      <p className="text-sm line-clamp-2 mb-1">"{comment.content}"</p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <Link href={`/post/${comment.postId}`} className="hover:underline text-primary">
-                          View Post
+            <CardContent className="pt-6">
+              <TabsContent value="posts" className="mt-0">
+                {loadingPosts ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : userPosts.length > 0 ? (
+                  <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                    {userPosts.slice(0, 10).map((post) => (
+                      <div key={post.id} className="border-b pb-3 last:border-0">
+                        <Link href={`/post/${post.id}/${post.slug}`} className="font-medium hover:underline block truncate">
+                          {post.title}
                         </Link>
-                        <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {comment.likes}</span>
-                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {comment.createdAt && format(comment.createdAt instanceof Date ? comment.createdAt : new Date(), 'MMM d, yyyy')}</span>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                          <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {post.likes}</span>
+                          <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> {post.commentsCount}</span>
+                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {post.createdAt && format(post.createdAt instanceof Date ? post.createdAt : new Date(), 'MMM d, yyyy')}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">No comments made yet.</p>
-              )}
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">No posts created yet.</p>
+                )}
+              </TabsContent>
+
+              <TabsContent value="comments" className="mt-0">
+                {loadingComments ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : userComments.length > 0 ? (
+                  <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                    {userComments.slice(0, 10).map((comment) => (
+                      <div key={comment.id} className="border-b pb-3 last:border-0">
+                        <p className="text-sm line-clamp-2 mb-1">"{comment.content}"</p>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <Link href={`/post/${comment.postId}`} className="hover:underline text-primary">
+                            View Post
+                          </Link>
+                          <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {comment.likes}</span>
+                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {comment.createdAt && format(comment.createdAt instanceof Date ? comment.createdAt : new Date(), 'MMM d, yyyy')}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">No comments made yet.</p>
+                )}
+              </TabsContent>
+
+              <TabsContent value="saved" className="mt-0">
+                {loadingSavedPosts ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : savedPosts.length > 0 ? (
+                  <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                    {savedPosts.slice(0, 10).map((post) => (
+                      <div key={post.id} className="border-b pb-3 last:border-0">
+                        <Link href={`/post/${post.id}/${post.slug}`} className="font-medium hover:underline block truncate">
+                          {post.title}
+                        </Link>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                          <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {post.likes}</span>
+                          <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> {post.commentsCount}</span>
+                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {post.createdAt && format(post.createdAt instanceof Date ? post.createdAt : new Date(), 'MMM d, yyyy')}</span>
+                          <span className="text-primary">by u/{post.author?.displayName || 'Anonymous'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Bookmark className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-muted-foreground">No saved posts yet.</p>
+                    <p className="text-sm text-muted-foreground mt-1">Click the bookmark icon on any post to save it for later.</p>
+                  </div>
+                )}
+              </TabsContent>
             </CardContent>
-          </Card>
-        </div>
+          </Tabs>
+        </Card>
       </div>
     </MainLayout>
   );

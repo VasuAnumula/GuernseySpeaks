@@ -8,10 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Chrome, Facebook, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Loader2, Chrome, Facebook, Eye, EyeOff, Sparkles, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { PasswordStrength } from './password-strength';
 
@@ -29,8 +38,13 @@ export function AuthForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authAction, setAuthAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState(false);
 
-  const { login, register, signInWithGoogle, signInWithFacebook } = useAuth();
+  const { login, register, signInWithGoogle, signInWithFacebook, resetPassword } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -110,6 +124,33 @@ export function AuthForm() {
     }
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) {
+      setResetError('Please enter your email address.');
+      return;
+    }
+    setIsResettingPassword(true);
+    setResetError(null);
+    setResetSuccess(false);
+    try {
+      await resetPassword(resetEmail);
+      setResetSuccess(true);
+      toast({ title: "Email Sent", description: "Check your inbox for password reset instructions." });
+    } catch (err: any) {
+      setResetError(err.message || "Failed to send reset email. Please try again.");
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  const handleResetDialogClose = () => {
+    setIsResetDialogOpen(false);
+    setResetEmail('');
+    setResetError(null);
+    setResetSuccess(false);
+  };
+
 
   return (
     <div className="flex items-center justify-center py-12 px-4 animate-fade-in-up">
@@ -159,15 +200,76 @@ export function AuthForm() {
                 <div className="space-y-2 animate-fade-in-up stagger-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="login-password" className="text-sm font-medium">Password</Label>
-                    <Link href="#" className="text-xs text-primary hover:underline hover:text-primary/80 transition-colors" onClick={(e) => {
-                      e.preventDefault();
-                      toast({
-                        title: "Password Reset",
-                        description: "Password reset functionality coming soon! Please contact support if you need help."
-                      });
-                    }}>
-                      Forgot password?
-                    </Link>
+                    <Dialog open={isResetDialogOpen} onOpenChange={(open) => open ? setIsResetDialogOpen(true) : handleResetDialogClose()}>
+                      <DialogTrigger asChild>
+                        <button type="button" className="text-xs text-primary hover:underline hover:text-primary/80 transition-colors">
+                          Forgot password?
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <Mail className="h-5 w-5 text-primary" />
+                            Reset Password
+                          </DialogTitle>
+                          <DialogDescription>
+                            Enter your email address and we'll send you a link to reset your password.
+                          </DialogDescription>
+                        </DialogHeader>
+                        {resetSuccess ? (
+                          <div className="py-4">
+                            <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4 text-center">
+                              <p className="text-green-700 dark:text-green-300 font-medium">Email Sent!</p>
+                              <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                                Check your inbox for password reset instructions.
+                              </p>
+                            </div>
+                            <Button
+                              onClick={handleResetDialogClose}
+                              className="w-full mt-4"
+                            >
+                              Done
+                            </Button>
+                          </div>
+                        ) : (
+                          <form onSubmit={handlePasswordReset}>
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="reset-email">Email</Label>
+                                <Input
+                                  id="reset-email"
+                                  type="email"
+                                  placeholder="m@example.com"
+                                  value={resetEmail}
+                                  onChange={(e) => setResetEmail(e.target.value)}
+                                  disabled={isResettingPassword}
+                                  className="h-11"
+                                />
+                              </div>
+                              {resetError && (
+                                <p className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
+                                  {resetError}
+                                </p>
+                              )}
+                            </div>
+                            <DialogFooter>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleResetDialogClose}
+                                disabled={isResettingPassword}
+                              >
+                                Cancel
+                              </Button>
+                              <Button type="submit" disabled={isResettingPassword}>
+                                {isResettingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Send Reset Link
+                              </Button>
+                            </DialogFooter>
+                          </form>
+                        )}
+                      </DialogContent>
+                    </Dialog>
                   </div>
                   <div className="relative">
                     <Input

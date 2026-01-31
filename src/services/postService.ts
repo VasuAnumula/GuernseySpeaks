@@ -29,6 +29,7 @@ import {
   uploadBytes,
   getDownloadURL,
 } from 'firebase/storage';
+import { notifyPostLike, notifyPostComment, notifyCommentReply } from './notificationService';
 
 
 interface CreatePostInputData {
@@ -41,8 +42,14 @@ interface CreatePostInputData {
 
 export interface GetPostsFilters {
   flair?: string;
-  sortBy?: 'createdAt' | 'likes' | 'commentsCount'; // Added commentsCount
+  sortBy?: 'createdAt' | 'likes' | 'commentsCount';
   sortOrder?: OrderByDirection;
+  dateFrom?: Date;
+  dateTo?: Date;
+  authorUid?: string;
+  minLikes?: number;
+  hasImage?: boolean;
+  searchQuery?: string;
 }
 
 export async function createPost(postData: CreatePostInputData): Promise<string> {
@@ -122,37 +129,65 @@ export async function getPosts(filters?: GetPostsFilters): Promise<Post[]> {
     const postsCollection = collection(db, 'posts');
     const queryConstraints: QueryConstraint[] = [];
 
+    // Flair filter (can be combined with other filters)
     if (filters?.flair) {
-      // Flairs are stored as an array, e.g., ["news", "local-issue"]
-      // The value in filters.flair should match one of these exactly.
       queryConstraints.push(where('flairs', 'array-contains', filters.flair));
     }
 
+    // Author filter
+    if (filters?.authorUid) {
+      queryConstraints.push(where('author.uid', '==', filters.authorUid));
+    }
+
+    // Date range filters - note: combining multiple inequality filters requires composite indexes
+    if (filters?.dateFrom) {
+      queryConstraints.push(where('createdAt', '>=', filters.dateFrom));
+    }
+    if (filters?.dateTo) {
+      // Add one day to include the entire "to" day
+      const toDateEnd = new Date(filters.dateTo);
+      toDateEnd.setDate(toDateEnd.getDate() + 1);
+      queryConstraints.push(where('createdAt', '<=', toDateEnd));
+    }
+
+    // Minimum likes filter
+    if (filters?.minLikes !== undefined && filters.minLikes > 0) {
+      queryConstraints.push(where('likes', '>=', filters.minLikes));
+    }
+
+    // Sorting
     const sortByField = filters?.sortBy || 'createdAt';
     const sortDirection = filters?.sortOrder || 'desc';
     queryConstraints.push(orderBy(sortByField, sortDirection));
 
-    // If sorting by a field other than the one used in an inequality filter (none here),
-    // and also not createdAt, Firestore might require it as the first orderBy.
-    // If `flair` filter is active, and sorting is by `likes` or `commentsCount`,
-    // Firestore might require an index on `flairs` and `likes`/`commentsCount`.
-    // The error message for missing indexes is helpful.
-    if (sortByField !== 'createdAt' && filters?.flair) {
-      // If also sorting by createdAt for tie-breaking after likes/commentsCount,
-      // ensure 'createdAt' is the last orderBy if the primary sort is different.
-      // However, Firestore usually allows multiple orderBy clauses if indexed correctly.
-      // For simplicity, we'll rely on the main sort for now.
-      // queryConstraints.push(orderBy('createdAt', 'desc')); // Example tie-breaker
-    }
-
-
-    queryConstraints.push(limit(25)); // Default limit
-
+    // Limit results
+    queryConstraints.push(limit(50));
 
     const q = query(postsCollection, ...queryConstraints);
     const querySnapshot = await getDocs(q);
-    const posts = querySnapshot.docs.map(docSnap => processDoc(docSnap) as Post);
-    return posts.filter(post => post !== null);
+    let posts = querySnapshot.docs.map(docSnap => processDoc(docSnap) as Post);
+    posts = posts.filter(post => post !== null);
+
+    // Client-side filters for features not easily queryable in Firestore
+
+    // Has image filter (client-side)
+    if (filters?.hasImage === true) {
+      posts = posts.filter(post => post.imageUrl && post.imageUrl.length > 0);
+    } else if (filters?.hasImage === false) {
+      posts = posts.filter(post => !post.imageUrl);
+    }
+
+    // Text search (client-side, case-insensitive)
+    if (filters?.searchQuery && filters.searchQuery.trim()) {
+      const searchLower = filters.searchQuery.toLowerCase().trim();
+      posts = posts.filter(post =>
+        post.title.toLowerCase().includes(searchLower) ||
+        post.content.toLowerCase().includes(searchLower) ||
+        (post.author?.displayName?.toLowerCase().includes(searchLower))
+      );
+    }
+
+    return posts;
   } catch (error: any) {
     console.error('[postService] Error fetching posts:', error);
     if (error.code === 'failed-precondition' && error.message.toLowerCase().includes('index')) {
@@ -179,7 +214,11 @@ export async function getPostById(postId: string): Promise<Post | null> {
   }
 };
 
-export async function togglePostLike(postId: string, userId: string): Promise<{ likes: number; likedBy: string[]; dislikes: number; dislikedBy: string[] }> {
+export async function togglePostLike(
+  postId: string,
+  userId: string,
+  userDisplayName?: string
+): Promise<{ likes: number; likedBy: string[]; dislikes: number; dislikedBy: string[] }> {
   try {
     const postDocRef = doc(db, 'posts', postId);
     const postSnap = await getDoc(postDocRef);
@@ -190,6 +229,7 @@ export async function togglePostLike(postId: string, userId: string): Promise<{ 
     const currentlyLikedBy = postData.likedBy || [];
     const currentlyDislikedBy = postData.dislikedBy || [];
     const updateData: any = {};
+    const isNewLike = !currentlyLikedBy.includes(userId);
 
     if (currentlyLikedBy.includes(userId)) {
       updateData.likes = increment(-1);
@@ -204,6 +244,22 @@ export async function togglePostLike(postId: string, userId: string): Promise<{ 
     }
 
     await updateDoc(postDocRef, updateData);
+
+    // Send notification for new likes (not unlikes)
+    if (isNewLike && postData.author?.uid && postData.author.uid !== userId) {
+      try {
+        await notifyPostLike(
+          postData.author.uid,
+          postId,
+          postData.title,
+          userId,
+          userDisplayName || 'Someone'
+        );
+      } catch (notifError) {
+        console.error('Failed to send like notification:', notifError);
+        // Don't fail the like operation if notification fails
+      }
+    }
 
     const updatedPostSnap = await getDoc(postDocRef);
     const updatedData = updatedPostSnap.data() as Post;
@@ -261,7 +317,8 @@ export async function togglePostDislike(postId: string, userId: string): Promise
 export async function createComment(
   postId: string,
   commentData: Pick<Comment, 'author' | 'content' | 'imageUrl'>,
-  parentId: string | null = null
+  parentId: string | null = null,
+  parentCommentAuthorUid?: string
 ): Promise<string> {
   try {
     const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
@@ -285,9 +342,45 @@ export async function createComment(
     });
 
     const postDocRef = doc(db, 'posts', postId);
+    const postSnap = await getDoc(postDocRef);
+
     await updateDoc(postDocRef, {
       commentsCount: increment(1)
     });
+
+    // Send notifications
+    if (postSnap.exists()) {
+      const postData = postSnap.data() as Post;
+
+      // If this is a reply to another comment, notify the parent comment author
+      if (parentId && parentCommentAuthorUid && parentCommentAuthorUid !== commentData.author.uid) {
+        try {
+          await notifyCommentReply(
+            parentCommentAuthorUid,
+            postId,
+            parentId,
+            commentData.author.uid,
+            commentData.author.displayName || 'Someone'
+          );
+        } catch (notifError) {
+          console.error('Failed to send reply notification:', notifError);
+        }
+      }
+      // If this is a top-level comment, notify the post author
+      else if (!parentId && postData.author?.uid && postData.author.uid !== commentData.author.uid) {
+        try {
+          await notifyPostComment(
+            postData.author.uid,
+            postId,
+            postData.title,
+            commentData.author.uid,
+            commentData.author.displayName || 'Someone'
+          );
+        } catch (notifError) {
+          console.error('Failed to send comment notification:', notifError);
+        }
+      }
+    }
 
     return docRef.id;
   } catch (error) {

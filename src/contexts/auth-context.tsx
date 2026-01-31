@@ -12,6 +12,7 @@ import {
   GoogleAuthProvider,
   FacebookAuthProvider,
   signInWithPopup,
+  sendPasswordResetEmail,
   User as FirebaseUser,
   updateProfile
 } from 'firebase/auth';
@@ -32,6 +33,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
   logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   updateUserInContext: (updatedUserData: Partial<User>) => void;
 }
 
@@ -354,6 +356,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    console.debug("[AuthContext] Attempting Password Reset for email:", email);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      console.debug("[AuthContext] Password reset email sent successfully.");
+    } catch (error: any) {
+      console.error("[AuthContext] Password reset error:", error);
+      const friendlyError = new Error(getFriendlyErrorMessage(error));
+      throw friendlyError;
+    }
+  };
+
   const updateUserInContext = (updatedUserData: Partial<User>) => {
     setUser(prevUser => {
       if (prevUser) {
@@ -366,7 +380,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, signInWithGoogle, signInWithFacebook, logout, updateUserInContext }}>
+    <AuthContext.Provider value={{ user, loading, login, register, signInWithGoogle, signInWithFacebook, logout, resetPassword, updateUserInContext }}>
       {children}
     </AuthContext.Provider>
   );

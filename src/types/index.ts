@@ -10,6 +10,7 @@ export interface User {
   bio?: string | null; // User biography
   role?: 'user' | 'moderator' | 'superuser';
   createdAt?: Timestamp | Date;
+  savedPosts?: string[]; // Array of saved post IDs
 }
 
 export interface AuthorInfo {
@@ -94,4 +95,91 @@ export interface Advertisement {
   // Optional: for tracking clicks or impressions if needed later
   // clicks?: number;
   // impressions?: number;
+}
+
+export interface AnnouncementBanner {
+  enabled: boolean;
+  text: string;
+  type: 'info' | 'warning' | 'success' | 'error';
+  link?: string;
+}
+
+export interface PlatformSettings {
+  announcementBanner: AnnouncementBanner;
+  contentModeration: {
+    autoHideReportedPosts: boolean;
+    autoHideThreshold: number;
+  };
+  features: {
+    commentsEnabled: boolean;
+    postsEnabled: boolean;
+  };
+  updatedAt?: Timestamp | Date;
+  updatedBy?: string;
+}
+
+export type NotificationType = 'comment_reply' | 'post_like' | 'post_comment' | 'system';
+
+export interface ParticipantInfo {
+  displayName: string;
+  avatarUrl?: string;
+}
+
+export interface Conversation {
+  id: string;
+  participants: string[]; // Array of 2 UIDs
+  participantInfo: { [uid: string]: ParticipantInfo };
+  lastMessage?: {
+    content: string;
+    senderId: string;
+    sentAt: Timestamp | Date;
+  };
+  createdAt: Timestamp | Date;
+  updatedAt: Timestamp | Date;
+}
+
+export interface Message {
+  id: string;
+  senderId: string;
+  content: string;
+  read: boolean;
+  createdAt: Timestamp | Date;
+}
+
+export interface Notification {
+  id: string;
+  recipientUid: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  link: string;
+  read: boolean;
+  createdAt: Timestamp | Date;
+  data?: {
+    postId?: string;
+    commentId?: string;
+    actorUid?: string;
+    actorDisplayName?: string;
+  };
+}
+
+export type ReportReason = 'spam' | 'harassment' | 'misinformation' | 'hate_speech' | 'other';
+export type ReportStatus = 'pending' | 'resolved' | 'dismissed';
+export type ReportAction = 'none' | 'content_removed' | 'user_warned';
+
+export interface Report {
+  id: string;
+  contentType: 'post' | 'comment';
+  contentId: string;
+  contentPreview?: string; // Preview of the reported content
+  contentAuthorUid?: string; // UID of the content author
+  reporterUid: string;
+  reporterDisplayName?: string;
+  reason: ReportReason;
+  description?: string;
+  status: ReportStatus;
+  reviewedBy?: string | null;
+  reviewedAt?: Timestamp | Date | null;
+  action?: ReportAction | null;
+  createdAt: Timestamp | Date;
 }

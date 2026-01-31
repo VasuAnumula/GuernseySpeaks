@@ -16,6 +16,8 @@ import { useEffect, useState, useRef } from 'react';
 import { Users, ShieldAlert, ListChecks, Loader2, User as UserIconLucide, Image as ImageIcon, Link2, Trash2, PlusCircle, ToggleLeft, ToggleRight, UploadCloud } from 'lucide-react';
 import { getUsers, setUserRole } from '@/services/userService';
 import { createAdvertisement, getAllAdvertisements, updateAdvertisement, deleteAdvertisement } from '@/services/advertisementService';
+import { getPendingReportCount } from '@/services/reportService';
+import Link from 'next/link';
 import type { User, Advertisement } from '@/types';
 import {
   Table,
@@ -30,6 +32,7 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image'; // For displaying ad images
+import { PlatformSettingsForm } from '@/components/admin/platform-settings-form';
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
@@ -50,6 +53,8 @@ export default function AdminPage() {
   const adImageInputRef = useRef<HTMLInputElement>(null);
   const [updatingAdStatusId, setUpdatingAdStatusId] = useState<string | null>(null);
   const [deletingAdId, setDeletingAdId] = useState<string | null>(null);
+  const [pendingReportCount, setPendingReportCount] = useState<number>(0);
+  const [loadingReportCount, setLoadingReportCount] = useState(true);
 
 
   useEffect(() => {
@@ -69,6 +74,17 @@ export default function AdminPage() {
         toast({ title: "Error", description: "Could not fetch users.", variant: "destructive" });
       } finally {
         setLoadingUsers(false);
+      }
+
+      // Fetch pending report count
+      setLoadingReportCount(true);
+      try {
+        const count = await getPendingReportCount();
+        setPendingReportCount(count);
+      } catch (error) {
+        console.error("Failed to fetch report count:", error);
+      } finally {
+        setLoadingReportCount(false);
       }
     }
     if (user && user.role === 'superuser') {
@@ -249,12 +265,16 @@ export default function AdminPage() {
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Reported Content</CardTitle>
-                  <ShieldAlert className="h-5 w-5 text-muted-foreground" />
+                  <ShieldAlert className={`h-5 w-5 ${pendingReportCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">N/A</div>
-                  <p className="text-xs text-muted-foreground">Pending reports (Coming Soon)</p>
-                  <Button variant="outline" size="sm" className="mt-2 w-full" disabled>Review Reports</Button>
+                  <div className="text-2xl font-bold">
+                    {loadingReportCount ? <Loader2 className="h-5 w-5 animate-spin" /> : pendingReportCount}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Pending reports</p>
+                  <Button variant="outline" size="sm" className="mt-2 w-full" asChild>
+                    <Link href="/admin/reports">Review Reports</Link>
+                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -450,15 +470,17 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        {user.role === 'superuser' && (
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Platform Settings</CardTitle>
-              <CardDescription>Configure global settings for GuernseySpeaks (Coming Soon).</CardDescription>
+              <CardDescription>Configure global settings for GuernseySpeaks.</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Content filtering levels, announcement banners, etc.</p>
+              <PlatformSettingsForm adminUid={user.uid} />
             </CardContent>
           </Card>
+        )}
 
       </div>
     </MainLayout>

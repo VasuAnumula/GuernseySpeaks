@@ -3,7 +3,7 @@
 import type { Post } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ThumbsUp, ThumbsDown, MessageCircle, MoreHorizontal, Edit, Trash2, Loader2, Share, Bookmark } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, MoreHorizontal, Edit, Trash2, Loader2, Share, Bookmark, Flag } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -29,7 +29,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { formatDistanceToNow } from 'date-fns';
 import { useState, useEffect } from 'react';
 import { deletePost, togglePostLike, togglePostDislike } from '@/services/postService';
+import { toggleSavePost, isPostSaved } from '@/services/bookmarkService';
 import { useToast } from '@/hooks/use-toast';
+import { ReportDialog } from '@/components/reports/report-dialog';
 
 interface PostCardProps {
   post: Post;
@@ -51,6 +53,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   const [isVisible, setIsVisible] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -75,6 +78,21 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
       setIsDisliked(false);
     }
   }, [user, post.likedBy, post.dislikedBy]);
+
+  // Check if post is saved on mount
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      if (user) {
+        try {
+          const saved = await isPostSaved(user.uid, post.id);
+          setIsSaved(saved);
+        } catch (error) {
+          console.error('Error checking saved status:', error);
+        }
+      }
+    };
+    checkSavedStatus();
+  }, [user, post.id]);
 
   let formattedDate = "Unknown date";
   if (post.createdAt) {
@@ -102,7 +120,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
     setIsLiking(true);
 
     try {
-      const updatedPostData = await togglePostLike(post.id, user.uid);
+      const updatedPostData = await togglePostLike(post.id, user.uid, user.displayName || user.name || undefined);
       setPost(prevPost => ({ ...prevPost, ...updatedPostData }));
       setIsLiked(updatedPostData.likedBy.includes(user.uid));
       setIsDisliked(updatedPostData.dislikedBy.includes(user.uid));
@@ -181,25 +199,19 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
       toast({ title: "Login Required", description: "You need to be logged in to save posts.", variant: "destructive" });
       return;
     }
-    
+
     setIsSaving(true);
     try {
-      // In a real app, you'd have a save/unsave API endpoint
-      // For now, we'll just simulate the functionality
-      const newSavedState = !isSaved;
-      setIsSaved(newSavedState);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      toast({ 
-        title: newSavedState ? "Post Saved" : "Post Unsaved", 
-        description: newSavedState ? "Post saved for later viewing" : "Post removed from saved items"
+      const result = await toggleSavePost(user.uid, post.id);
+      setIsSaved(result.isSaved);
+
+      toast({
+        title: result.isSaved ? "Post Saved" : "Post Unsaved",
+        description: result.isSaved ? "Post saved for later viewing" : "Post removed from saved items"
       });
     } catch (error) {
       console.error('Failed to save post:', error);
       toast({ title: "Error", description: "Could not save post. Please try again.", variant: "destructive" });
-      setIsSaved(!isSaved); // Revert on error
     } finally {
       setIsSaving(false);
     }
@@ -236,50 +248,69 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
             )}
             <span>•</span>
             <span>{formattedDate}</span>
-            {canModify && (
-              <div className="ml-auto">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={isDeleting} onClick={(e) => e.stopPropagation()}>
-                      {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <MoreHorizontal className="h-3 w-3" />}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild>
-                      <Link href={`/post/${post.id}/${postSlug}/edit`}>
-                        <Edit className="mr-2 h-4 w-4" /> Edit
-                      </Link>
+            <div className="ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={isDeleting} onClick={(e) => e.stopPropagation()}>
+                    {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <MoreHorizontal className="h-3 w-3" />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canModify && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/post/${post.id}/${postSlug}/edit`}>
+                          <Edit className="mr-2 h-4 w-4" /> Edit
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem
+                            onSelect={(e) => e.preventDefault()}
+                            className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground cursor-pointer"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the post and all its comments.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeletePost} className="bg-destructive hover:bg-destructive/90">
+                              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  {user && user.uid !== post.author?.uid && (
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setIsReportDialogOpen(true);
+                      }}
+                      className="text-destructive cursor-pointer"
+                    >
+                      <Flag className="mr-2 h-4 w-4" /> Report
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem
-                          onSelect={(e) => e.preventDefault()}
-                          className="text-destructive hover:!bg-destructive hover:!text-destructive-foreground cursor-pointer"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the post and all its comments.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDeletePost} className="bg-destructive hover:bg-destructive/90">
-                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
+                  )}
+                  {!user && (
+                    <DropdownMenuItem disabled className="text-muted-foreground">
+                      <Flag className="mr-2 h-4 w-4" /> Login to report
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           {/* Post title */}
@@ -373,6 +404,20 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
             </Button>
           </div>
         </div>
+
+      {/* Report Dialog */}
+      {user && (
+        <ReportDialog
+          open={isReportDialogOpen}
+          onOpenChange={setIsReportDialogOpen}
+          contentType="post"
+          contentId={post.id}
+          contentPreview={post.title}
+          contentAuthorUid={post.author?.uid}
+          reporterUid={user.uid}
+          reporterDisplayName={user.displayName || user.name || undefined}
+        />
+      )}
     </div>
   );
 }

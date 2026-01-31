@@ -1,5 +1,6 @@
 
 import { Header } from '@/components/layout/header';
+import { AnnouncementBanner } from '@/components/layout/announcement-banner';
 import { Suspense } from 'react';
 import { Footer } from '@/components/layout/footer';
 import type { ReactNode } from 'react';
@@ -17,7 +18,8 @@ export function MainLayout({ weatherWidget, children, adsWidget }: MainLayoutPro
       <Suspense>
         <Header />
       </Suspense>
-      
+      <AnnouncementBanner />
+
       {/* Reddit-style layout with left and right sidebars */}
       <div className="flex flex-1 w-full">
         {/* Left Sidebar - Weather and News */}

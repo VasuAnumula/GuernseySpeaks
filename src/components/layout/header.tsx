@@ -16,11 +16,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { PenSquare, LogIn, LogOut, UserCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { PenSquare, LogIn, LogOut, UserCircle, Loader2, ShieldCheck, Mail } from 'lucide-react';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { PREDEFINED_FLAIRS } from '@/constants/flairs';
 import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/shared/logo';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 export function Header() {
   const { user, logout, loading: authLoading } = useAuth();
@@ -148,10 +149,18 @@ export function Header() {
         
         <nav className="flex items-center gap-2">
           <ThemeToggle />
+          {user && <NotificationBell />}
+          {user && (
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild>
+              <Link href="/messages">
+                <Mail className="h-4 w-4" />
+              </Link>
+            </Button>
+          )}
           {user && (
             <Button asChild size="sm" className="h-8 px-3 text-xs font-medium">
               <Link href="/submit">
-                <PenSquare className="mr-1 h-3 w-3" /> 
+                <PenSquare className="mr-1 h-3 w-3" />
                 <span className="hidden sm:inline">Create</span>
               </Link>
             </Button>

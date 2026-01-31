@@ -3,6 +3,7 @@ import { Noto_Sans, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/auth-context';
+import { NotificationProvider } from '@/contexts/notification-context';
 
 const uiFont = Noto_Sans({
   variable: '--font-ui',
@@ -33,8 +34,10 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${uiFont.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
-          {children}
-          <Toaster />
+          <NotificationProvider>
+            {children}
+            <Toaster />
+          </NotificationProvider>
         </AuthProvider>
       </body>
     </html>

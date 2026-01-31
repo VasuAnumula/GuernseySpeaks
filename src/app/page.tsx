@@ -10,11 +10,12 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PenSquare, Loader2, AlertTriangle } from 'lucide-react';
 import { useEffect, useState, useCallback, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { getPosts, type GetPostsFilters } from '@/services/postService';
 import { useAuth } from '@/hooks/use-auth';
 import type { OrderByDirection } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
+import { AdvancedSearchFilters, type AdvancedFilters } from '@/components/search/advanced-search-filters';
 
 
 function HomePageContent() {
@@ -24,40 +25,63 @@ function HomePageContent() {
   const [error, setError] = useState<string | null>(null);
   const { user, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
-
+  const router = useRouter();
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [selectedFlair, setSelectedFlair] = useState(searchParams.get('flair') || '');
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'createdAt_desc');
 
+  // Advanced filter states
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
+    dateFrom: searchParams.get('dateFrom') || undefined,
+    dateTo: searchParams.get('dateTo') || undefined,
+    minLikes: searchParams.get('minLikes') ? parseInt(searchParams.get('minLikes')!) : undefined,
+    hasImage: searchParams.get('hasImage') === 'true' ? true : searchParams.get('hasImage') === 'false' ? false : undefined,
+  });
+
   const fetchAndFilterPosts = useCallback(async () => {
     setLoadingPosts(true);
     setError(null);
 
     const [sortField, sortOrder] = sortBy.split('_') as [GetPostsFilters['sortBy'], OrderByDirection];
-    
+
     const firestoreFilters: GetPostsFilters = {
       sortBy: sortField || 'createdAt',
       sortOrder: sortOrder || 'desc',
+      searchQuery: searchTerm || undefined,
     };
+
     if (selectedFlair) {
-      // Ensure the selectedFlair is one of the predefined ones or handle as needed
-      // For now, we assume selectedFlair is directly usable if it's from our PREDEFINED_FLAIRS
       firestoreFilters.flair = selectedFlair;
+    }
+
+    // Apply advanced filters
+    if (advancedFilters.dateFrom) {
+      firestoreFilters.dateFrom = new Date(advancedFilters.dateFrom);
+    }
+    if (advancedFilters.dateTo) {
+      firestoreFilters.dateTo = new Date(advancedFilters.dateTo);
+    }
+    if (advancedFilters.minLikes !== undefined) {
+      firestoreFilters.minLikes = advancedFilters.minLikes;
+    }
+    if (advancedFilters.hasImage !== undefined) {
+      firestoreFilters.hasImage = advancedFilters.hasImage;
     }
 
     try {
       const fetchedPosts = await getPosts(firestoreFilters);
       setAllFetchedPosts(fetchedPosts);
+      setDisplayedPosts(fetchedPosts);
     } catch (err: any) {
       console.error("Failed to fetch posts:", err);
       setError(err.message || "Could not load posts. Please try again later.");
-      setAllFetchedPosts([]); // Clear posts on error
+      setAllFetchedPosts([]);
     } finally {
       setLoadingPosts(false);
     }
-  }, [selectedFlair, sortBy]);
+  }, [selectedFlair, sortBy, searchTerm, advancedFilters]);
 
   useEffect(() => {
     fetchAndFilterPosts();
@@ -67,22 +91,50 @@ function HomePageContent() {
     setSearchTerm(searchParams.get('q') || '');
     setSelectedFlair(searchParams.get('flair') || '');
     setSortBy(searchParams.get('sort') || 'createdAt_desc');
+    setAdvancedFilters({
+      dateFrom: searchParams.get('dateFrom') || undefined,
+      dateTo: searchParams.get('dateTo') || undefined,
+      minLikes: searchParams.get('minLikes') ? parseInt(searchParams.get('minLikes')!) : undefined,
+      hasImage: searchParams.get('hasImage') === 'true' ? true : searchParams.get('hasImage') === 'false' ? false : undefined,
+    });
   }, [searchParams]);
-  
-  // Client-side search logic, applied after posts are fetched and sorted by Firestore
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setDisplayedPosts(allFetchedPosts);
-      return;
+
+  const handleApplyAdvancedFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    // Update URL with advanced filters
+    if (advancedFilters.dateFrom) {
+      params.set('dateFrom', advancedFilters.dateFrom);
+    } else {
+      params.delete('dateFrom');
     }
-    const lowerSearchTerm = searchTerm.toLowerCase();
-    const filtered = allFetchedPosts.filter(post => 
-      post.title.toLowerCase().includes(lowerSearchTerm) ||
-      post.content.toLowerCase().includes(lowerSearchTerm) ||
-      (post.author?.displayName && post.author.displayName.toLowerCase().includes(lowerSearchTerm))
-    );
-    setDisplayedPosts(filtered);
-  }, [searchTerm, allFetchedPosts]);
+    if (advancedFilters.dateTo) {
+      params.set('dateTo', advancedFilters.dateTo);
+    } else {
+      params.delete('dateTo');
+    }
+    if (advancedFilters.minLikes !== undefined) {
+      params.set('minLikes', advancedFilters.minLikes.toString());
+    } else {
+      params.delete('minLikes');
+    }
+    if (advancedFilters.hasImage !== undefined) {
+      params.set('hasImage', advancedFilters.hasImage.toString());
+    } else {
+      params.delete('hasImage');
+    }
+
+    router.push(`/?${params.toString()}`);
+  };
+
+  const handleClearAdvancedFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('dateFrom');
+    params.delete('dateTo');
+    params.delete('minLikes');
+    params.delete('hasImage');
+    router.push(`/?${params.toString()}`);
+  };
 
 
   const handlePostDeleted = (deletedPostId: string) => {
@@ -95,6 +147,15 @@ function HomePageContent() {
       weatherWidget={<WeatherWidget />}
       adsWidget={<AdPlaceholder />}
     >
+      {/* Advanced Search Filters */}
+      <div className="mb-4">
+        <AdvancedSearchFilters
+          filters={advancedFilters}
+          onFiltersChange={setAdvancedFilters}
+          onApply={handleApplyAdvancedFilters}
+          onClear={handleClearAdvancedFilters}
+        />
+      </div>
 
       {loadingPosts && (
         <div className="flex justify-center items-center py-10">

@@ -11,7 +11,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle, MessageSquareReply, Image as ImageIcon, Minus, Plus, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { MessageCircle, Send, Edit, Trash2, MoreHorizontal, Loader2, Save, XCircle, MessageSquareReply, Image as ImageIcon, Minus, Plus, ThumbsUp, ThumbsDown, Flag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
@@ -45,6 +45,7 @@ import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { processDoc } from '@/lib/firestoreUtils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { ReportDialog } from '@/components/reports/report-dialog';
 
 
 interface PostPageParams {
@@ -82,6 +83,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
   const [replyImage, setReplyImage] = useState<File | null>(null);
   const [replyPreview, setReplyPreview] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
 
   useEffect(() => {
     setComment(commentNode);
@@ -461,27 +463,39 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
                 </Button>
                 
                 {user && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 px-2 text-xs font-bold hover:bg-muted/50" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     onClick={() => setShowReplyForm(!showReplyForm)}
                   >
-                    <MessageSquareReply className="mr-1 h-3 w-3" /> 
+                    <MessageSquareReply className="mr-1 h-3 w-3" />
                     Reply
                   </Button>
                 )}
-                
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-bold hover:bg-muted/50">
+
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50">
                   Share
                 </Button>
-                
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-bold hover:bg-muted/50">
+
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50">
                   Save
                 </Button>
+
+                {user && user.uid !== comment.author?.uid && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs font-bold text-destructive hover:bg-destructive/10"
+                    onClick={() => setIsReportDialogOpen(true)}
+                  >
+                    <Flag className="mr-1 h-3 w-3" />
+                    Report
+                  </Button>
+                )}
               </div>
 
-              
+
               {/* Reply form */}
               {showReplyForm && user && (
                 <form onSubmit={handleReplySubmit} className="mt-3 space-y-2">
@@ -533,6 +547,20 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
             />
           ))}
         </div>
+      )}
+
+      {/* Report Dialog */}
+      {user && (
+        <ReportDialog
+          open={isReportDialogOpen}
+          onOpenChange={setIsReportDialogOpen}
+          contentType="comment"
+          contentId={comment.id}
+          contentPreview={comment.content.substring(0, 100)}
+          contentAuthorUid={comment.author?.uid}
+          reporterUid={user.uid}
+          reporterDisplayName={user.displayName || user.name || undefined}
+        />
       )}
     </div>
   );

@@ -3,7 +3,8 @@
     "allow": [
       "Bash(rm:*)",
       "Bash(npm run:*)",
-      "Bash(npx shadcn@latest add collapsible:*)"
+      "Bash(npx shadcn@latest add collapsible:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }

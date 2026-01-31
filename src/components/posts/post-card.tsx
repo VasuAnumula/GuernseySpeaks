@@ -370,7 +370,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
             <Button
               variant="ghost"
               size="sm"
-              className="p-1 h-auto text-xs hover:bg-muted/50 rounded transition-colors"
+              className="p-1 h-auto text-xs hover:text-foreground hover:bg-muted/50 rounded transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 window.location.href = `/post/${post.id}/${postSlug}`;
@@ -382,7 +382,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
             <Button
               variant="ghost"
               size="sm"
-              className="p-1 h-auto text-xs hover:bg-muted/50 rounded transition-colors"
+              className="p-1 h-auto text-xs hover:text-foreground hover:bg-muted/50 rounded transition-colors"
               onClick={handleShare}
             >
               <Share className="mr-1 h-3 w-3" />
@@ -391,7 +391,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
             <Button
               variant="ghost"
               size="sm"
-              className={`p-1 h-auto text-xs rounded transition-colors ${isSaved ? 'text-yellow-600 hover:text-yellow-700' : 'hover:bg-muted/50'}`}
+              className={`p-1 h-auto text-xs rounded transition-colors ${isSaved ? 'text-yellow-600 hover:text-yellow-700' : 'hover:text-foreground hover:bg-muted/50'}`}
               onClick={handleSave}
               disabled={isSaving}
             >

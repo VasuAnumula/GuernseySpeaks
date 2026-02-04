@@ -243,3 +243,48 @@ export async function notifyPostLike(
     },
   });
 }
+
+/**
+ * Notify user when they receive a moderation warning
+ */
+export async function notifyModerationWarning(
+  userUid: string,
+  contentType: 'post' | 'comment',
+  reason: string,
+  contentPreview?: string
+): Promise<void> {
+  const contentTypeLabel = contentType === 'post' ? 'post' : 'comment';
+  const previewText = contentPreview
+    ? `: "${contentPreview.substring(0, 50)}${contentPreview.length > 50 ? '...' : ''}"`
+    : '';
+
+  await createNotification({
+    recipientUid: userUid,
+    type: 'moderation_warning',
+    title: 'Content Warning',
+    message: `Your ${contentTypeLabel}${previewText} has been flagged for ${reason}. Please review our community guidelines.`,
+    link: '/terms',
+  });
+}
+
+/**
+ * Notify user when their content is auto-hidden due to reports
+ */
+export async function notifyContentHidden(
+  userUid: string,
+  contentType: 'post' | 'comment',
+  contentPreview?: string
+): Promise<void> {
+  const contentTypeLabel = contentType === 'post' ? 'post' : 'comment';
+  const previewText = contentPreview
+    ? `: "${contentPreview.substring(0, 50)}${contentPreview.length > 50 ? '...' : ''}"`
+    : '';
+
+  await createNotification({
+    recipientUid: userUid,
+    type: 'moderation_warning',
+    title: 'Content Hidden',
+    message: `Your ${contentTypeLabel}${previewText} has been temporarily hidden due to multiple reports. A moderator will review it shortly.`,
+    link: '/terms',
+  });
+}

@@ -40,6 +40,9 @@ function HomePageContent() {
     hasImage: searchParams.get('hasImage') === 'true' ? true : searchParams.get('hasImage') === 'false' ? false : undefined,
   });
 
+  // Check if user is a moderator or admin
+  const isModerator = user?.role === 'moderator' || user?.role === 'superuser';
+
   const fetchAndFilterPosts = useCallback(async () => {
     setLoadingPosts(true);
     setError(null);
@@ -50,6 +53,8 @@ function HomePageContent() {
       sortBy: sortField || 'createdAt',
       sortOrder: sortOrder || 'desc',
       searchQuery: searchTerm || undefined,
+      // Moderators and admins can see hidden posts
+      includeHidden: isModerator,
     };
 
     if (selectedFlair) {
@@ -81,7 +86,7 @@ function HomePageContent() {
     } finally {
       setLoadingPosts(false);
     }
-  }, [selectedFlair, sortBy, searchTerm, advancedFilters]);
+  }, [selectedFlair, sortBy, searchTerm, advancedFilters, isModerator]);
 
   useEffect(() => {
     fetchAndFilterPosts();

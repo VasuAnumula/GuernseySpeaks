@@ -11,6 +11,11 @@ export interface User {
   role?: 'user' | 'moderator' | 'superuser';
   createdAt?: Timestamp | Date;
   savedPosts?: string[]; // Array of saved post IDs
+  // Moderation fields
+  isBanned?: boolean; // Whether the user is banned
+  bannedAt?: Timestamp | Date | null;
+  bannedBy?: string | null; // UID of admin who banned
+  banReason?: string | null;
 }
 
 export interface AuthorInfo {
@@ -36,6 +41,9 @@ export interface Post {
   commentsCount: number;
   imageUrl?: string | null;
   slug: string;
+  // Moderation fields
+  isHidden?: boolean; // Auto-hidden due to reports
+  reportCount?: number; // Number of pending reports
 }
 
 export interface Comment {
@@ -51,6 +59,9 @@ export interface Comment {
   dislikes: number;
   dislikedBy: string[];
   imageUrl?: string | null;
+  // Moderation fields
+  isHidden?: boolean; // Auto-hidden due to reports
+  reportCount?: number; // Number of pending reports
 }
 
 // For rendering threaded comments
@@ -92,9 +103,12 @@ export interface Advertisement {
   uploaderUid: string;
   createdAt: Timestamp | Date;
   updatedAt?: Timestamp | Date;
-  // Optional: for tracking clicks or impressions if needed later
-  // clicks?: number;
-  // impressions?: number;
+  // Scheduling fields
+  scheduledStart?: Timestamp | Date | null; // When the ad should start showing
+  scheduledEnd?: Timestamp | Date | null; // When the ad should stop showing
+  // Tracking fields
+  clicks?: number;
+  impressions?: number;
 }
 
 export interface AnnouncementBanner {
@@ -118,7 +132,7 @@ export interface PlatformSettings {
   updatedBy?: string;
 }
 
-export type NotificationType = 'comment_reply' | 'post_like' | 'post_comment' | 'system';
+export type NotificationType = 'comment_reply' | 'post_like' | 'post_comment' | 'system' | 'moderation_warning';
 
 export interface ParticipantInfo {
   displayName: string;
@@ -182,4 +196,45 @@ export interface Report {
   reviewedAt?: Timestamp | Date | null;
   action?: ReportAction | null;
   createdAt: Timestamp | Date;
+}
+
+// Admin Audit Log Types
+export type AuditActionType =
+  | 'user_role_changed'
+  | 'user_banned'
+  | 'user_unbanned'
+  | 'content_hidden'
+  | 'content_unhidden'
+  | 'content_deleted'
+  | 'report_resolved'
+  | 'report_dismissed'
+  | 'ad_created'
+  | 'ad_deleted'
+  | 'ad_status_changed'
+  | 'settings_updated';
+
+export interface AuditLog {
+  id: string;
+  actionType: AuditActionType;
+  adminUid: string;
+  adminDisplayName?: string;
+  targetType: 'user' | 'post' | 'comment' | 'report' | 'advertisement' | 'settings';
+  targetId: string;
+  details: {
+    before?: Record<string, unknown>;
+    after?: Record<string, unknown>;
+    reason?: string;
+    [key: string]: unknown;
+  };
+  createdAt: Timestamp | Date;
+}
+
+// Report Statistics
+export interface ReportStats {
+  totalReports: number;
+  pendingReports: number;
+  resolvedReports: number;
+  dismissedReports: number;
+  reportsByReason: Record<ReportReason, number>;
+  reportsByDay: { date: string; count: number }[];
 }

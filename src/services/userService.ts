@@ -260,7 +260,11 @@ export const updateUserDisplayNameAndPropagate = async (uid: string, newDisplayN
 };
 
 
-export const setUserRole = async (targetUserId: string, newRole: User['role']): Promise<void> => {
+export const setUserRole = async (
+  targetUserId: string,
+  newRole: User['role'],
+  adminDisplayName?: string
+): Promise<{ oldRole: string; newRole: string }> => {
   if (!targetUserId || !newRole) {
     throw new Error('Target User ID and new role are required.');
   }
@@ -281,13 +285,147 @@ export const setUserRole = async (targetUserId: string, newRole: User['role']): 
 
   try {
     const userDocRef = doc(db, 'users', targetUserId);
+
+    // Get current role for audit log
+    const userSnap = await getDoc(userDocRef);
+    const oldRole = userSnap.exists() ? (userSnap.data().role || 'user') : 'user';
+
+    // Don't allow demoting other superusers
+    if (oldRole === 'superuser') {
+      throw new Error('Cannot change the role of another superuser.');
+    }
+
     await updateDoc(userDocRef, {
       role: newRole,
       updatedAt: serverTimestamp(),
     });
-  } catch (error) {
+
+    // Create audit log
+    const { logUserRoleChange } = await import('./auditLogService');
+    await logUserRoleChange(
+      currentUser.uid,
+      adminDisplayName || 'Admin',
+      targetUserId,
+      oldRole,
+      newRole!
+    );
+
+    return { oldRole, newRole: newRole! };
+  } catch (error: any) {
     console.error(`Error setting user role for ${targetUserId} to ${newRole}:`, error);
-    throw new Error('Failed to update user role.');
+    throw new Error(error.message || 'Failed to update user role.');
+  }
+};
+
+/**
+ * Ban a user (superuser only)
+ */
+export const banUser = async (
+  targetUserId: string,
+  reason: string,
+  adminDisplayName?: string
+): Promise<void> => {
+  if (!targetUserId) {
+    throw new Error('Target User ID is required.');
+  }
+
+  // Authorization: Only superusers can ban users
+  const currentUser = await verifyAuthorization(targetUserId, {
+    requiredRole: 'superuser',
+    allowSelf: false,
+  });
+
+  if (currentUser.uid === targetUserId) {
+    throw new Error('You cannot ban yourself.');
+  }
+
+  try {
+    const userDocRef = doc(db, 'users', targetUserId);
+    const userSnap = await getDoc(userDocRef);
+
+    if (!userSnap.exists()) {
+      throw new Error('User not found.');
+    }
+
+    const userData = userSnap.data() as User;
+
+    // Don't allow banning superusers
+    if (userData.role === 'superuser') {
+      throw new Error('Cannot ban a superuser.');
+    }
+
+    await updateDoc(userDocRef, {
+      isBanned: true,
+      bannedAt: serverTimestamp(),
+      bannedBy: currentUser.uid,
+      banReason: reason || 'No reason provided',
+      updatedAt: serverTimestamp(),
+    });
+
+    // Create audit log
+    const { logUserBan } = await import('./auditLogService');
+    await logUserBan(currentUser.uid, adminDisplayName || 'Admin', targetUserId, reason);
+  } catch (error: any) {
+    console.error(`Error banning user ${targetUserId}:`, error);
+    throw new Error(error.message || 'Failed to ban user.');
+  }
+};
+
+/**
+ * Unban a user (superuser only)
+ */
+export const unbanUser = async (
+  targetUserId: string,
+  adminDisplayName?: string
+): Promise<void> => {
+  if (!targetUserId) {
+    throw new Error('Target User ID is required.');
+  }
+
+  // Authorization: Only superusers can unban users
+  const currentUser = await verifyAuthorization(targetUserId, {
+    requiredRole: 'superuser',
+    allowSelf: false,
+  });
+
+  try {
+    const userDocRef = doc(db, 'users', targetUserId);
+
+    await updateDoc(userDocRef, {
+      isBanned: false,
+      bannedAt: null,
+      bannedBy: null,
+      banReason: null,
+      updatedAt: serverTimestamp(),
+    });
+
+    // Create audit log
+    const { logUserUnban } = await import('./auditLogService');
+    await logUserUnban(currentUser.uid, adminDisplayName || 'Admin', targetUserId);
+  } catch (error: any) {
+    console.error(`Error unbanning user ${targetUserId}:`, error);
+    throw new Error(error.message || 'Failed to unban user.');
+  }
+};
+
+/**
+ * Search users by name or email
+ */
+export const searchUsers = async (searchTerm: string): Promise<User[]> => {
+  try {
+    // Firestore doesn't support full-text search, so we fetch all and filter client-side
+    // For production, consider using Algolia or Elasticsearch
+    const users = await getUsers();
+    const lowerSearchTerm = searchTerm.toLowerCase().trim();
+
+    return users.filter(user =>
+      (user.displayName?.toLowerCase().includes(lowerSearchTerm)) ||
+      (user.name?.toLowerCase().includes(lowerSearchTerm)) ||
+      (user.email?.toLowerCase().includes(lowerSearchTerm))
+    );
+  } catch (error) {
+    console.error('Error searching users:', error);
+    throw new Error('Failed to search users.');
   }
 };
 

@@ -3,7 +3,7 @@
 import type { Post } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ThumbsUp, ThumbsDown, MessageCircle, MoreHorizontal, Edit, Trash2, Loader2, Share, Bookmark, Flag } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, MoreHorizontal, Edit, Trash2, Loader2, Share, Bookmark, Flag, EyeOff, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -28,7 +28,7 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { formatDistanceToNow } from 'date-fns';
 import { useState, useEffect } from 'react';
-import { deletePost, togglePostLike, togglePostDislike } from '@/services/postService';
+import { deletePost, togglePostLike, togglePostDislike, togglePostHidden } from '@/services/postService';
 import { toggleSavePost, isPostSaved } from '@/services/bookmarkService';
 import { useToast } from '@/hooks/use-toast';
 import { ReportDialog } from '@/components/reports/report-dialog';
@@ -54,6 +54,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -217,6 +218,29 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
     }
   };
 
+  const isModerator = user?.role === 'moderator' || user?.role === 'superuser';
+
+  const handleToggleVisibility = async () => {
+    if (!isModerator) return;
+    setIsTogglingVisibility(true);
+    try {
+      const newHiddenState = !post.isHidden;
+      await togglePostHidden(post.id, newHiddenState);
+      setPost(prevPost => ({ ...prevPost, isHidden: newHiddenState }));
+      toast({
+        title: newHiddenState ? "Post Hidden" : "Post Unhidden",
+        description: newHiddenState
+          ? "The post has been hidden from regular users."
+          : "The post is now visible to all users."
+      });
+    } catch (error) {
+      console.error("Failed to toggle post visibility:", error);
+      toast({ title: "Error", description: "Could not update post visibility. Please try again.", variant: "destructive" });
+    } finally {
+      setIsTogglingVisibility(false);
+    }
+  };
+
   return (
     <div
       className={`
@@ -236,6 +260,16 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
             {post.flairs && post.flairs.length > 0 && (
               <Badge variant="secondary" className="bg-primary/10 text-primary px-2 py-0.5 text-xs rounded-full border-0">
                 {post.flairs[0]}
+              </Badge>
+            )}
+            {/* Hidden indicator for moderators */}
+            {post.isHidden && (user?.role === 'moderator' || user?.role === 'superuser') && (
+              <Badge variant="destructive" className="px-2 py-0.5 text-xs rounded-full flex items-center gap-1">
+                <EyeOff className="h-3 w-3" />
+                Hidden
+                {post.reportCount && post.reportCount > 0 && (
+                  <span className="ml-1">({post.reportCount} reports)</span>
+                )}
               </Badge>
             )}
             <span>Posted by</span>
@@ -289,6 +323,29 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  {/* Hide/Unhide option for moderators */}
+                  {isModerator && (
+                    <>
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleToggleVisibility();
+                        }}
+                        className="cursor-pointer"
+                        disabled={isTogglingVisibility}
+                      >
+                        {isTogglingVisibility ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : post.isHidden ? (
+                          <EyeOff className="mr-2 h-4 w-4" />
+                        ) : (
+                          <EyeOff className="mr-2 h-4 w-4" />
+                        )}
+                        {post.isHidden ? 'Unhide Post' : 'Hide Post'}
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
                   )}

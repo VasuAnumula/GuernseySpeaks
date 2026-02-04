@@ -44,7 +44,9 @@ export async function createAdvertisement(
   imageFileBuffer: ArrayBuffer, // Expecting ArrayBuffer from the client
   imageFileType: string, // e.g., 'image/png'
   imageFileName: string,
-  isActive: boolean
+  isActive: boolean,
+  scheduledStart?: Date | null,
+  scheduledEnd?: Date | null
 ): Promise<string> {
   if (!uploaderUid || !title || !linkUrl || !imageFileBuffer || !imageFileType || !imageFileName) {
     throw new Error('Missing required fields for creating advertisement.');
@@ -61,6 +63,10 @@ export async function createAdvertisement(
       imageUrl,
       isActive,
       uploaderUid,
+      scheduledStart: scheduledStart || null,
+      scheduledEnd: scheduledEnd || null,
+      clicks: 0,
+      impressions: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -90,7 +96,10 @@ export async function getAllAdvertisements(): Promise<Advertisement[]> {
   }
 }
 
-export async function updateAdvertisement(adId: string, data: Partial<Pick<Advertisement, 'title' | 'linkUrl' | 'isActive'>>): Promise<void> {
+export async function updateAdvertisement(
+  adId: string,
+  data: Partial<Pick<Advertisement, 'title' | 'linkUrl' | 'isActive' | 'scheduledStart' | 'scheduledEnd'>>
+): Promise<void> {
   try {
     const adDocRef = doc(db, 'advertisements', adId);
     await updateDoc(adDocRef, {
@@ -100,6 +109,38 @@ export async function updateAdvertisement(adId: string, data: Partial<Pick<Adver
   } catch (error) {
     console.error('Error updating advertisement:', error);
     throw new Error('Failed to update advertisement.');
+  }
+}
+
+/**
+ * Track ad click
+ */
+export async function trackAdClick(adId: string): Promise<void> {
+  try {
+    const adDocRef = doc(db, 'advertisements', adId);
+    const { increment } = await import('firebase/firestore');
+    await updateDoc(adDocRef, {
+      clicks: increment(1),
+    });
+  } catch (error) {
+    console.error('Error tracking ad click:', error);
+    // Don't throw - tracking should not break user experience
+  }
+}
+
+/**
+ * Track ad impression
+ */
+export async function trackAdImpression(adId: string): Promise<void> {
+  try {
+    const adDocRef = doc(db, 'advertisements', adId);
+    const { increment } = await import('firebase/firestore');
+    await updateDoc(adDocRef, {
+      impressions: increment(1),
+    });
+  } catch (error) {
+    console.error('Error tracking ad impression:', error);
+    // Don't throw - tracking should not break user experience
   }
 }
 
@@ -137,25 +178,40 @@ export async function getActiveAdvertisements(count: number = 2): Promise<Advert
     const q = query(
       adsCollection,
       where('isActive', '==', true),
-      orderBy('createdAt', 'desc'), // Or random, or based on priority if added
-      // limit(count) // Firestore does not support random selection easily along with limit.
-                      // Fetch more and pick randomly on client/server or implement more complex random logic.
-                      // For now, fetch all active and let client decide, or fetch latest.
+      orderBy('createdAt', 'desc'),
     );
     const querySnapshot = await getDocs(q);
-    const activeAds = querySnapshot.docs.map(docSnap => processDoc(docSnap) as Advertisement).filter(ad => ad !== null);
-    
+    const allActiveAds = querySnapshot.docs.map(docSnap => processDoc(docSnap) as Advertisement).filter(ad => ad !== null);
+
+    // Filter by schedule
+    const now = new Date();
+    const scheduledAds = allActiveAds.filter(ad => {
+      // Check start date
+      if (ad.scheduledStart) {
+        const startDate = ad.scheduledStart instanceof Date
+          ? ad.scheduledStart
+          : (ad.scheduledStart as any).toDate?.() || new Date(0);
+        if (now < startDate) return false;
+      }
+      // Check end date
+      if (ad.scheduledEnd) {
+        const endDate = ad.scheduledEnd instanceof Date
+          ? ad.scheduledEnd
+          : (ad.scheduledEnd as any).toDate?.() || new Date(0);
+        if (now > endDate) return false;
+      }
+      return true;
+    });
+
     // Simple random selection if more ads than count are fetched
-    if (activeAds.length > count) {
-      const shuffled = activeAds.sort(() => 0.5 - Math.random());
+    if (scheduledAds.length > count) {
+      const shuffled = scheduledAds.sort(() => 0.5 - Math.random());
       return shuffled.slice(0, count);
     }
-    return activeAds;
+    return scheduledAds;
 
   } catch (error) {
     console.error('Error fetching active advertisements:', error);
-    // Return empty array or rethrow, depending on how AdPlaceholder should behave
     return [];
-    // throw new Error('Failed to fetch active advertisements.');
   }
 }

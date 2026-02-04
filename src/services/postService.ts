@@ -51,6 +51,7 @@ export interface GetPostsFilters {
   minLikes?: number;
   hasImage?: boolean;
   searchQuery?: string;
+  includeHidden?: boolean; // For moderators/admins to see hidden content
 }
 
 export async function createPost(postData: CreatePostInputData): Promise<string> {
@@ -125,6 +126,22 @@ export async function deletePost(postId: string): Promise<void> {
   }
 };
 
+/**
+ * Toggle the hidden status of a post (moderator action)
+ */
+export async function togglePostHidden(postId: string, hide: boolean): Promise<void> {
+  try {
+    const postDocRef = doc(db, 'posts', postId);
+    await updateDoc(postDocRef, {
+      isHidden: hide,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error toggling post hidden status:', error);
+    throw new Error('Failed to update post visibility.');
+  }
+}
+
 export async function getPosts(filters?: GetPostsFilters): Promise<Post[]> {
   try {
     const postsCollection = collection(db, 'posts');
@@ -186,6 +203,11 @@ export async function getPosts(filters?: GetPostsFilters): Promise<Post[]> {
         post.content.toLowerCase().includes(searchLower) ||
         (post.author?.displayName?.toLowerCase().includes(searchLower))
       );
+    }
+
+    // Filter out hidden posts unless includeHidden is true (for moderators/admins)
+    if (!filters?.includeHidden) {
+      posts = posts.filter(post => !post.isHidden);
     }
 
     return posts;

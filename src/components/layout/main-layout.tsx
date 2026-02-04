@@ -21,9 +21,9 @@ export function MainLayout({ weatherWidget, children, adsWidget }: MainLayoutPro
       <AnnouncementBanner />
 
       {/* Reddit-style layout with left and right sidebars */}
-      <div className="flex flex-1 w-full">
+      <div className="flex flex-1 w-full pb-14">
         {/* Left Sidebar - Weather and News */}
-        <aside className="hidden md:block w-80 flex-shrink-0 sticky top-12 h-[calc(100vh-3rem)] overflow-y-auto border-r border-border/40 bg-card/20">
+        <aside className="hidden md:block w-80 flex-shrink-0 sticky top-12 h-[calc(100vh-3rem-3.5rem)] overflow-y-auto border-r border-border/40 bg-card/20">
           <div className="p-4 space-y-4">
             {weatherWidget}
             <NewsHeadlinesWidget />
@@ -38,15 +38,17 @@ export function MainLayout({ weatherWidget, children, adsWidget }: MainLayoutPro
         </main>
 
         {/* Right Sidebar - Advertisements */}
-        <aside className="hidden md:block w-72 flex-shrink-0 sticky top-12 h-[calc(100vh-3rem)] overflow-y-auto border-l border-border/40 bg-card/20">
+        <aside className="hidden md:block w-72 flex-shrink-0 sticky top-12 h-[calc(100vh-3rem-3.5rem)] overflow-y-auto border-l border-border/40 bg-card/20">
           <div className="p-3">
             {adsWidget}
           </div>
         </aside>
       </div>
 
-
-      <Footer />
+      {/* Sticky Footer */}
+      <div className="fixed bottom-0 left-0 right-0 z-40">
+        <Footer />
+      </div>
     </div>
   );
 }

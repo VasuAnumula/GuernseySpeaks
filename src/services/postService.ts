@@ -22,7 +22,8 @@ import {
   where,
   QueryConstraint,
   OrderByDirection,
-  collectionGroup
+  collectionGroup,
+  runTransaction
 } from 'firebase/firestore';
 import {
   ref as storageRef,
@@ -221,98 +222,141 @@ export async function togglePostLike(
 ): Promise<{ likes: number; likedBy: string[]; dislikes: number; dislikedBy: string[] }> {
   try {
     const postDocRef = doc(db, 'posts', postId);
-    const postSnap = await getDoc(postDocRef);
-    if (!postSnap.exists()) {
-      throw new Error("Post not found");
-    }
-    const postData = postSnap.data() as Post;
-    const currentlyLikedBy = postData.likedBy || [];
-    const currentlyDislikedBy = postData.dislikedBy || [];
-    const updateData: any = {};
-    const isNewLike = !currentlyLikedBy.includes(userId);
 
-    if (currentlyLikedBy.includes(userId)) {
-      updateData.likes = increment(-1);
-      updateData.likedBy = arrayRemove(userId);
-    } else {
-      updateData.likes = increment(1);
-      updateData.likedBy = arrayUnion(userId);
-      if (currentlyDislikedBy.includes(userId)) {
-        updateData.dislikes = increment(-1);
-        updateData.dislikedBy = arrayRemove(userId);
+    const result = await runTransaction(db, async (transaction) => {
+      const postSnap = await transaction.get(postDocRef);
+      if (!postSnap.exists()) {
+        throw new Error("Post not found");
       }
-    }
 
-    await updateDoc(postDocRef, updateData);
+      const postData = postSnap.data() as Post;
+      const currentlyLikedBy = postData.likedBy || [];
+      const currentlyDislikedBy = postData.dislikedBy || [];
+      const isCurrentlyLiked = currentlyLikedBy.includes(userId);
+      const isCurrentlyDisliked = currentlyDislikedBy.includes(userId);
 
-    // Send notification for new likes (not unlikes)
-    if (isNewLike && postData.author?.uid && postData.author.uid !== userId) {
+      let newLikes = postData.likes || 0;
+      let newDislikes = postData.dislikes || 0;
+      let newLikedBy = [...currentlyLikedBy];
+      let newDislikedBy = [...currentlyDislikedBy];
+
+      if (isCurrentlyLiked) {
+        // Unlike
+        newLikes -= 1;
+        newLikedBy = newLikedBy.filter(uid => uid !== userId);
+      } else {
+        // Like
+        newLikes += 1;
+        newLikedBy.push(userId);
+        // Remove dislike if exists
+        if (isCurrentlyDisliked) {
+          newDislikes -= 1;
+          newDislikedBy = newDislikedBy.filter(uid => uid !== userId);
+        }
+      }
+
+      transaction.update(postDocRef, {
+        likes: newLikes,
+        likedBy: newLikedBy,
+        dislikes: newDislikes,
+        dislikedBy: newDislikedBy,
+      });
+
+      return {
+        likes: newLikes,
+        likedBy: newLikedBy,
+        dislikes: newDislikes,
+        dislikedBy: newDislikedBy,
+        isNewLike: !isCurrentlyLiked,
+        postTitle: postData.title,
+        postAuthorUid: postData.author?.uid,
+      };
+    });
+
+    // Send notification for new likes (not unlikes) - outside transaction
+    if (result.isNewLike && result.postAuthorUid && result.postAuthorUid !== userId) {
       try {
         await notifyPostLike(
-          postData.author.uid,
+          result.postAuthorUid,
           postId,
-          postData.title,
+          result.postTitle,
           userId,
           userDisplayName || 'Someone'
         );
       } catch (notifError) {
         console.error('Failed to send like notification:', notifError);
-        // Don't fail the like operation if notification fails
       }
     }
 
-    const updatedPostSnap = await getDoc(postDocRef);
-    const updatedData = updatedPostSnap.data() as Post;
     return {
-      likes: updatedData.likes,
-      likedBy: updatedData.likedBy,
-      dislikes: updatedData.dislikes,
-      dislikedBy: updatedData.dislikedBy,
+      likes: result.likes,
+      likedBy: result.likedBy,
+      dislikes: result.dislikes,
+      dislikedBy: result.dislikedBy,
     };
   } catch (error) {
     console.error('Error toggling post like:', error);
     throw new Error('Failed to toggle like on post.');
   }
-};
+}
 
 export async function togglePostDislike(postId: string, userId: string): Promise<{ likes: number; likedBy: string[]; dislikes: number; dislikedBy: string[] }> {
   try {
     const postDocRef = doc(db, 'posts', postId);
-    const postSnap = await getDoc(postDocRef);
-    if (!postSnap.exists()) {
-      throw new Error("Post not found");
-    }
-    const postData = postSnap.data() as Post;
-    const currentlyDislikedBy = postData.dislikedBy || [];
-    const currentlyLikedBy = postData.likedBy || [];
-    const updateData: any = {};
 
-    if (currentlyDislikedBy.includes(userId)) {
-      updateData.dislikes = increment(-1);
-      updateData.dislikedBy = arrayRemove(userId);
-    } else {
-      updateData.dislikes = increment(1);
-      updateData.dislikedBy = arrayUnion(userId);
-      if (currentlyLikedBy.includes(userId)) {
-        updateData.likes = increment(-1);
-        updateData.likedBy = arrayRemove(userId);
+    const result = await runTransaction(db, async (transaction) => {
+      const postSnap = await transaction.get(postDocRef);
+      if (!postSnap.exists()) {
+        throw new Error("Post not found");
       }
-    }
 
-    await updateDoc(postDocRef, updateData);
-    const updatedPostSnap = await getDoc(postDocRef);
-    const updatedData = updatedPostSnap.data() as Post;
-    return {
-      likes: updatedData.likes,
-      likedBy: updatedData.likedBy,
-      dislikes: updatedData.dislikes,
-      dislikedBy: updatedData.dislikedBy,
-    };
+      const postData = postSnap.data() as Post;
+      const currentlyLikedBy = postData.likedBy || [];
+      const currentlyDislikedBy = postData.dislikedBy || [];
+      const isCurrentlyLiked = currentlyLikedBy.includes(userId);
+      const isCurrentlyDisliked = currentlyDislikedBy.includes(userId);
+
+      let newLikes = postData.likes || 0;
+      let newDislikes = postData.dislikes || 0;
+      let newLikedBy = [...currentlyLikedBy];
+      let newDislikedBy = [...currentlyDislikedBy];
+
+      if (isCurrentlyDisliked) {
+        // Remove dislike
+        newDislikes -= 1;
+        newDislikedBy = newDislikedBy.filter(uid => uid !== userId);
+      } else {
+        // Add dislike
+        newDislikes += 1;
+        newDislikedBy.push(userId);
+        // Remove like if exists
+        if (isCurrentlyLiked) {
+          newLikes -= 1;
+          newLikedBy = newLikedBy.filter(uid => uid !== userId);
+        }
+      }
+
+      transaction.update(postDocRef, {
+        likes: newLikes,
+        likedBy: newLikedBy,
+        dislikes: newDislikes,
+        dislikedBy: newDislikedBy,
+      });
+
+      return {
+        likes: newLikes,
+        likedBy: newLikedBy,
+        dislikes: newDislikes,
+        dislikedBy: newDislikedBy,
+      };
+    });
+
+    return result;
   } catch (error) {
     console.error('Error toggling post dislike:', error);
     throw new Error('Failed to toggle dislike on post.');
   }
-};
+}
 
 export async function createComment(
   postId: string,
@@ -544,29 +588,58 @@ export async function uploadCommentImage(postId: string, file: File): Promise<st
 export async function toggleCommentLike(postId: string, commentId: string, userId: string): Promise<Comment> {
   try {
     const commentDocRef = doc(db, 'posts', postId, 'comments', commentId);
-    const commentSnap = await getDoc(commentDocRef);
-    if (!commentSnap.exists()) throw new Error('Comment not found');
 
-    const data = commentSnap.data() as Comment;
-    const likedBy = data.likedBy || [];
-    const dislikedBy = data.dislikedBy || [];
-    const updateData: any = {};
-
-    if (likedBy.includes(userId)) {
-      updateData.likes = increment(-1);
-      updateData.likedBy = arrayRemove(userId);
-    } else {
-      updateData.likes = increment(1);
-      updateData.likedBy = arrayUnion(userId);
-      if (dislikedBy.includes(userId)) {
-        updateData.dislikes = increment(-1);
-        updateData.dislikedBy = arrayRemove(userId);
+    const result = await runTransaction(db, async (transaction) => {
+      const commentSnap = await transaction.get(commentDocRef);
+      if (!commentSnap.exists()) {
+        throw new Error('Comment not found');
       }
-    }
 
-    await updateDoc(commentDocRef, updateData);
-    const updatedSnap = await getDoc(commentDocRef);
-    return processDoc(updatedSnap) as Comment;
+      const data = commentSnap.data() as Comment;
+      const currentlyLikedBy = data.likedBy || [];
+      const currentlyDislikedBy = data.dislikedBy || [];
+      const isCurrentlyLiked = currentlyLikedBy.includes(userId);
+      const isCurrentlyDisliked = currentlyDislikedBy.includes(userId);
+
+      let newLikes = data.likes || 0;
+      let newDislikes = data.dislikes || 0;
+      let newLikedBy = [...currentlyLikedBy];
+      let newDislikedBy = [...currentlyDislikedBy];
+
+      if (isCurrentlyLiked) {
+        // Unlike
+        newLikes -= 1;
+        newLikedBy = newLikedBy.filter(uid => uid !== userId);
+      } else {
+        // Like
+        newLikes += 1;
+        newLikedBy.push(userId);
+        // Remove dislike if exists
+        if (isCurrentlyDisliked) {
+          newDislikes -= 1;
+          newDislikedBy = newDislikedBy.filter(uid => uid !== userId);
+        }
+      }
+
+      transaction.update(commentDocRef, {
+        likes: newLikes,
+        likedBy: newLikedBy,
+        dislikes: newDislikes,
+        dislikedBy: newDislikedBy,
+      });
+
+      const { id: _existingId, ...restData } = data;
+      return {
+        ...restData,
+        id: commentId,
+        likes: newLikes,
+        likedBy: newLikedBy,
+        dislikes: newDislikes,
+        dislikedBy: newDislikedBy,
+      } as Comment;
+    });
+
+    return result;
   } catch (error) {
     console.error('Error toggling comment like:', error);
     throw new Error('Failed to toggle like on comment.');
@@ -576,29 +649,58 @@ export async function toggleCommentLike(postId: string, commentId: string, userI
 export async function toggleCommentDislike(postId: string, commentId: string, userId: string): Promise<Comment> {
   try {
     const commentDocRef = doc(db, 'posts', postId, 'comments', commentId);
-    const commentSnap = await getDoc(commentDocRef);
-    if (!commentSnap.exists()) throw new Error('Comment not found');
 
-    const data = commentSnap.data() as Comment;
-    const dislikedBy = data.dislikedBy || [];
-    const likedBy = data.likedBy || [];
-    const updateData: any = {};
-
-    if (dislikedBy.includes(userId)) {
-      updateData.dislikes = increment(-1);
-      updateData.dislikedBy = arrayRemove(userId);
-    } else {
-      updateData.dislikes = increment(1);
-      updateData.dislikedBy = arrayUnion(userId);
-      if (likedBy.includes(userId)) {
-        updateData.likes = increment(-1);
-        updateData.likedBy = arrayRemove(userId);
+    const result = await runTransaction(db, async (transaction) => {
+      const commentSnap = await transaction.get(commentDocRef);
+      if (!commentSnap.exists()) {
+        throw new Error('Comment not found');
       }
-    }
 
-    await updateDoc(commentDocRef, updateData);
-    const updatedSnap = await getDoc(commentDocRef);
-    return processDoc(updatedSnap) as Comment;
+      const data = commentSnap.data() as Comment;
+      const currentlyLikedBy = data.likedBy || [];
+      const currentlyDislikedBy = data.dislikedBy || [];
+      const isCurrentlyLiked = currentlyLikedBy.includes(userId);
+      const isCurrentlyDisliked = currentlyDislikedBy.includes(userId);
+
+      let newLikes = data.likes || 0;
+      let newDislikes = data.dislikes || 0;
+      let newLikedBy = [...currentlyLikedBy];
+      let newDislikedBy = [...currentlyDislikedBy];
+
+      if (isCurrentlyDisliked) {
+        // Remove dislike
+        newDislikes -= 1;
+        newDislikedBy = newDislikedBy.filter(uid => uid !== userId);
+      } else {
+        // Add dislike
+        newDislikes += 1;
+        newDislikedBy.push(userId);
+        // Remove like if exists
+        if (isCurrentlyLiked) {
+          newLikes -= 1;
+          newLikedBy = newLikedBy.filter(uid => uid !== userId);
+        }
+      }
+
+      transaction.update(commentDocRef, {
+        likes: newLikes,
+        likedBy: newLikedBy,
+        dislikes: newDislikes,
+        dislikedBy: newDislikedBy,
+      });
+
+      const { id: _existingId, ...restData } = data;
+      return {
+        ...restData,
+        id: commentId,
+        likes: newLikes,
+        likedBy: newLikedBy,
+        dislikes: newDislikes,
+        dislikedBy: newDislikedBy,
+      } as Comment;
+    });
+
+    return result;
   } catch (error) {
     console.error('Error toggling comment dislike:', error);
     throw new Error('Failed to toggle dislike on comment.');

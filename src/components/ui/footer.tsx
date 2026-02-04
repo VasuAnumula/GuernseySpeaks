@@ -31,66 +31,57 @@ export function Footer({
   copyright,
 }: FooterProps) {
   return (
-    <footer className="pb-6 pt-16 lg:pb-8 lg:pt-24">
+    <footer className="py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40">
       <div className="px-4 lg:px-8">
-        <div className="md:flex md:items-start md:justify-between">
-          <a
-            href="/"
-            className="flex items-center gap-x-2"
-            aria-label={brandName}
-          >
-            {logo}
-            <span className="font-bold text-xl">{brandName}</span>
-          </a>
-          <ul className="flex list-none mt-6 md:mt-0 space-x-3">
-            {socialLinks.map((link, i) => (
-              <li key={i}>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-10 w-10 rounded-full"
-                  asChild
-                >
-                  <a href={link.href} target="_blank" aria-label={link.label}>
-                    {link.icon}
-                  </a>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="border-t mt-6 pt-6 md:mt-4 md:pt-8 lg:grid lg:grid-cols-10">
-          <nav className="lg:mt-0 lg:col-[4/11]">
-            <ul className="list-none flex flex-wrap -my-1 -mx-2 lg:justify-end">
-              {mainLinks.map((link, i) => (
-                <li key={i} className="my-1 mx-2 shrink-0">
-                  <a
-                    href={link.href}
-                    className="text-sm text-primary underline-offset-4 hover:underline"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <div className="mt-6 lg:mt-0 lg:col-[4/11]">
-            <ul className="list-none flex flex-wrap -my-1 -mx-3 lg:justify-end">
-              {legalLinks.map((link, i) => (
-                <li key={i} className="my-1 mx-3 shrink-0">
-                  <a
-                    href={link.href}
-                    className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Left: Brand and Copyright */}
+          <div className="flex items-center gap-4">
+            <a
+              href="/"
+              className="flex items-center gap-x-1.5"
+              aria-label={brandName}
+            >
+              {logo}
+              <span className="font-semibold text-sm hidden sm:inline">{brandName}</span>
+            </a>
+            <span className="text-xs text-muted-foreground hidden md:inline">
+              {copyright.text}
+            </span>
           </div>
-          <div className="mt-6 text-sm leading-6 text-muted-foreground whitespace-nowrap lg:mt-0 lg:row-[1/3] lg:col-[1/4]">
-            <div>{copyright.text}</div>
-            {copyright.license && <div>{copyright.license}</div>}
+
+          {/* Center: Legal Links */}
+          <nav className="flex items-center gap-3">
+            {legalLinks.map((link, i) => (
+              <a
+                key={i}
+                href={link.href}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+
+          {/* Right: Social Links */}
+          <div className="flex items-center gap-2">
+            {copyright.license && (
+              <span className="text-xs text-muted-foreground hidden lg:inline">
+                {copyright.license}
+              </span>
+            )}
+            {socialLinks.map((link, i) => (
+              <Button
+                key={i}
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                asChild
+              >
+                <a href={link.href} aria-label={link.label}>
+                  {link.icon}
+                </a>
+              </Button>
+            ))}
           </div>
         </div>
       </div>

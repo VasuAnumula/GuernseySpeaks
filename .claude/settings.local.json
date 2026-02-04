@@ -4,7 +4,9 @@
       "Bash(rm:*)",
       "Bash(npm run:*)",
       "Bash(npx shadcn@latest add collapsible:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(wc:*)",
+      "Bash(npx next lint:*)"
     ],
     "deny": []
   }

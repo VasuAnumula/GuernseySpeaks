@@ -31,12 +31,17 @@ yarn-debug.log*
 yarn-error.log*
 *.log
 
-# Environment variables
+# Environment variables — NEVER commit real secrets
 .env
+.env.*
+!.env.example
 .env*.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Firebase App Hosting (contains secrets references)
+apphosting.yaml
 
 # Editor directories and files
 .vscode/*

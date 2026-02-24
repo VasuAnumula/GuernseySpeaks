@@ -148,6 +148,7 @@ export interface Conversation {
     senderId: string;
     sentAt: Timestamp | Date;
   };
+  lastReadAt?: { [uid: string]: Timestamp | Date };
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
 }

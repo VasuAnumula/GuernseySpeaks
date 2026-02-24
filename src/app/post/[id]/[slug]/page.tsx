@@ -956,8 +956,9 @@ export default function PostPage({ params }: PageProps) {
       weatherWidget={<WeatherWidget />}
       adsWidget={<AdPlaceholder />}
     >
-        <article className="w-full max-w-3xl mx-auto">
-          <Card className="mb-6 md:mb-8 border-none shadow">
+        <article className="w-full">
+          <Card className="mb-6 md:mb-8 border-none shadow overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-primary via-emerald-400 to-primary/60" />
           <CardHeader className="p-4 sm:p-5 md:p-6">
             <div className="flex items-start justify-between">
               <CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary break-words">
@@ -1027,7 +1028,7 @@ export default function PostPage({ params }: PageProps) {
             {post.flairs && post.flairs.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {post.flairs.map((flair) => (
-                  <Badge key={flair} className="bg-red-600 text-white">
+                  <Badge key={flair} className="bg-primary/90 text-primary-foreground">
                     {flair}
                   </Badge>
                 ))}
@@ -1038,7 +1039,7 @@ export default function PostPage({ params }: PageProps) {
             {post.content}
             {post.imageUrl && (
               <div className="mt-4">
-                <Image src={post.imageUrl} alt="post image" width={800} height={450} className="rounded-md" />
+                <Image src={post.imageUrl} alt="post image" width={800} height={450} className="w-full h-auto rounded-md object-cover" />
               </div>
             )}
           </CardContent>
@@ -1047,25 +1048,25 @@ export default function PostPage({ params }: PageProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`group ${isLiked ? 'text-primary border-primary hover:bg-transparent' : 'hover:text-primary hover:border-primary/50 hover:bg-transparent'} transition-transform duration-150 active:scale-95`}
+                className={`group ${isLiked ? 'text-orange-500 border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950' : 'hover:text-orange-500 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950'} transition-all duration-150 active:scale-95`}
                 onClick={handleLikeToggle}
                 disabled={isLiking || !user || authLoading}
               >
-                {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''} group-hover:text-primary`} />}
+                {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''} group-hover:text-orange-500`} />}
                  {post.likes} Like{post.likes !== 1 && 's'}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className={`group ${isDisliked ? 'text-primary border-primary hover:bg-transparent' : 'hover:text-primary hover:border-primary/50 hover:bg-transparent'} transition-transform duration-150 active:scale-95`}
+                className={`group ${isDisliked ? 'text-blue-500 border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950' : 'hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950'} transition-all duration-150 active:scale-95`}
                 onClick={handleDislikeToggle}
                 disabled={isDisliking || !user || authLoading}
               >
-                {isDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''} group-hover:text-primary`} />}
+                {isDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''} group-hover:text-blue-500`} />}
                  {post.dislikes} Dislike{post.dislikes !== 1 && 's'}
               </Button>
-              <Button variant="outline" size="sm" className="group hover:text-primary hover:border-primary/50">
-                <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-primary transition-colors" /> {post.commentsCount} Comment{post.commentsCount !== 1 && 's'}
+              <Button variant="outline" size="sm" className="group hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all">
+                <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-emerald-600 transition-colors" /> {post.commentsCount} Comment{post.commentsCount !== 1 && 's'}
               </Button>
             </div>
             {/* Future: Save/Bookmark button can go here */}

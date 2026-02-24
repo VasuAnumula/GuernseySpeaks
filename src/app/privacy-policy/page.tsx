@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/use-auth';
 import { useEffect, useState, useCallback } from 'react';
 import { getPrivacyPolicy, updatePrivacyPolicy } from '@/services/siteContentService';
-import { Loader2, Edit3, Save, XCircle } from 'lucide-react';
+import { Loader2, Edit3, Save, XCircle, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function PrivacyPolicyPage() {
@@ -75,11 +75,15 @@ export default function PrivacyPolicyPage() {
       weatherWidget={<WeatherWidget />}
       adsWidget={<AdPlaceholder />}
     >
-      <Card className="w-full max-w-3xl mx-auto shadow-lg">
+      <Card className="w-full max-w-3xl mx-auto shadow-lg animate-fade-in overflow-hidden">
+        <div className="h-2 bg-gradient-to-r from-primary to-primary/60" />
         <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-3xl">Privacy Policy</CardTitle>
-            <CardDescription>Our commitment to your privacy.</CardDescription>
+          <div className="flex items-center gap-3">
+            <Shield className="h-7 w-7 text-primary" />
+            <div>
+              <CardTitle className="text-3xl">Privacy Policy</CardTitle>
+              <CardDescription>Our commitment to your privacy.</CardDescription>
+            </div>
           </div>
           {!authLoading && user && user.role === 'superuser' && !isEditing && (
             <Button onClick={handleEditToggle} variant="outline" size="icon">
@@ -104,6 +108,7 @@ export default function PrivacyPolicyPage() {
                 rows={20}
                 className="text-base border-primary focus:ring-primary"
                 disabled={isSaving}
+                placeholder="Enter policy content here. You can use basic HTML."
               />
               <div className="flex justify-end gap-2">
                 <Button onClick={handleEditToggle} variant="outline" disabled={isSaving}>
@@ -116,9 +121,10 @@ export default function PrivacyPolicyPage() {
               </div>
             </div>
           ) : (
-            <div className="prose prose-sm sm:prose-base md:prose-lg max-w-none dark:prose-invert whitespace-pre-wrap">
-              {policyContent}
-            </div>
+            <div
+              className="prose prose-sm sm:prose-base md:prose-lg max-w-none dark:prose-invert"
+              dangerouslySetInnerHTML={{ __html: policyContent }}
+            />
           )}
         </CardContent>
       </Card>

@@ -3,7 +3,7 @@
 import type { Post } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ThumbsUp, ThumbsDown, MessageCircle, MoreHorizontal, Edit, Trash2, Loader2, Share, Bookmark, Flag, EyeOff, AlertTriangle } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, MoreHorizontal, Edit, Trash2, Loader2, Share, Bookmark, Flag, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -244,12 +244,13 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
   return (
     <div
       className={`
-        mb-2
+        mb-2 rounded-lg
         transition-all duration-200 ease-out
         ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
         bg-card border border-border/40
-        hover:border-border
+        hover:border-primary/30
         group
+        hover-lift
         ${className}
       `}
     >
@@ -340,7 +341,7 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
                         {isTogglingVisibility ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : post.isHidden ? (
-                          <EyeOff className="mr-2 h-4 w-4" />
+                          <Eye className="mr-2 h-4 w-4" />
                         ) : (
                           <EyeOff className="mr-2 h-4 w-4" />
                         )}
@@ -383,81 +384,82 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
           {/* Post image */}
           {post.imageUrl && (
             <div className="mb-3 rounded-lg overflow-hidden border border-border/40 bg-muted/20">
-              <Image 
-                src={post.imageUrl} 
-                alt="post image" 
-                width={600} 
-                height={350} 
-                className="w-full h-auto object-contain max-h-96" 
+              <Image
+                src={post.imageUrl}
+                alt="post image"
+                width={800}
+                height={600}
+                className="w-full h-auto object-cover max-h-[32rem] animate-fade-in"
+                sizes="(max-width: 768px) 100vw, 700px"
                 style={{ aspectRatio: 'auto' }}
               />
             </div>
           )}
 
           {/* Bottom actions - Reddit style */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1 md:gap-2 text-xs text-muted-foreground">
             <Button
               variant="ghost"
               size="sm"
-              className={`p-1 h-auto text-xs rounded transition-colors ${isLiked ? 'text-orange-500 hover:text-orange-600' : 'hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950'}`}
+              className={`p-2 md:p-1 h-auto text-xs rounded transition-all active:scale-125 ${isLiked ? 'text-orange-500 hover:text-orange-600' : 'hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950'}`}
               onClick={(e) => { e.stopPropagation(); handleLikeToggle(); }}
               disabled={isLiking || !user}
             >
               {isLiking ? (
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                <Loader2 className="mr-1 h-3.5 w-3.5 md:h-3 md:w-3 animate-spin" />
               ) : (
-                <ThumbsUp className={`mr-1 h-3 w-3 ${isLiked ? 'fill-current' : ''}`} />
+                <ThumbsUp className={`mr-1 h-3.5 w-3.5 md:h-3 md:w-3 ${isLiked ? 'fill-current' : ''}`} />
               )}
               {post.likes}
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className={`p-1 h-auto text-xs rounded transition-colors ${isDisliked ? 'text-blue-600 hover:text-blue-700' : 'hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950'}`}
+              className={`p-2 md:p-1 h-auto text-xs rounded transition-all active:scale-125 ${isDisliked ? 'text-blue-600 hover:text-blue-700' : 'hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950'}`}
               onClick={(e) => { e.stopPropagation(); handleDislikeToggle(); }}
               disabled={isDisliking || !user}
             >
               {isDisliking ? (
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                <Loader2 className="mr-1 h-3.5 w-3.5 md:h-3 md:w-3 animate-spin" />
               ) : (
-                <ThumbsDown className={`mr-1 h-3 w-3 ${isDisliked ? 'fill-current' : ''}`} />
+                <ThumbsDown className={`mr-1 h-3.5 w-3.5 md:h-3 md:w-3 ${isDisliked ? 'fill-current' : ''}`} />
               )}
               {post.dislikes}
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="p-1 h-auto text-xs hover:text-foreground hover:bg-muted/50 rounded transition-colors"
+              className="p-2 md:p-1 h-auto text-xs hover:text-foreground hover:bg-muted/50 rounded transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 window.location.href = `/post/${post.id}/${postSlug}`;
               }}
             >
-              <MessageCircle className="mr-1 h-3 w-3" />
+              <MessageCircle className="mr-1 h-3.5 w-3.5 md:h-3 md:w-3" />
               {post.commentsCount || 0}
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="p-1 h-auto text-xs hover:text-foreground hover:bg-muted/50 rounded transition-colors"
+              className="p-2 md:p-1 h-auto text-xs hover:text-foreground hover:bg-muted/50 rounded transition-colors"
               onClick={handleShare}
             >
-              <Share className="mr-1 h-3 w-3" />
-              Share
+              <Share className="mr-1 h-3.5 w-3.5 md:h-3 md:w-3" />
+              <span className="hidden sm:inline">Share</span>
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className={`p-1 h-auto text-xs rounded transition-colors ${isSaved ? 'text-yellow-600 hover:text-yellow-700' : 'hover:text-foreground hover:bg-muted/50'}`}
+              className={`p-2 md:p-1 h-auto text-xs rounded transition-colors ${isSaved ? 'text-yellow-600 hover:text-yellow-700' : 'hover:text-foreground hover:bg-muted/50'}`}
               onClick={handleSave}
               disabled={isSaving}
             >
               {isSaving ? (
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                <Loader2 className="mr-1 h-3.5 w-3.5 md:h-3 md:w-3 animate-spin" />
               ) : (
-                <Bookmark className={`mr-1 h-3 w-3 ${isSaved ? 'fill-current' : ''}`} />
+                <Bookmark className={`mr-1 h-3.5 w-3.5 md:h-3 md:w-3 ${isSaved ? 'fill-current' : ''}`} />
               )}
-              {isSaved ? 'Saved' : 'Save'}
+              <span className="hidden sm:inline">{isSaved ? 'Saved' : 'Save'}</span>
             </Button>
           </div>
         </div>

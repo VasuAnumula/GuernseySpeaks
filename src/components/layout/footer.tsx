@@ -13,7 +13,7 @@ export function Footer() {
       socialLinks={[
         {
           icon: <Mail className="h-4 w-4" />,
-          href: "/contact",
+          href: "mailto:hello@guernseyspeaks.com",
           label: "Contact Us"
         }
       ]}

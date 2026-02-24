@@ -44,8 +44,51 @@ export function PostForm({ postToEdit }: PostFormProps) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("post");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isEditMode = !!postToEdit;
+
+  const insertMarkdown = (prefix: string, suffix: string = '', placeholder: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    const textToInsert = selectedText || placeholder;
+    const newContent =
+      content.substring(0, start) + prefix + textToInsert + suffix + content.substring(end);
+
+    setContent(newContent);
+
+    // Restore cursor position after state update
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const cursorPos = selectedText
+        ? start + prefix.length + selectedText.length + suffix.length
+        : start + prefix.length;
+      textarea.setSelectionRange(cursorPos, cursorPos + (selectedText ? 0 : placeholder.length));
+    });
+  };
+
+  const insertLinePrefix = (prefix: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    const lines = selectedText ? selectedText.split('\n') : [''];
+    const prefixed = lines.map((line) => prefix + line).join('\n');
+    const newContent = content.substring(0, start) + prefixed + content.substring(end);
+
+    setContent(newContent);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start, start + prefixed.length);
+    });
+  };
 
   useEffect(() => {
     if (isEditMode && postToEdit) {
@@ -210,16 +253,17 @@ export function PostForm({ postToEdit }: PostFormProps) {
                 <div className="border rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-ring">
                   {/* Toolbar */}
                   <div className="bg-muted/30 border-b p-2 flex items-center gap-1 overflow-x-auto">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Bold"><Bold className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Italic"><Italic className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Link"><LinkIcon className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Bold" type="button" onClick={() => insertMarkdown('**', '**', 'bold text')}><Bold className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Italic" type="button" onClick={() => insertMarkdown('*', '*', 'italic text')}><Italic className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Link" type="button" onClick={() => insertMarkdown('[', '](url)', 'link text')}><LinkIcon className="h-4 w-4" /></Button>
                     <Separator orientation="vertical" className="h-6 mx-1" />
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="List"><List className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Ordered List"><ListOrdered className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Quote"><Quote className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Code Block"><Code className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="List" type="button" onClick={() => insertLinePrefix('- ')}><List className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Ordered List" type="button" onClick={() => insertLinePrefix('1. ')}><ListOrdered className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Quote" type="button" onClick={() => insertLinePrefix('> ')}><Quote className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Code Block" type="button" onClick={() => insertMarkdown('`', '`', 'code')}><Code className="h-4 w-4" /></Button>
                   </div>
                   <Textarea
+                    ref={textareaRef}
                     placeholder="Text (optional)"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}

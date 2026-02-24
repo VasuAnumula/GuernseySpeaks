@@ -425,7 +425,7 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                           <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {post.likes}</span>
                           <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> {post.commentsCount}</span>
-                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {post.createdAt && format(post.createdAt instanceof Date ? post.createdAt : new Date(), 'MMM d, yyyy')}</span>
+                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {post.createdAt && format(post.createdAt instanceof Date ? post.createdAt : (post.createdAt as any).toDate?.() ?? new Date(), 'MMM d, yyyy')}</span>
                         </div>
                       </div>
                     ))}
@@ -450,7 +450,7 @@ export default function ProfilePage() {
                             View Post
                           </Link>
                           <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {comment.likes}</span>
-                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {comment.createdAt && format(comment.createdAt instanceof Date ? comment.createdAt : new Date(), 'MMM d, yyyy')}</span>
+                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {comment.createdAt && format(comment.createdAt instanceof Date ? comment.createdAt : (comment.createdAt as any).toDate?.() ?? new Date(), 'MMM d, yyyy')}</span>
                         </div>
                       </div>
                     ))}
@@ -475,7 +475,7 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                           <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {post.likes}</span>
                           <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> {post.commentsCount}</span>
-                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {post.createdAt && format(post.createdAt instanceof Date ? post.createdAt : new Date(), 'MMM d, yyyy')}</span>
+                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {post.createdAt && format(post.createdAt instanceof Date ? post.createdAt : (post.createdAt as any).toDate?.() ?? new Date(), 'MMM d, yyyy')}</span>
                           <span className="text-primary">by u/{post.author?.displayName || 'Anonymous'}</span>
                         </div>
                       </div>

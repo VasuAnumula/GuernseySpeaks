@@ -103,9 +103,16 @@ export default function MessagesPage() {
                       : (conversation.lastMessage.sentAt as any).toDate()
                     : null;
 
-                  const isUnread =
-                    conversation.lastMessage &&
-                    conversation.lastMessage.senderId !== user.uid;
+                  const isUnread = (() => {
+                    if (!conversation.lastMessage || conversation.lastMessage.senderId === user.uid) return false;
+                    const lastReadAt = conversation.lastReadAt?.[user.uid];
+                    if (!lastReadAt) return true;
+                    const readTime = lastReadAt instanceof Date ? lastReadAt : (lastReadAt as any).toDate?.() ?? new Date(0);
+                    const msgTime = conversation.lastMessage.sentAt instanceof Date
+                      ? conversation.lastMessage.sentAt
+                      : (conversation.lastMessage.sentAt as any).toDate?.() ?? new Date(0);
+                    return msgTime > readTime;
+                  })();
 
                   return (
                     <Link

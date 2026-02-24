@@ -1,6 +1,3 @@
-
-'use server';
-
 import { db, storage } from '@/lib/firebase/config';
 import type { Advertisement } from '@/types';
 import { processDoc } from '@/lib/firestoreUtils';
@@ -23,37 +20,26 @@ import {
   getDownloadURL,
   deleteObject,
 } from 'firebase/storage';
-interface CreateAdvertisementInput {
-  title: string;
-  linkUrl: string;
-  imageFile: File; // This will be handled by converting to a buffer or similar for server action
-  isActive: boolean;
-  uploaderUid: string;
-}
-
-// This function is designed to be called from a server environment (e.g. Next.js Server Action)
-// The File object needs to be processed (e.g. to ArrayBuffer) before being passed to this server-side function.
-// For simplicity in the admin UI, we might handle the file upload directly there and pass data URLs or use a client-side upload to storage.
-// However, for a pure server action approach, the file bytes would be passed.
-// Let's assume the image is uploaded client-side for now, and imageURL is passed, or handle image upload here.
 
 export async function createAdvertisement(
   uploaderUid: string,
   title: string,
   linkUrl: string,
-  imageFileBuffer: ArrayBuffer, // Expecting ArrayBuffer from the client
-  imageFileType: string, // e.g., 'image/png'
+  imageData: ArrayBuffer | Uint8Array,
+  imageFileType: string,
   imageFileName: string,
   isActive: boolean,
   scheduledStart?: Date | null,
   scheduledEnd?: Date | null
 ): Promise<string> {
-  if (!uploaderUid || !title || !linkUrl || !imageFileBuffer || !imageFileType || !imageFileName) {
+  if (!uploaderUid || !title || !linkUrl || !imageData || !imageFileType || !imageFileName) {
     throw new Error('Missing required fields for creating advertisement.');
   }
 
+  const bytes = new Uint8Array(imageData);
+
   const adImageRef = storageRef(storage, `advertisements/${Date.now()}_${imageFileName}`);
-  await uploadBytes(adImageRef, imageFileBuffer, { contentType: imageFileType });
+  await uploadBytes(adImageRef, bytes, { contentType: imageFileType });
   const imageUrl = await getDownloadURL(adImageRef);
 
   try {

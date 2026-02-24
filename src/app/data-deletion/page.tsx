@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/use-auth';
 import { useEffect, useState, useCallback } from 'react';
 import { getDataDeletionPolicy, updateDataDeletionPolicy } from '@/services/siteContentService';
-import { Loader2, Edit3, Save, XCircle } from 'lucide-react';
+import { Loader2, Edit3, Save, XCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function DataDeletionPage() {
@@ -75,11 +75,15 @@ export default function DataDeletionPage() {
       weatherWidget={<WeatherWidget />}
       adsWidget={<AdPlaceholder />}
     >
-      <Card className="w-full max-w-3xl mx-auto shadow-lg">
+      <Card className="w-full max-w-3xl mx-auto shadow-lg animate-fade-in overflow-hidden">
+        <div className="h-2 bg-gradient-to-r from-primary to-primary/60" />
         <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-3xl">Data Deletion Policy</CardTitle>
-            <CardDescription>How to request deletion of your data.</CardDescription>
+          <div className="flex items-center gap-3">
+            <Trash2 className="h-7 w-7 text-primary" />
+            <div>
+              <CardTitle className="text-3xl">Data Deletion Policy</CardTitle>
+              <CardDescription>How to request deletion of your data.</CardDescription>
+            </div>
           </div>
           {!authLoading && user && user.role === 'superuser' && !isEditing && (
             <Button onClick={handleEditToggle} variant="outline" size="icon">

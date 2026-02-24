@@ -499,6 +499,7 @@ export default function AdminPage() {
               ) : ads.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">No advertisements created yet.</p>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableCaption>List of all advertisements.</TableCaption>
                   <TableHeader>
@@ -575,6 +576,7 @@ export default function AdminPage() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -615,6 +617,7 @@ export default function AdminPage() {
                 {userSearchTerm ? 'No users match your search.' : 'No users found.'}
               </p>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableCaption>A list of all registered users on the platform.</TableCaption>
                 <TableHeader>
@@ -731,6 +734,7 @@ export default function AdminPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

@@ -248,6 +248,11 @@ export async function markMessagesAsRead(
   userId: string
 ): Promise<void> {
   try {
+    // Update the conversation's lastReadAt for this user
+    await updateDoc(doc(db, 'conversations', conversationId), {
+      [`lastReadAt.${userId}`]: serverTimestamp(),
+    });
+
     const q = query(
       collection(db, 'conversations', conversationId, 'messages'),
       where('senderId', '!=', userId),

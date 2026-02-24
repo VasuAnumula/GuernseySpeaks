@@ -51,7 +51,8 @@ export function NewsHeadlinesWidget() {
   };
 
   return (
-    <Card className="w-full shadow-lg">
+    <Card className="w-full shadow-lg animate-slide-in-left overflow-hidden">
+      <div className="h-1.5 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400" />
       <CardHeader className="pb-2">
         <CardTitle className="text-xl font-semibold flex items-center">
           <Newspaper className="mr-2 h-6 w-6 text-primary" />
@@ -82,7 +83,7 @@ export function NewsHeadlinesWidget() {
         {!loading && !error && articles.length > 0 && (
           <ul className="space-y-3">
             {articles.map((article, index) => (
-              <li key={`${article.url}-${index}`} className="border-b border-border pb-2 last:border-b-0 last:pb-0">
+              <li key={`${article.url}-${index}`} className="border-b border-border pb-2 last:border-b-0 last:pb-0 opacity-0 animate-fade-in-up" style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'forwards' }}>
                 <Link href={article.url} target="_blank" rel="noopener noreferrer" className="group hover:text-primary transition-colors">
                   <h4 className="font-medium text-sm group-hover:underline leading-tight">{article.title}</h4>
                   <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">

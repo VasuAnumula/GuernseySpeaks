@@ -60,7 +60,8 @@ export function WeatherWidget() {
   }
 
   return (
-    <Card className="w-full shadow-lg">
+    <Card className="w-full shadow-lg overflow-hidden">
+      <div className="h-1.5 bg-gradient-to-r from-blue-400 via-sky-300 to-emerald-400" />
       <CardHeader>
       </CardHeader>
       <CardContent>
@@ -75,7 +76,7 @@ export function WeatherWidget() {
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
         {weather && !loading && !error && (
-          <div className="space-y-3">
+          <div className="space-y-3 animate-fade-in">
             <div className="text-center">
               <p className="text-lg font-medium text-primary">
                 {weather.location.name}, {weather.location.country}
@@ -95,22 +96,22 @@ export function WeatherWidget() {
                     data-ai-hint="weather condition" 
                   />
               )}
-              <p className="text-5xl font-bold ml-2">{weather.current.temp_c}°C</p>
+              <p className="text-5xl font-bold ml-2 animate-scale-in">{weather.current.temp_c}°C</p>
             </div>
             <p className="text-center text-lg capitalize">{weather.current.condition.text}</p>
             <p className="text-center text-sm text-muted-foreground">Feels like {weather.current.feelslike_c}°C</p>
 
             <div className="grid grid-cols-2 gap-3 pt-3 text-sm">
-              <div className="flex items-center">
-                <Wind className="mr-2 h-5 w-5 text-accent" />
+              <div className="flex items-center opacity-0 animate-fade-in-up stagger-1">
+                <Wind className="mr-2 h-5 w-5 text-sky-500" />
                 <span>{weather.current.wind_kph} kph ({weather.current.wind_dir})</span>
               </div>
-              <div className="flex items-center">
-                <Droplets className="mr-2 h-5 w-5 text-accent" />
+              <div className="flex items-center opacity-0 animate-fade-in-up stagger-2">
+                <Droplets className="mr-2 h-5 w-5 text-blue-500" />
                 <span>Humidity: {weather.current.humidity}%</span>
               </div>
-              <div className="flex items-center">
-                <Thermometer className="mr-2 h-5 w-5 text-accent" />
+              <div className="flex items-center opacity-0 animate-fade-in-up stagger-3">
+                <Thermometer className="mr-2 h-5 w-5 text-orange-500" />
                 <span>UV Index: {weather.current.uv}</span>
               </div>
               {/* Example for Sun/Cloud icons based on condition text - can be expanded */}

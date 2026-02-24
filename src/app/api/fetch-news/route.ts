@@ -14,12 +14,16 @@ interface CustomNewsArticle {
 
 const FEEDS = [
   {
-    sourceName: 'Island FM - Guernsey News',
-    url: 'https://www.islandfm.com/news/guernsey/feed.xml',
+    sourceName: 'Bailiwick Express',
+    url: 'https://www.bailiwickexpress.com/category/news-ge/feed/',
   },
   {
-    sourceName: 'Island FM - Jersey News',
-    url: 'https://www.islandfm.com/news/jersey/feed.xml',
+    sourceName: 'BBC Guernsey',
+    url: 'https://feeds.bbci.co.uk/news/world/europe/guernsey/rss.xml',
+  },
+  {
+    sourceName: 'Island FM',
+    url: 'https://www.islandfm.com/news/guernsey/feed.xml',
   },
 ];
 

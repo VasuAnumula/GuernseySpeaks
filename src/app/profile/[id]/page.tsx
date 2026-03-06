@@ -124,16 +124,16 @@ export default function PublicProfilePage() {
 
   return (
     <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <Card className="max-w-2xl mx-auto shadow-lg">
-          <CardHeader className="text-center">
-            <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-primary shadow-md">
+          <CardHeader className="text-center px-4 sm:px-6">
+            <Avatar className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 sm:mb-4 border-4 border-primary shadow-md">
               <AvatarImage src={profileUser.avatarUrl || undefined} alt={displayName} />
-              <AvatarFallback className="text-4xl">{userAvatarFallback}</AvatarFallback>
+              <AvatarFallback className="text-3xl sm:text-4xl">{userAvatarFallback}</AvatarFallback>
             </Avatar>
-            <CardTitle className="text-2xl">{displayName}</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl">{displayName}</CardTitle>
             {profileUser.bio && (
-              <CardDescription className="text-base mt-2">{profileUser.bio}</CardDescription>
+              <CardDescription className="text-sm sm:text-base mt-2">{profileUser.bio}</CardDescription>
             )}
             {profileUser.role && profileUser.role !== 'user' && (
               <div className="mt-2 flex items-center justify-center gap-1">
@@ -144,25 +144,25 @@ export default function PublicProfilePage() {
               </div>
             )}
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
+          <CardContent className="space-y-4 px-4 sm:px-6">
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
+                <Calendar className="h-4 w-4 shrink-0" />
                 Joined {formattedJoinedDate}
               </div>
               <div className="flex items-center gap-1">
-                <FileText className="h-4 w-4" />
+                <FileText className="h-4 w-4 shrink-0" />
                 {userPosts.length} posts
               </div>
               <div className="flex items-center gap-1">
-                <MessageSquare className="h-4 w-4" />
+                <MessageSquare className="h-4 w-4 shrink-0" />
                 {userComments.length} comments
               </div>
             </div>
 
             {currentUser && currentUser.uid !== profileUserId && (
-              <div className="flex justify-center pt-4">
-                <Button onClick={() => setMessageDialogOpen(true)}>
+              <div className="flex justify-center pt-2 sm:pt-4">
+                <Button onClick={() => setMessageDialogOpen(true)} className="w-full sm:w-auto">
                   <Mail className="h-4 w-4 mr-2" />
                   Send Message
                 </Button>
@@ -174,19 +174,19 @@ export default function PublicProfilePage() {
         {/* Activity Sections */}
         <Card className="max-w-4xl mx-auto">
           <Tabs defaultValue="posts" className="w-full">
-            <CardHeader className="pb-0">
+            <CardHeader className="pb-0 px-3 sm:px-6">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="posts" className="flex items-center gap-2">
+                <TabsTrigger value="posts" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                   <FileText className="h-4 w-4" />
                   Posts ({userPosts.length})
                 </TabsTrigger>
-                <TabsTrigger value="comments" className="flex items-center gap-2">
+                <TabsTrigger value="comments" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                   <MessageSquare className="h-4 w-4" />
                   Comments ({userComments.length})
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 px-3 sm:px-6">
               <TabsContent value="posts" className="mt-0">
                 {loadingPosts ? (
                   <div className="flex justify-center py-4">

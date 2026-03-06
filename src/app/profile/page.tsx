@@ -231,17 +231,17 @@ export default function ProfilePage() {
 
   return (
     <MainLayout weatherWidget={<WeatherWidget />} adsWidget={<AdPlaceholder />}>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <Card className="max-w-2xl mx-auto shadow-lg">
-          <CardHeader className="text-center relative">
-            <Avatar className="w-32 h-32 mx-auto mb-4 border-4 border-primary shadow-md">
+          <CardHeader className="text-center relative px-4 sm:px-6">
+            <Avatar className="w-20 h-20 sm:w-32 sm:h-32 mx-auto mb-3 sm:mb-4 border-4 border-primary shadow-md">
               <AvatarImage src={user.avatarUrl || undefined} alt={currentDisplayName} data-ai-hint="user large_avatar" />
-              <AvatarFallback className="text-5xl">{userAvatarFallback}</AvatarFallback>
+              <AvatarFallback className="text-3xl sm:text-5xl">{userAvatarFallback}</AvatarFallback>
             </Avatar>
-            <CardTitle className="text-3xl">{currentDisplayName}</CardTitle>
+            <CardTitle className="text-2xl sm:text-3xl">{currentDisplayName}</CardTitle>
             {user.email && (
-              <CardDescription className="flex items-center justify-center gap-1">
-                <Mail className="h-4 w-4 text-muted-foreground" /> {user.email}
+              <CardDescription className="flex items-center justify-center gap-1 text-xs sm:text-sm break-all">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0" /> {user.email}
               </CardDescription>
             )}
             {user.role && (
@@ -249,13 +249,19 @@ export default function ProfilePage() {
                 <ShieldCheck className="h-5 w-5 text-accent" /> Role: <span className="capitalize">{user.role}</span>
               </div>
             )}
+
+            {/* Account Info - inline under header */}
+            <div className="mt-3 flex items-center justify-center gap-1 text-xs sm:text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4 shrink-0" />
+              Joined {formattedJoinedDate || 'Loading...'}
+            </div>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-5 sm:space-y-6 px-4 sm:px-6">
 
             {/* Display Name Section */}
             <div className="space-y-2">
-              <Label htmlFor="displayName" className="text-lg font-semibold">Display Name (Public)</Label>
-              <div className="flex items-center gap-2">
+              <Label htmlFor="displayName" className="text-sm sm:text-lg font-semibold">Display Name (Public)</Label>
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   id="displayName"
                   value={editableDisplayName}
@@ -267,6 +273,7 @@ export default function ProfilePage() {
                 <Button
                   onClick={handleDisplayNameChange}
                   disabled={isSavingDisplayName || editableDisplayName.trim() === (user.displayName || user.name || '') || !editableDisplayName.trim()}
+                  className="w-full sm:w-auto shrink-0"
                 >
                   {isSavingDisplayName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   Save
@@ -276,8 +283,8 @@ export default function ProfilePage() {
 
             {/* Full Name Section */}
             <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-lg font-semibold">Full Name (Private)</Label>
-              <div className="flex items-center gap-2">
+              <Label htmlFor="fullName" className="text-sm sm:text-lg font-semibold">Full Name (Private)</Label>
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   id="fullName"
                   value={editableFullName}
@@ -289,6 +296,7 @@ export default function ProfilePage() {
                 <Button
                   onClick={handleFullNameChange}
                   disabled={isSavingFullName || editableFullName.trim() === (user.name || '')}
+                  className="w-full sm:w-auto shrink-0"
                 >
                   {isSavingFullName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   Save
@@ -298,7 +306,7 @@ export default function ProfilePage() {
 
             {/* Bio Section */}
             <div className="space-y-2">
-              <Label htmlFor="bio" className="text-lg font-semibold">Bio</Label>
+              <Label htmlFor="bio" className="text-sm sm:text-lg font-semibold">Bio</Label>
               <div className="space-y-2">
                 <Textarea
                   id="bio"
@@ -307,13 +315,14 @@ export default function ProfilePage() {
                   className="text-base resize-none"
                   disabled={isSavingBio}
                   maxLength={500}
-                  rows={4}
+                  rows={3}
                   placeholder="Tell us a little about yourself..."
                 />
                 <div className="flex justify-end">
                   <Button
                     onClick={handleBioChange}
                     disabled={isSavingBio || editableBio.trim() === (user.bio || '')}
+                    className="w-full sm:w-auto"
                   >
                     {isSavingBio ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Save Bio
@@ -324,8 +333,8 @@ export default function ProfilePage() {
 
             {/* Avatar Upload Section */}
             <div>
-              <h3 className="text-lg font-semibold mb-2">Change Profile Picture</h3>
-              <div className="flex flex-col gap-4">
+              <h3 className="text-sm sm:text-lg font-semibold mb-2">Change Profile Picture</h3>
+              <div className="flex flex-col gap-3">
                 {/* Hidden Input */}
                 <input
                   type="file"
@@ -335,12 +344,13 @@ export default function ProfilePage() {
                   onChange={handleFileChange}
                 />
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row gap-2">
                   {/* Select Button */}
                   <Button
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploadingAvatar}
+                    className="w-full sm:w-auto"
                   >
                     <UploadCloud className="mr-2 h-4 w-4" />
                     Select Image
@@ -351,6 +361,7 @@ export default function ProfilePage() {
                     <Button
                       onClick={handleAvatarUpload}
                       disabled={isUploadingAvatar}
+                      className="w-full sm:w-auto"
                     >
                       {isUploadingAvatar ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -364,10 +375,10 @@ export default function ProfilePage() {
 
                 {/* File Info / Preview */}
                 {selectedFile && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded-md w-fit">
-                    <FileText className="h-4 w-4" />
-                    <span>{selectedFile.name}</span>
-                    <span className="text-xs">({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded-md">
+                    <FileText className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{selectedFile.name}</span>
+                    <span className="text-xs shrink-0">({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
                   </div>
                 )}
 
@@ -376,40 +387,32 @@ export default function ProfilePage() {
                 </p>
               </div>
             </div>
-
-            {/* Activity Summary */}
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Account Info</h3>
-              <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                <li>Joined: {formattedJoinedDate || 'Loading...'}</li>
-              </ul>
-            </div>
           </CardContent>
         </Card>
 
         {/* Activity Sections */}
         <Card className="max-w-6xl mx-auto">
           <Tabs defaultValue="posts" className="w-full">
-            <CardHeader className="pb-0">
+            <CardHeader className="pb-0 px-3 sm:px-6">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="posts" className="flex items-center gap-2">
+                <TabsTrigger value="posts" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-1 sm:px-3">
                   <FileText className="h-4 w-4" />
                   <span className="hidden sm:inline">Posts</span>
                   <span className="text-xs">({userPosts.length})</span>
                 </TabsTrigger>
-                <TabsTrigger value="comments" className="flex items-center gap-2">
+                <TabsTrigger value="comments" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-1 sm:px-3">
                   <MessageSquare className="h-4 w-4" />
                   <span className="hidden sm:inline">Comments</span>
                   <span className="text-xs">({userComments.length})</span>
                 </TabsTrigger>
-                <TabsTrigger value="saved" className="flex items-center gap-2">
+                <TabsTrigger value="saved" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-1 sm:px-3">
                   <Bookmark className="h-4 w-4" />
                   <span className="hidden sm:inline">Saved</span>
                   <span className="text-xs">({savedPosts.length})</span>
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 px-3 sm:px-6">
               <TabsContent value="posts" className="mt-0">
                 {loadingPosts ? (
                   <div className="flex justify-center py-4">

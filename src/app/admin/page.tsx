@@ -16,10 +16,11 @@ import { useEffect, useState, useRef } from 'react';
 import { Users, ShieldAlert, ListChecks, Loader2, User as UserIconLucide, Image as ImageIcon, Link2, Trash2, PlusCircle, ToggleLeft, ToggleRight, UploadCloud, Search, Ban, UserCheck, TrendingUp, TrendingDown, Minus, Calendar, History } from 'lucide-react';
 import { getUsers, setUserRole, banUser, unbanUser, searchUsers } from '@/services/userService';
 import { createAdvertisement, getAllAdvertisements, updateAdvertisement, deleteAdvertisement } from '@/services/advertisementService';
+import { createPromotedEvent, getAllPromotedEvents, updatePromotedEvent, deletePromotedEvent } from '@/services/promotedEventService';
 import { getPendingReportCount, getReportStats } from '@/services/reportService';
 import { getRecentAdminActivity } from '@/services/auditLogService';
 import Link from 'next/link';
-import type { User, Advertisement, AuditLog } from '@/types';
+import type { User, Advertisement, PromotedEvent, AuditLog } from '@/types';
 import {
   Table,
   TableBody,
@@ -81,6 +82,24 @@ export default function AdminPage() {
   const adImageInputRef = useRef<HTMLInputElement>(null);
   const [updatingAdStatusId, setUpdatingAdStatusId] = useState<string | null>(null);
   const [deletingAdId, setDeletingAdId] = useState<string | null>(null);
+
+  // Promoted Event State
+  const [promotedEvents, setPromotedEvents] = useState<PromotedEvent[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [isSubmittingEvent, setIsSubmittingEvent] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventDescription, setNewEventDescription] = useState('');
+  const [newEventLocation, setNewEventLocation] = useState('');
+  const [newEventDate, setNewEventDate] = useState('');
+  const [newEventTime, setNewEventTime] = useState('');
+  const [newEventLinkUrl, setNewEventLinkUrl] = useState('');
+  const [newEventIsActive, setNewEventIsActive] = useState(true);
+  const [newEventImageFile, setNewEventImageFile] = useState<File | null>(null);
+  const [newEventStartDate, setNewEventStartDate] = useState('');
+  const [newEventEndDate, setNewEventEndDate] = useState('');
+  const eventImageInputRef = useRef<HTMLInputElement>(null);
+  const [updatingEventStatusId, setUpdatingEventStatusId] = useState<string | null>(null);
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
 
   // Report stats
   const [pendingReportCount, setPendingReportCount] = useState<number>(0);
@@ -144,6 +163,17 @@ export default function AdminPage() {
         toast({ title: "Error", description: "Could not fetch advertisements.", variant: "destructive" });
       } finally {
         setLoadingAds(false);
+      }
+
+      // Fetch promoted events
+      setLoadingEvents(true);
+      try {
+        const fetchedEvents = await getAllPromotedEvents();
+        setPromotedEvents(fetchedEvents);
+      } catch (error) {
+        console.error("Failed to fetch promoted events:", error);
+      } finally {
+        setLoadingEvents(false);
       }
 
       // Fetch audit logs
@@ -378,6 +408,105 @@ export default function AdminPage() {
     }
   };
 
+  // Promoted Event Handlers
+  const handleEventImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: "File Too Large", description: "Event image must be smaller than 5MB.", variant: "destructive" });
+        setNewEventImageFile(null);
+        if (eventImageInputRef.current) eventImageInputRef.current.value = "";
+        return;
+      }
+      if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+        toast({ title: "Invalid File Type", description: "Please select a JPG, PNG, GIF or WEBP image.", variant: "destructive" });
+        setNewEventImageFile(null);
+        if (eventImageInputRef.current) eventImageInputRef.current.value = "";
+        return;
+      }
+      setNewEventImageFile(file);
+    } else {
+      setNewEventImageFile(null);
+    }
+  };
+
+  const handleCreatePromotedEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || user.role !== 'superuser') {
+      toast({ title: "Unauthorized", variant: "destructive" });
+      return;
+    }
+    if (!newEventTitle.trim() || !newEventDescription.trim() || !newEventLocation.trim() || !newEventDate) {
+      toast({ title: "Missing Fields", description: "Title, Description, Location, and Event Date are required.", variant: "destructive" });
+      return;
+    }
+    setIsSubmittingEvent(true);
+    try {
+      const imageBuffer = newEventImageFile ? await newEventImageFile.arrayBuffer() : null;
+      const startDate = newEventStartDate ? new Date(newEventStartDate) : null;
+      const endDate = newEventEndDate ? new Date(newEventEndDate) : null;
+      await createPromotedEvent(
+        user.uid,
+        newEventTitle.trim(),
+        newEventDescription.trim(),
+        newEventLocation.trim(),
+        new Date(newEventDate),
+        newEventTime || null,
+        newEventLinkUrl.trim() || null,
+        imageBuffer,
+        newEventImageFile?.type || null,
+        newEventImageFile?.name || null,
+        newEventIsActive,
+        startDate,
+        endDate
+      );
+      toast({ title: "Promoted Event Created", description: "The event has been published." });
+      setNewEventTitle('');
+      setNewEventDescription('');
+      setNewEventLocation('');
+      setNewEventDate('');
+      setNewEventTime('');
+      setNewEventLinkUrl('');
+      setNewEventImageFile(null);
+      if (eventImageInputRef.current) eventImageInputRef.current.value = "";
+      setNewEventIsActive(true);
+      setNewEventStartDate('');
+      setNewEventEndDate('');
+      fetchPlatformData();
+    } catch (error: any) {
+      toast({ title: "Event Creation Failed", description: error.message || "Could not create event.", variant: "destructive" });
+    } finally {
+      setIsSubmittingEvent(false);
+    }
+  };
+
+  const handleToggleEventStatus = async (eventId: string, currentStatus: boolean) => {
+    if (!user || user.role !== 'superuser') return;
+    setUpdatingEventStatusId(eventId);
+    try {
+      await updatePromotedEvent(eventId, { isActive: !currentStatus });
+      setPromotedEvents(prev => prev.map(e => e.id === eventId ? { ...e, isActive: !currentStatus, updatedAt: new Date() } : e));
+      toast({ title: "Event Status Updated" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Could not update event status.", variant: "destructive" });
+    } finally {
+      setUpdatingEventStatusId(null);
+    }
+  };
+
+  const handleDeletePromotedEvent = async (eventId: string, imageUrl?: string | null) => {
+    if (!user || user.role !== 'superuser') return;
+    setDeletingEventId(eventId);
+    try {
+      await deletePromotedEvent(eventId, imageUrl);
+      setPromotedEvents(prev => prev.filter(e => e.id !== eventId));
+      toast({ title: "Promoted Event Deleted" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Could not delete event.", variant: "destructive" });
+    } finally {
+      setDeletingEventId(null);
+    }
+  };
 
   if (authLoading || !user || (user.role !== 'superuser' && user.role !== 'moderator')) {
     return (
@@ -582,6 +711,156 @@ export default function AdminPage() {
           </Card>
         )}
 
+        {/* Promoted Events Management */}
+        {user.role === 'superuser' && (
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle>Promoted Events Management</CardTitle>
+              <CardDescription>Create and manage promoted events that appear highlighted in the feed. (Superuser only)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreatePromotedEvent} className="space-y-4 mb-6 p-4 border rounded-lg">
+                <h3 className="text-lg font-medium">Create New Promoted Event</h3>
+                <div className="space-y-1">
+                  <Label htmlFor="event-title">Event Title</Label>
+                  <Input id="event-title" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} placeholder="e.g., Guernsey Summer Festival 2026" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="event-description">Description</Label>
+                  <Textarea id="event-description" value={newEventDescription} onChange={(e) => setNewEventDescription(e.target.value)} placeholder="Brief description of the event..." rows={3} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="event-location">Location</Label>
+                    <Input id="event-location" value={newEventLocation} onChange={(e) => setNewEventLocation(e.target.value)} placeholder="e.g., St Peter Port, Guernsey" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="event-link">Link URL (Optional)</Label>
+                    <Input id="event-link" type="url" value={newEventLinkUrl} onChange={(e) => setNewEventLinkUrl(e.target.value)} placeholder="https://example.com/event" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="event-date">Event Date</Label>
+                    <Input id="event-date" type="date" value={newEventDate} onChange={(e) => setNewEventDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="event-time">Event Time (Optional)</Label>
+                    <Input id="event-time" value={newEventTime} onChange={(e) => setNewEventTime(e.target.value)} placeholder="e.g., 7:00 PM" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="event-image">Event Image (Optional)</Label>
+                  <Input id="event-image" type="file" accept="image/png, image/jpeg, image/gif, image/webp" onChange={handleEventImageFileChange} ref={eventImageInputRef} />
+                  {newEventImageFile && <p className="text-xs text-muted-foreground">Selected: {newEventImageFile.name}</p>}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="event-promo-start">Promotion Start Date (Optional)</Label>
+                    <Input id="event-promo-start" type="datetime-local" value={newEventStartDate} onChange={(e) => setNewEventStartDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="event-promo-end">Promotion End Date (Optional)</Label>
+                    <Input id="event-promo-end" type="datetime-local" value={newEventEndDate} onChange={(e) => setNewEventEndDate(e.target.value)} />
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch id="event-is-active" checked={newEventIsActive} onCheckedChange={setNewEventIsActive} />
+                  <Label htmlFor="event-is-active">Set as Active</Label>
+                </div>
+                <Button type="submit" disabled={isSubmittingEvent || !newEventTitle.trim() || !newEventDate}>
+                  {isSubmittingEvent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                  Create Promoted Event
+                </Button>
+              </form>
+
+              {loadingEvents ? (
+                <div className="flex justify-center items-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-2 text-muted-foreground">Loading events...</p>
+                </div>
+              ) : promotedEvents.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">No promoted events created yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                <Table>
+                  <TableCaption>List of all promoted events.</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[80px]">Image</TableHead>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Date & Location</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Stats</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {promotedEvents.map((evt) => {
+                      const formatDateFn = (date: Date | any) => {
+                        if (!date) return null;
+                        try {
+                          const d = date instanceof Date ? date : date.toDate?.() || new Date(date);
+                          return format(d, "MMM d, yyyy");
+                        } catch { return null; }
+                      };
+                      return (
+                        <TableRow key={evt.id}>
+                          <TableCell>
+                            {evt.imageUrl ? (
+                              <Image src={evt.imageUrl} alt={evt.title} width={60} height={60} className="rounded object-cover" />
+                            ) : (
+                              <div className="w-[60px] h-[60px] rounded bg-muted flex items-center justify-center text-muted-foreground text-xs">No img</div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{evt.title}</div>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{evt.description}</p>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDateFn(evt.eventDate)}</div>
+                            {evt.eventTime && <div className="text-muted-foreground">{evt.eventTime}</div>}
+                            <div className="text-muted-foreground">{evt.location}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={evt.isActive ? "default" : "outline"}>
+                              {evt.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div>Clicks: {evt.clicks || 0}</div>
+                            <div>Views: {evt.impressions || 0}</div>
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleToggleEventStatus(evt.id, evt.isActive)}
+                              disabled={updatingEventStatusId === evt.id}
+                              title={evt.isActive ? "Deactivate" : "Activate"}
+                            >
+                              {updatingEventStatusId === evt.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (evt.isActive ? <ToggleRight className="h-4 w-4 text-green-500"/> : <ToggleLeft className="h-4 w-4 text-muted-foreground"/>)}
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              onClick={() => handleDeletePromotedEvent(evt.id, evt.imageUrl)}
+                              disabled={deletingEventId === evt.id}
+                              title="Delete Event"
+                            >
+                              {deletingEventId === evt.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="shadow-lg">
           <CardHeader>

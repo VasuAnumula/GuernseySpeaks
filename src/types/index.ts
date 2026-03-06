@@ -111,6 +111,25 @@ export interface Advertisement {
   impressions?: number;
 }
 
+export interface PromotedEvent {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string | null;
+  linkUrl?: string | null;
+  eventDate: Timestamp | Date;
+  eventTime?: string | null;
+  location: string;
+  isActive: boolean;
+  uploaderUid: string;
+  createdAt: Timestamp | Date;
+  updatedAt?: Timestamp | Date;
+  scheduledStart?: Timestamp | Date | null;
+  scheduledEnd?: Timestamp | Date | null;
+  clicks?: number;
+  impressions?: number;
+}
+
 export interface AnnouncementBanner {
   enabled: boolean;
   text: string;
@@ -212,6 +231,9 @@ export type AuditActionType =
   | 'ad_created'
   | 'ad_deleted'
   | 'ad_status_changed'
+  | 'event_created'
+  | 'event_deleted'
+  | 'event_status_changed'
   | 'settings_updated';
 
 export interface AuditLog {
@@ -219,7 +241,7 @@ export interface AuditLog {
   actionType: AuditActionType;
   adminUid: string;
   adminDisplayName?: string;
-  targetType: 'user' | 'post' | 'comment' | 'report' | 'advertisement' | 'settings';
+  targetType: 'user' | 'post' | 'comment' | 'report' | 'advertisement' | 'promoted_event' | 'settings';
   targetId: string;
   details: {
     before?: Record<string, unknown>;

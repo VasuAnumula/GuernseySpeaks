@@ -13,6 +13,7 @@ import { getPosts, type GetPostsFilters } from '@/services/postService';
 import { useAuth } from '@/hooks/use-auth';
 import type { OrderByDirection } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
+import { PromotedEventBanner } from '@/components/promoted-event-card';
 
 
 function HomePageContent() {
@@ -104,6 +105,9 @@ function HomePageContent() {
 
       {!loadingPosts && !error && (
         <div className="space-y-6">
+          {/* Promoted Events Banner - shown at top of feed */}
+          <PromotedEventBanner />
+
           {displayedPosts.length > 0 ? (
             displayedPosts.map((post, index) => (
               <PostCard

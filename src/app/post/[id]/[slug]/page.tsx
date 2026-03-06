@@ -433,7 +433,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
                       {comment.content}
                     </div>
                     {comment.imageUrl && (
-                      <Image src={comment.imageUrl} alt="comment image" width={150} height={100} className="rounded border max-w-[150px] max-h-[100px] object-cover" />
+                      <Image src={comment.imageUrl} alt="comment image" width={80} height={60} className="rounded border w-16 h-12 sm:w-20 sm:h-14 object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.open(comment.imageUrl!, '_blank')} />
                     )}
                   </div>
                 )}
@@ -519,7 +519,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
                     <input id={`reply-image-${comment.id}`} type="file" accept="image/*" onChange={handleReplyImageChange} className="sr-only" />
                   </div>
                   {replyPreview && (
-                    <Image src={replyPreview} alt="preview" width={120} height={80} className="rounded border max-w-[120px] max-h-[80px] object-cover" />
+                    <Image src={replyPreview} alt="preview" width={64} height={48} className="rounded border w-14 h-10 sm:w-16 sm:h-12 object-cover" />
                   )}
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" size="sm" onClick={() => { setShowReplyForm(false); setReplyContent(''); setReplyImage(null); setReplyPreview(null); }} disabled={isSubmittingReply}>
@@ -1153,7 +1153,7 @@ export default function PostPage({ params }: PageProps) {
                     )}
                   </div>
                   {newCommentPreview && (
-                    <Image src={newCommentPreview} alt="preview" width={120} height={80} className="mb-3 rounded border max-w-[120px] max-h-[80px] object-cover" />
+                    <Image src={newCommentPreview} alt="preview" width={64} height={48} className="mb-3 rounded border w-14 h-10 sm:w-16 sm:h-12 object-cover" />
                   )}
                 </CardContent>
               </Card>

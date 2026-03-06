@@ -433,7 +433,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
                       {comment.content}
                     </div>
                     {comment.imageUrl && (
-                      <Image src={comment.imageUrl} alt="comment image" width={400} height={250} className="rounded border" />
+                      <Image src={comment.imageUrl} alt="comment image" width={150} height={100} className="rounded border max-w-[150px] max-h-[100px] object-cover" />
                     )}
                   </div>
                 )}
@@ -519,7 +519,7 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
                     <input id={`reply-image-${comment.id}`} type="file" accept="image/*" onChange={handleReplyImageChange} className="sr-only" />
                   </div>
                   {replyPreview && (
-                    <Image src={replyPreview} alt="preview" width={300} height={200} className="rounded border" />
+                    <Image src={replyPreview} alt="preview" width={120} height={80} className="rounded border max-w-[120px] max-h-[80px] object-cover" />
                   )}
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" size="sm" onClick={() => { setShowReplyForm(false); setReplyContent(''); setReplyImage(null); setReplyPreview(null); }} disabled={isSubmittingReply}>
@@ -1153,7 +1153,7 @@ export default function PostPage({ params }: PageProps) {
                     )}
                   </div>
                   {newCommentPreview && (
-                    <Image src={newCommentPreview} alt="preview" width={500} height={300} className="mb-3 rounded" />
+                    <Image src={newCommentPreview} alt="preview" width={120} height={80} className="mb-3 rounded border max-w-[120px] max-h-[80px] object-cover" />
                   )}
                 </CardContent>
               </Card>

@@ -409,9 +409,13 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
                   <div className="space-y-2">
                     <Textarea
                       value={editedContent}
-                      onChange={(e) => setEditedContent(e.target.value)}
-                      rows={3}
-                      className="text-sm"
+                      onChange={(e) => {
+                        setEditedContent(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
+                      rows={1}
+                      className="text-sm resize-none overflow-hidden min-h-[40px]"
                       disabled={isSavingEdit}
                     />
                     <div className="flex justify-end gap-2">
@@ -478,13 +482,6 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
                   </Button>
                 )}
 
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50">
-                  Share
-                </Button>
-
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50">
-                  Save
-                </Button>
 
                 {user && user.uid !== comment.author?.uid && (
                   <Button
@@ -507,9 +504,13 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
                     <Textarea
                       placeholder={`Replying to u/${authorDisplayName}...`}
                       value={replyContent}
-                      onChange={(e) => setReplyContent(e.target.value)}
-                      rows={4}
-                      className="pr-10 text-sm resize-none"
+                      onChange={(e) => {
+                        setReplyContent(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
+                      rows={1}
+                      className="pr-10 text-sm resize-none overflow-hidden min-h-[40px]"
                       disabled={isSubmittingReply}
                     />
                     <label htmlFor={`reply-image-${comment.id}`} className="absolute bottom-2 right-2 cursor-pointer text-muted-foreground hover:text-primary">
@@ -1110,12 +1111,17 @@ export default function PostPage({ params }: PageProps) {
                     <Textarea
                       id="new-comment"
                       value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
+                      onChange={(e) => {
+                        setNewComment(e.target.value);
+                        // Auto-resize: reset height then set to scrollHeight
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
                       placeholder="Share your thoughts..."
-                      rows={isCommentFocused ? 4 : 1}
+                      rows={1}
                       onFocus={() => setIsCommentFocused(true)}
                       onBlur={() => { if (!newComment.trim() && !newCommentPreview) setIsCommentFocused(false); }}
-                    className={`pr-24 text-sm sm:text-base transition-all ${isCommentFocused ? 'min-h-[120px]' : 'min-h-[40px]'}`}
+                      className="pr-24 text-sm sm:text-base resize-none overflow-hidden min-h-[40px]"
                     />
                     {(isCommentFocused || newComment.trim() || newCommentPreview) && (
                       <>

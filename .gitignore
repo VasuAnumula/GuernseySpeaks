@@ -41,8 +41,6 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# Firebase App Hosting (contains secrets references)
-apphosting.yaml
 
 # Editor directories and files
 .vscode/*

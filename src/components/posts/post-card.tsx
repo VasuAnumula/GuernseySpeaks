@@ -273,15 +273,6 @@ export function PostCard({ post: initialPost, onPostDeleted, className, staggerI
                 )}
               </Badge>
             )}
-            <span>Posted by</span>
-            {post.author?.uid ? (
-              <Link href={`/profile/${post.author.uid}`} className="hover:underline font-medium text-primary" onClick={(e) => e.stopPropagation()}>
-                u/{authorDisplayName}
-              </Link>
-            ) : (
-              <span className="font-medium">u/{authorDisplayName}</span>
-            )}
-            <span>•</span>
             <span>{formattedDate}</span>
             <div className="ml-auto">
               <DropdownMenu>

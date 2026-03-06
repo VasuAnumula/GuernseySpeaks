@@ -286,37 +286,41 @@ function CommentCard({ commentNode, postId, onCommentDeleted, onCommentEdited, o
   const hasReplies = commentNode.replies && commentNode.replies.length > 0;
   const replyCount = hasReplies ? commentNode.replies.length : 0;
 
+  const MAX_DEPTH = 4; // Max visual nesting depth
+  const MAX_DEPTH_PX_PER_LEVEL = 16;
+  const visualDepth = Math.min(commentNode.depth, MAX_DEPTH);
+
+  // Thread line colors cycle for visual distinction
+  const threadColors = [
+    'border-blue-400/50',
+    'border-orange-400/50',
+    'border-green-400/50',
+    'border-purple-400/50',
+    'border-pink-400/50',
+    'border-yellow-400/50',
+    'border-teal-400/50',
+    'border-red-400/50',
+  ];
+
   return (
     <div className="relative">
-      {/* Thread lines */}
-      {commentNode.depth > 0 && (
-        <div className="absolute left-0 top-0 bottom-0">
-          {/* Draw thread lines for all parent levels */}
-          {Array.from({ length: commentNode.depth }, (_, i) => (
+      {/* Reddit-style thread lines - clickable colored vertical bars */}
+      {visualDepth > 0 && (
+        <div className="absolute left-0 top-0 bottom-0" style={{ width: `${visualDepth * MAX_DEPTH_PX_PER_LEVEL}px` }}>
+          {Array.from({ length: visualDepth }, (_, i) => (
             <div
               key={i}
-              className="absolute w-px bg-border/40"
+              className={`absolute top-0 bottom-0 w-0 border-l-2 ${threadColors[i % threadColors.length]} hover:border-primary cursor-pointer transition-colors`}
               style={{
-                left: `${i * 16 + 8}px`,
-                top: 0,
-                bottom: i === commentNode.depth - 1 && isLastChild ? '24px' : 0
+                left: `${i * MAX_DEPTH_PX_PER_LEVEL + 7}px`,
               }}
             />
           ))}
-          {/* Horizontal connector */}
-          <div
-            className="absolute h-px bg-border/40"
-            style={{
-              left: `${(commentNode.depth - 1) * 16 + 8}px`,
-              top: '24px',
-              width: '8px'
-            }}
-          />
         </div>
       )}
-      <div 
-        className="py-2 px-2 hover:bg-muted/20 group transition-colors"
-        style={{ marginLeft: `${commentNode.depth * 16}px` }}
+      <div
+        className="py-1.5 sm:py-2 px-2 hover:bg-muted/20 group transition-colors"
+        style={{ marginLeft: `${visualDepth * MAX_DEPTH_PX_PER_LEVEL}px` }}
       >
         {/* Main comment content */}
         <div className="w-full">

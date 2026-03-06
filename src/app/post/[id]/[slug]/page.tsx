@@ -1058,7 +1058,7 @@ export default function PostPage({ params }: PageProps) {
                 disabled={isLiking || !user || authLoading}
               >
                 {isLiking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsUp className={`mr-1.5 h-4 w-4 transition-colors ${isLiked ? 'fill-current' : ''} group-hover:text-orange-500`} />}
-                 {post.likes} Like{post.likes !== 1 && 's'}
+                <span className={isLiked ? 'text-orange-500' : ''}>{post.likes}</span>
               </Button>
               <Button
                 variant="outline"
@@ -1068,7 +1068,7 @@ export default function PostPage({ params }: PageProps) {
                 disabled={isDisliking || !user || authLoading}
               >
                 {isDisliking ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ThumbsDown className={`mr-1.5 h-4 w-4 transition-colors ${isDisliked ? 'fill-current' : ''} group-hover:text-blue-500`} />}
-                 {post.dislikes} Dislike{post.dislikes !== 1 && 's'}
+                <span className={isDisliked ? 'text-blue-500' : ''}>{post.dislikes}</span>
               </Button>
               <Button variant="outline" size="sm" className="group hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all">
                 <MessageCircle className="mr-1.5 h-4 w-4 group-hover:text-emerald-600 transition-colors" /> {post.commentsCount} Comment{post.commentsCount !== 1 && 's'}
